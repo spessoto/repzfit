@@ -30,12 +30,14 @@ const StudentPatchSchema = z
 const ExerciseCreateSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
+  muscle_group: z.string().optional(),
 });
 
 const ExercisePatchSchema = z
   .object({
     name: z.string().min(1).optional(),
     description: z.string().optional(),
+    muscle_group: z.string().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided",
@@ -44,7 +46,23 @@ const ExercisePatchSchema = z
 const WorkoutCreateSchema = z.object({
   student_id: z.string().uuid(),
   name: z.string().min(1),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  valid_until: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   day_of_week: z.array(z.number().int().min(0).max(6)).optional(),
+  exercises: z
+    .array(
+      z.object({
+        exercise_id: z.string().uuid(),
+        target_sets: z.number().int().positive(),
+        target_reps: z.number().int().positive(),
+        target_weight: z.number().nonnegative().optional(),
+        order_index: z.number().int().nonnegative(),
+      }),
+    )
+    .optional(),
 });
 
 const WorkoutExerciseCreateSchema = z.object({
@@ -259,12 +277,13 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       personal_id: personalId,
       name: parsed.data.name,
       description: parsed.data.description ?? null,
+      muscle_group: parsed.data.muscle_group ?? null,
     };
 
     const { data, error } = await client
       .from("exercises")
       .insert(payload)
-      .select("id,personal_id,name,description,created_at")
+      .select("*")
       .single();
 
     if (error) {
@@ -346,18 +365,77 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.notFound("Student not found");
     }
 
+    // Create workout
+    const workoutData: any = {
+      student_id: parsed.data.student_id,
+      name: parsed.data.name,
+      day_of_week: parsed.data.day_of_week ?? null,
+    };
+
+    // Add dates if provided
+    if (parsed.data.start_date) {
+      workoutData.start_date = parsed.data.start_date;
+    }
+    if (parsed.data.valid_until) {
+      workoutData.valid_until = parsed.data.valid_until;
+    }
+
     const { data, error } = await client
       .from("workouts")
-      .insert({
-        student_id: parsed.data.student_id,
-        name: parsed.data.name,
-        day_of_week: parsed.data.day_of_week ?? null,
-      })
-      .select("id,student_id,name,day_of_week,created_at")
+      .insert(workoutData)
+      .select("*")
       .single();
 
     if (error) {
       throw app.httpErrors.badRequest(error.message);
+    }
+
+    // Add exercises if provided
+    if (parsed.data.exercises && parsed.data.exercises.length > 0) {
+      const exercisesData = parsed.data.exercises.map((ex) => ({
+        workout_id: data.id,
+        exercise_id: ex.exercise_id,
+        target_sets: ex.target_sets,
+        target_reps: ex.target_reps,
+        target_weight: ex.target_weight ?? null,
+        order_index: ex.order_index,
+      }));
+
+      const { error: exercisesError } = await client
+        .from("workout_exercises")
+        .insert(exercisesData);
+
+      if (exercisesError) {
+        // Rollback workout if exercises fail
+        await client.from("workouts").delete().eq("id", data.id);
+        throw app.httpErrors.badRequest(exercisesError.message);
+      }
+
+      // Fetch complete workout with exercises
+      const { data: completeWorkout, error: fetchError } = await client
+        .from("workouts")
+        .select(
+          `
+          *,
+          workout_exercises (
+            id,
+            exercise_id,
+            target_sets,
+            target_reps,
+            target_weight,
+            order_index,
+            exercises (id, name, description, muscle_group)
+          )
+        `,
+        )
+        .eq("id", data.id)
+        .single();
+
+      if (fetchError) {
+        return data;
+      }
+
+      return completeWorkout;
     }
 
     return data;

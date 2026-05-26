@@ -430,28 +430,67 @@
       <div id="treinosTab" class="tab-content">
         <div class="card">
           <h2>Novo Treino</h2>
+          <div id="treinosAlert"></div>
+
           <div class="form-group">
-            <label>Aluno</label>
-            <select id="treinoAluno">
+            <label>Aluno *</label>
+            <select id="treinoAluno" required>
               <option value="">Selecione um aluno</option>
             </select>
           </div>
+
           <div class="form-group">
-            <label>Nome do Treino</label>
-            <input type="text" id="treinoNome" placeholder="Ex: Treino A" />
+            <label>Nome do Treino *</label>
+            <input
+              type="text"
+              id="treinoNome"
+              placeholder="Ex: Treino A - Peito e Tríceps"
+              required
+            />
           </div>
-          <div class="form-group">
-            <label>Data de Início</label>
-            <input type="date" id="treinoData" />
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px">
+            <div class="form-group">
+              <label>Data de Início *</label>
+              <input type="date" id="treinoDataInicio" required />
+            </div>
+            <div class="form-group">
+              <label>Validade (opcional)</label>
+              <input type="date" id="treinoDataValidade" />
+            </div>
           </div>
-          <button class="btn btn-primary" onclick="criarTreino()">
-            Criar Treino
+
+          <h3 style="margin-top: 25px; margin-bottom: 15px; color: #374151">
+            Exercícios do Treino
+          </h3>
+
+          <div id="exerciciosContainer">
+            <!-- Exercícios serão adicionados aqui -->
+          </div>
+
+          <button
+            class="btn btn-secondary"
+            onclick="adicionarExercicioAoTreino()"
+            style="margin-bottom: 20px"
+          >
+            + Adicionar Exercício
           </button>
+
+          <div style="display: flex; gap: 10px">
+            <button class="btn btn-primary" onclick="criarTreinoCompleto()">
+              Criar Treino
+            </button>
+            <button
+              class="btn btn-secondary"
+              onclick="limparFormularioTreino()"
+            >
+              Limpar
+            </button>
+          </div>
         </div>
 
         <div class="card">
           <h2>Treinos Cadastrados</h2>
-          <div id="treinosAlert"></div>
           <p style="color: #6b7280; margin-bottom: 15px">
             Selecione um aluno para ver seus treinos:
           </p>
@@ -717,6 +756,170 @@
         });
       }
 
+      let exerciciosDoTreino = [];
+
+      function adicionarExercicioAoTreino() {
+        const container = document.getElementById("exerciciosContainer");
+        const index = exerciciosDoTreino.length;
+
+        const exercicioDiv = document.createElement("div");
+        exercicioDiv.className = "exercicio-item";
+        exercicioDiv.style.cssText =
+          "background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 15px; position: relative;";
+        exercicioDiv.innerHTML = `
+          <button onclick="removerExercicioDoTreino(${index})" 
+                  style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 18px;">
+            ×
+          </button>
+          
+          <div class="form-group">
+            <label>Exercício *</label>
+            <select id="exercicio_${index}" class="exercicio-select" required>
+              <option value="">Selecione um exercício</option>
+            </select>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label>Séries *</label>
+              <input type="number" id="series_${index}" min="1" placeholder="Ex: 3" required />
+            </div>
+            <div class="form-group">
+              <label>Repetições *</label>
+              <input type="number" id="reps_${index}" min="1" placeholder="Ex: 12" required />
+            </div>
+            <div class="form-group">
+              <label>Peso (kg)</label>
+              <input type="number" id="peso_${index}" min="0" step="0.5" placeholder="Ex: 20" />
+            </div>
+          </div>
+        `;
+
+        container.appendChild(exercicioDiv);
+        exerciciosDoTreino.push({ index });
+
+        // Preencher select de exercícios
+        preencherExerciciosSelect(index);
+      }
+
+      async function preencherExerciciosSelect(index) {
+        const apiUrl =
+          window.location.hostname === "localhost"
+            ? "http://localhost:3333"
+            : window.location.origin;
+
+        const response = await fetch(`${apiUrl}/api/exercises`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const exercicios = await response.json();
+
+        const select = document.getElementById(`exercicio_${index}`);
+        exercicios.forEach((ex) => {
+          const option = document.createElement("option");
+          option.value = ex.id;
+          option.textContent = `${ex.name}${ex.muscle_group ? ` (${ex.muscle_group})` : ""}`;
+          select.appendChild(option);
+        });
+      }
+
+      function removerExercicioDoTreino(index) {
+        const container = document.getElementById("exerciciosContainer");
+        const items = container.getElementsByClassName("exercicio-item");
+        items[index].remove();
+        exerciciosDoTreino.splice(index, 1);
+      }
+
+      function limparFormularioTreino() {
+        document.getElementById("treinoAluno").value = "";
+        document.getElementById("treinoNome").value = "";
+        document.getElementById("treinoDataInicio").value = "";
+        document.getElementById("treinoDataValidade").value = "";
+        document.getElementById("exerciciosContainer").innerHTML = "";
+        exerciciosDoTreino = [];
+        document.getElementById("treinosAlert").innerHTML = "";
+      }
+
+      async function criarTreinoCompleto() {
+        const studentId = document.getElementById("treinoAluno").value;
+        const nome = document.getElementById("treinoNome").value;
+        const dataInicio = document.getElementById("treinoDataInicio").value;
+        const dataValidade =
+          document.getElementById("treinoDataValidade").value;
+
+        if (!studentId || !nome || !dataInicio) {
+          showAlert(
+            "treinosAlert",
+            "Preencha os campos obrigatórios!",
+            "error",
+          );
+          return;
+        }
+
+        // Coletar exercícios
+        const exercises = [];
+        for (let i = 0; i < exerciciosDoTreino.length; i++) {
+          const exerciseId = document.getElementById(`exercicio_${i}`)?.value;
+          const series = document.getElementById(`series_${i}`)?.value;
+          const reps = document.getElementById(`reps_${i}`)?.value;
+          const peso = document.getElementById(`peso_${i}`)?.value;
+
+          if (exerciseId && series && reps) {
+            exercises.push({
+              exercise_id: exerciseId,
+              target_sets: parseInt(series),
+              target_reps: parseInt(reps),
+              target_weight: peso ? parseFloat(peso) : null,
+              order_index: i,
+            });
+          }
+        }
+
+        const apiUrl =
+          window.location.hostname === "localhost"
+            ? "http://localhost:3333"
+            : window.location.origin;
+
+        const payload = {
+          student_id: studentId,
+          name: nome,
+          start_date: dataInicio,
+        };
+
+        if (dataValidade) {
+          payload.valid_until = dataValidade;
+        }
+
+        if (exercises.length > 0) {
+          payload.exercises = exercises;
+        }
+
+        const response = await fetch(`${apiUrl}/api/workouts`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+          showAlert(
+            "treinosAlert",
+            `Treino criado com sucesso!${exercises.length > 0 ? ` ${exercises.length} exercícios adicionados.` : ""}`,
+            "success",
+          );
+          limparFormularioTreino();
+          carregarTreinosAluno();
+        } else {
+          const error = await response.json();
+          showAlert(
+            "treinosAlert",
+            error.message || "Erro ao criar treino",
+            "error",
+          );
+        }
+      }
+
       async function criarTreino() {
         const studentId = document.getElementById("treinoAluno").value;
         const nome = document.getElementById("treinoNome").value;
@@ -749,23 +952,79 @@
           return;
         }
 
+        const apiUrl =
+          window.location.hostname === "localhost"
+            ? "http://localhost:3333"
+            : window.location.origin;
+
         const response = await fetch(
-          `http://localhost:3333/api/workouts/student/${studentId}`,
+          `${apiUrl}/api/workouts/student/${studentId}`,
           {
             headers: { Authorization: `Bearer ${authToken}` },
           },
         );
         const treinos = await response.json();
 
-        document.getElementById("treinosLista").innerHTML =
-          treinos.length > 0
-            ? treinos
-                .map(
-                  (t) =>
-                    `<div class="card"><h3>${t.name}</h3><p>Data: ${new Date(t.start_date).toLocaleDateString("pt-BR")}</p></div>`,
-                )
-                .join("")
-            : '<p style="color: #6b7280;">Nenhum treino encontrado</p>';
+        if (treinos.length === 0) {
+          document.getElementById("treinosLista").innerHTML =
+            '<p style="color: #6b7280;">Nenhum treino encontrado</p>';
+          return;
+        }
+
+        let html = "";
+        for (const treino of treinos) {
+          const dataInicio = new Date(treino.start_date).toLocaleDateString(
+            "pt-BR",
+          );
+          const dataValidade = treino.valid_until
+            ? new Date(treino.valid_until).toLocaleDateString("pt-BR")
+            : "Sem validade";
+
+          // Buscar exercícios do treino
+          const exResponse = await fetch(
+            `${apiUrl}/api/workouts/${treino.id}/exercises`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
+          const exercicios = await exResponse.json();
+
+          html += `
+            <div class="card" style="background: #f9fafb; margin-bottom: 15px;">
+              <h3 style="color: #667eea; margin-bottom: 10px;">${treino.name}</h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <p style="color: #6b7280;">📅 Início: <strong>${dataInicio}</strong></p>
+                <p style="color: #6b7280;">⏰ Validade: <strong>${dataValidade}</strong></p>
+              </div>
+              
+              ${
+                exercicios.length > 0
+                  ? `
+                <h4 style="margin-top: 15px; margin-bottom: 10px; color: #374151;">Exercícios:</h4>
+                <div style="background: white; padding: 15px; border-radius: 5px;">
+                  ${exercicios
+                    .map(
+                      (ex, idx) => `
+                    <div style="padding: 10px; border-bottom: 1px solid #e5e7eb; ${idx === exercicios.length - 1 ? "border-bottom: none;" : ""}">
+                      <strong>${ex.name}</strong>
+                      <div style="display: flex; gap: 15px; margin-top: 5px; color: #6b7280; font-size: 14px;">
+                        <span>📊 ${ex.target_sets} séries</span>
+                        <span>🔁 ${ex.target_reps} repetições</span>
+                        ${ex.target_weight ? `<span>⚖️ ${ex.target_weight} kg</span>` : ""}
+                      </div>
+                    </div>
+                  `,
+                    )
+                    .join("")}
+                </div>
+              `
+                  : '<p style="color: #9ca3af; font-style: italic;">Nenhum exercício adicionado</p>'
+              }
+            </div>
+          `;
+        }
+
+        document.getElementById("treinosLista").innerHTML = html;
       }
 
       async function verificarStatusWhatsApp() {

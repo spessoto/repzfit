@@ -28,6 +28,7 @@ function getAllowedOrigins(): string[] {
   }
 
   origins.add("http://localhost:3000");
+  origins.add("http://localhost:3333");
   origins.add("http://localhost:5173");
 
   return Array.from(origins);
