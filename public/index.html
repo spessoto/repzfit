@@ -231,6 +231,67 @@
         background: #fee2e2;
         color: #991b1b;
       }
+
+      .whatsapp-status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        border: 2px solid;
+        transition: all 0.3s;
+      }
+
+      .whatsapp-status-indicator.connected {
+        background: #d1fae5;
+        color: #065f46;
+        border-color: #10b981;
+      }
+
+      .whatsapp-status-indicator.disconnected {
+        background: #fee2e2;
+        color: #991b1b;
+        border-color: #ef4444;
+      }
+
+      .whatsapp-status-indicator.checking {
+        background: #fef3c7;
+        color: #92400e;
+        border-color: #f59e0b;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+
+      .status-dot.connected {
+        background: #10b981;
+        box-shadow: 0 0 8px #10b981;
+      }
+
+      .status-dot.disconnected {
+        background: #ef4444;
+        animation: pulse 2s infinite;
+      }
+
+      .status-dot.checking {
+        background: #f59e0b;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
     </style>
   </head>
   <body>
@@ -258,6 +319,13 @@
       <div class="header">
         <h1>🏋️ Repz Fit</h1>
         <div class="user-info">
+          <div
+            id="headerWhatsAppStatus"
+            class="whatsapp-status-indicator checking"
+          >
+            <span class="status-dot checking"></span>
+            <span>WhatsApp: Verificando...</span>
+          </div>
           <span id="userName"></span>
           <button class="btn btn-secondary" onclick="logout()">Sair</button>
         </div>
@@ -398,8 +466,24 @@
       <div id="whatsappTab" class="tab-content">
         <div class="card">
           <h2>Conexão WhatsApp</h2>
-          <div id="whatsappStatus" style="margin-bottom: 20px">
-            <p>Status: <span id="connectionStatus">Verificando...</span></p>
+          <div
+            id="whatsappStatus"
+            style="
+              margin-bottom: 20px;
+              padding: 15px;
+              background: #f9fafb;
+              border-radius: 8px;
+            "
+          >
+            <p style="font-size: 14px; margin-bottom: 8px">
+              <strong>Status da Conexão:</strong>
+            </p>
+            <div id="connectionStatus" style="font-size: 16px">
+              Verificando...
+            </div>
+            <p style="font-size: 12px; color: #6b7280; margin-top: 8px">
+              Atualização automática a cada 10 segundos
+            </p>
           </div>
           <button class="btn btn-primary" onclick="gerarQRCode()">
             Conectar WhatsApp
@@ -453,6 +537,7 @@
       }
 
       function logout() {
+        stopStatusMonitoring();
         localStorage.removeItem("repz_token");
         authToken = null;
         location.reload();
@@ -481,6 +566,7 @@
         carregarAlunos();
         carregarExercicios();
         carregarAlunosSelect();
+        startStatusMonitoring();
       }
 
       function switchTab(tab) {
@@ -494,6 +580,8 @@
         event.target.classList.add("active");
         document.getElementById(tab + "Tab").classList.add("active");
 
+        if (tab === "alunos") listarAlunos();
+        if (tab === "exercicios") listarExercicios();
         if (tab === "whatsapp") {
           verificarStatusWhatsApp();
         }
@@ -668,25 +756,72 @@
 
       async function verificarStatusWhatsApp() {
         try {
+          const apiUrl =
+            window.location.hostname === "localhost"
+              ? "http://localhost:3333"
+              : window.location.origin;
+
           const response = await fetch(
-            "http://localhost:3333/api/personal/connection/status",
+            `${apiUrl}/api/personal/connection/status`,
             {
               headers: { Authorization: `Bearer ${authToken}` },
             },
           );
           const data = await response.json();
+
+          const isConnected = data.state === "open";
+          const statusClass = isConnected ? "connected" : "disconnected";
+          const statusText = isConnected ? "Conectado" : "Desconectado";
+          const statusIcon = isConnected ? "✓" : "✕";
+
+          // Update tab status
           document.getElementById("connectionStatus").innerHTML =
-            `<span class="status-badge ${data.state === "open" ? "status-connected" : "status-disconnected"}">${data.state === "open" ? "Conectado" : "Desconectado"}</span>`;
+            `<span class="status-badge status-${statusClass}">${statusIcon} ${statusText}</span>`;
+
+          // Update header indicator
+          const headerStatus = document.getElementById("headerWhatsAppStatus");
+          headerStatus.className = `whatsapp-status-indicator ${statusClass}`;
+          headerStatus.innerHTML = `
+            <span class="status-dot ${statusClass}"></span>
+            <span>WhatsApp: ${statusText}</span>
+          `;
         } catch (error) {
           document.getElementById("connectionStatus").textContent =
             "Erro ao verificar";
+
+          const headerStatus = document.getElementById("headerWhatsAppStatus");
+          headerStatus.className = "whatsapp-status-indicator disconnected";
+          headerStatus.innerHTML = `
+            <span class="status-dot disconnected"></span>
+            <span>WhatsApp: Erro</span>
+          `;
+        }
+      }
+
+      // Auto-refresh WhatsApp status every 10 seconds
+      let statusInterval;
+      function startStatusMonitoring() {
+        verificarStatusWhatsApp();
+        if (statusInterval) clearInterval(statusInterval);
+        statusInterval = setInterval(verificarStatusWhatsApp, 10000);
+      }
+
+      function stopStatusMonitoring() {
+        if (statusInterval) {
+          clearInterval(statusInterval);
+          statusInterval = null;
         }
       }
 
       async function gerarQRCode() {
         try {
+          const apiUrl =
+            window.location.hostname === "localhost"
+              ? "http://localhost:3333"
+              : window.location.origin;
+
           const response = await fetch(
-            "http://localhost:3333/api/personal/connection/qrcode",
+            `${apiUrl}/api/personal/connection/qrcode`,
             {
               headers: { Authorization: `Bearer ${authToken}` },
             },
