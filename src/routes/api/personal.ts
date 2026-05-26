@@ -31,6 +31,8 @@ const ExerciseCreateSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   muscle_group: z.string().optional(),
+  equipment: z.string().optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 const ExercisePatchSchema = z
@@ -38,6 +40,8 @@ const ExercisePatchSchema = z
     name: z.string().min(1).optional(),
     description: z.string().optional(),
     muscle_group: z.string().optional(),
+    equipment: z.string().optional(),
+    tags: z.array(z.string()).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided",
@@ -278,6 +282,8 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       name: parsed.data.name,
       description: parsed.data.description ?? null,
       muscle_group: parsed.data.muscle_group ?? null,
+      equipment: parsed.data.equipment ?? null,
+      tags: parsed.data.tags ?? null,
     };
 
     const { data, error } = await client
@@ -299,7 +305,9 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     const { data, error } = await client
       .from("exercises")
-      .select("id,personal_id,name,description,created_at")
+      .select(
+        "id,personal_id,name,description,muscle_group,equipment,tags,created_at",
+      )
       .order("created_at", { ascending: false });
 
     if (error) {

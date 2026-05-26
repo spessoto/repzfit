@@ -382,44 +382,97 @@
       <div id="exerciciosTab" class="tab-content">
         <div class="card">
           <h2>Novo Exercício</h2>
+          <div id="exerciciosAlert"></div>
+
           <div class="form-group">
-            <label>Nome</label>
-            <input type="text" id="exercicioNome" />
+            <label>Nome *</label>
+            <input
+              type="text"
+              id="exercicioNome"
+              placeholder="Ex: Supino Reto"
+              required
+            />
           </div>
-          <div class="form-group">
-            <label>Descrição</label>
-            <textarea id="exercicioDescricao" rows="3"></textarea>
-          </div>
+
           <div class="form-group">
             <label>Grupo Muscular</label>
             <select id="exercicioGrupo">
+              <option value="">Selecione...</option>
               <option value="Peito">Peito</option>
               <option value="Costas">Costas</option>
               <option value="Pernas">Pernas</option>
               <option value="Ombros">Ombros</option>
               <option value="Braços">Braços</option>
+              <option value="Bíceps">Bíceps</option>
+              <option value="Tríceps">Tríceps</option>
               <option value="Abdômen">Abdômen</option>
+              <option value="Glúteos">Glúteos</option>
+              <option value="Panturrilha">Panturrilha</option>
+              <option value="Antebraço">Antebraço</option>
             </select>
           </div>
-          <button class="btn btn-primary" onclick="criarExercicio()">
-            Adicionar Exercício
-          </button>
+
+          <div class="form-group">
+            <label>Equipamentos</label>
+            <input
+              type="text"
+              id="exercicioEquipamento"
+              placeholder="Ex: Barra, Halteres, Banco"
+            />
+            <small style="color: #6b7280; font-size: 12px"
+              >Separe múltiplos equipamentos com vírgula</small
+            >
+          </div>
+
+          <div class="form-group">
+            <label>Tags</label>
+            <input
+              type="text"
+              id="exercicioTags"
+              placeholder="Ex: composto, hipertrofia, força"
+            />
+            <small style="color: #6b7280; font-size: 12px"
+              >Separe múltiplas tags com vírgula</small
+            >
+          </div>
+
+          <div class="form-group">
+            <label>Descrição da Execução</label>
+            <textarea
+              id="exercicioDescricao"
+              rows="4"
+              placeholder="Descreva como executar o exercício..."
+            ></textarea>
+          </div>
+
+          <div style="display: flex; gap: 10px">
+            <button class="btn btn-primary" onclick="criarExercicio()">
+              Adicionar Exercício
+            </button>
+            <button
+              class="btn btn-secondary"
+              onclick="limparFormularioExercicio()"
+            >
+              Limpar
+            </button>
+          </div>
         </div>
 
         <div class="card">
           <h2>Meus Exercícios</h2>
-          <div id="exerciciosAlert"></div>
           <table>
             <thead>
               <tr>
                 <th>Nome</th>
                 <th>Grupo Muscular</th>
+                <th>Equipamentos</th>
+                <th>Tags</th>
                 <th>Descrição</th>
               </tr>
             </thead>
             <tbody id="exerciciosBody">
               <tr>
-                <td colspan="3" style="text-align: center">Carregando...</td>
+                <td colspan="5" style="text-align: center">Carregando...</td>
               </tr>
             </tbody>
           </table>
@@ -687,22 +740,61 @@
           .join("");
       }
 
+      function limparFormularioExercicio() {
+        document.getElementById("exercicioNome").value = "";
+        document.getElementById("exercicioDescricao").value = "";
+        document.getElementById("exercicioGrupo").value = "";
+        document.getElementById("exercicioEquipamento").value = "";
+        document.getElementById("exercicioTags").value = "";
+        document.getElementById("exerciciosAlert").innerHTML = "";
+      }
+
       async function criarExercicio() {
         const nome = document.getElementById("exercicioNome").value;
         const descricao = document.getElementById("exercicioDescricao").value;
         const grupo = document.getElementById("exercicioGrupo").value;
+        const equipamento = document.getElementById(
+          "exercicioEquipamento",
+        ).value;
+        const tagsInput = document.getElementById("exercicioTags").value;
 
-        const response = await fetch("http://localhost:3333/api/exercises", {
+        if (!nome) {
+          showAlert(
+            "exerciciosAlert",
+            "O nome do exercício é obrigatório!",
+            "error",
+          );
+          return;
+        }
+
+        // Processar tags: converter string em array
+        const tags = tagsInput
+          ? tagsInput
+              .split(",")
+              .map((t) => t.trim())
+              .filter((t) => t.length > 0)
+          : null;
+
+        const apiUrl =
+          window.location.hostname === "localhost"
+            ? "http://localhost:3333"
+            : window.location.origin;
+
+        const payload = {
+          name: nome,
+          description: descricao || null,
+          muscle_group: grupo || null,
+          equipment: equipamento || null,
+          tags: tags,
+        };
+
+        const response = await fetch(`${apiUrl}/api/exercises`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${authToken}`,
           },
-          body: JSON.stringify({
-            name: nome,
-            description: descricao,
-            muscle_group: grupo,
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (response.ok) {
@@ -711,26 +803,46 @@
             "Exercício criado com sucesso!",
             "success",
           );
-          document.getElementById("exercicioNome").value = "";
-          document.getElementById("exercicioDescricao").value = "";
+          limparFormularioExercicio();
           carregarExercicios();
+        } else {
+          const error = await response.json();
+          showAlert(
+            "exerciciosAlert",
+            error.message || "Erro ao criar exercício",
+            "error",
+          );
         }
       }
 
       async function carregarExercicios() {
-        const response = await fetch("http://localhost:3333/api/exercises", {
+        const apiUrl =
+          window.location.hostname === "localhost"
+            ? "http://localhost:3333"
+            : window.location.origin;
+
+        const response = await fetch(`${apiUrl}/api/exercises`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
         const exercicios = await response.json();
 
         const tbody = document.getElementById("exerciciosBody");
+
+        if (exercicios.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="5" style="text-align: center; color: #6b7280;">Nenhum exercício cadastrado</td></tr>';
+          return;
+        }
+
         tbody.innerHTML = exercicios
           .map(
             (e) => `
                 <tr>
-                    <td>${e.name}</td>
+                    <td><strong>${e.name}</strong></td>
                     <td>${e.muscle_group || "-"}</td>
-                    <td>${e.description || "-"}</td>
+                    <td>${e.equipment || "-"}</td>
+                    <td>${e.tags && e.tags.length > 0 ? e.tags.map((t) => `<span style="background: #e5e7eb; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 4px;">${t}</span>`).join("") : "-"}</td>
+                    <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${e.description || ""}">${e.description || "-"}</td>
                 </tr>
             `,
           )

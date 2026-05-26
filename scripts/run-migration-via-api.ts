@@ -30,19 +30,19 @@ async function executeMigration() {
   // Try using the REST API to execute SQL
   for (const migration of migrations) {
     console.log(`📝 ${migration.name}...`);
-    
+
     try {
       const response = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "apikey": env.SUPABASE_SERVICE_KEY,
-          "Authorization": `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-          "Prefer": "return=minimal"
+          apikey: env.SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+          Prefer: "return=minimal",
         },
         body: JSON.stringify({
-          query: migration.sql
-        })
+          query: migration.sql,
+        }),
       });
 
       if (response.ok || response.status === 404) {
@@ -51,11 +51,11 @@ async function executeMigration() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "apikey": env.SUPABASE_SERVICE_KEY,
-            "Authorization": `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+            apikey: env.SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
           },
         });
-        
+
         console.log(`⚠️  API não suporta DDL. Use o Dashboard SQL Editor.`);
         console.log(`   SQL: ${migration.sql}\n`);
       }
@@ -66,12 +66,14 @@ async function executeMigration() {
 
   console.log("\n" + "=".repeat(70));
   console.log("📋 Execute este SQL no Supabase Dashboard:");
-  console.log("   https://supabase.com/dashboard/project/ofergzualxqqovktyxwu/sql/new");
+  console.log(
+    "   https://supabase.com/dashboard/project/ofergzualxqqovktyxwu/sql/new",
+  );
   console.log("=".repeat(70));
-  
+
   const sqlFile = readFileSync(
     join(__dirname, "..", "supabase", "migrations", "EXECUTE_THIS.sql"),
-    "utf-8"
+    "utf-8",
   );
   console.log(sqlFile);
 }
