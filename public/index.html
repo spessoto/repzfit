@@ -485,11 +485,20 @@
               Atualização automática a cada 10 segundos
             </p>
           </div>
-          <div id="whatsappActions" style="display: flex; gap: 10px;">
-            <button id="connectBtn" class="btn btn-primary" onclick="gerarQRCode()">
+          <div id="whatsappActions" style="display: flex; gap: 10px">
+            <button
+              id="connectBtn"
+              class="btn btn-primary"
+              onclick="gerarQRCode()"
+            >
               Conectar WhatsApp
             </button>
-            <button id="disconnectBtn" class="btn btn-danger" onclick="desconectarWhatsApp()" style="display: none;">
+            <button
+              id="disconnectBtn"
+              class="btn btn-danger"
+              onclick="desconectarWhatsApp()"
+              style="display: none"
+            >
               Desconectar
             </button>
           </div>
@@ -790,7 +799,7 @@
             <span class="status-dot ${statusClass}"></span>
             <span>WhatsApp: ${statusText}</span>
           `;
-          
+
           // Show/hide buttons based on connection status
           const connectBtn = document.getElementById("connectBtn");
           const disconnectBtn = document.getElementById("disconnectBtn");
@@ -798,7 +807,9 @@
             if (isConnected) {
               connectBtn.style.display = "none";
               disconnectBtn.style.display = "block";
-              document.getElementById("qrCodeContainer").classList.add("hidden");
+              document
+                .getElementById("qrCodeContainer")
+                .classList.add("hidden");
             } else {
               connectBtn.style.display = "block";
               disconnectBtn.style.display = "none";
@@ -842,10 +853,10 @@
           // Check connection status first
           const statusResp = await fetch(
             `${apiUrl}/api/personal/connection/status`,
-            { headers: { Authorization: `Bearer ${authToken}` } }
+            { headers: { Authorization: `Bearer ${authToken}` } },
           );
           const statusData = await statusResp.json();
-          
+
           if (statusData.state === "open") {
             const container = document.getElementById("qrCodeContainer");
             container.classList.remove("hidden");
@@ -879,7 +890,7 @@
                 <p style="color: #6b7280; font-size: 12px; margin-top: 10px;">O QR Code expira em alguns segundos. Atualize se necessário.</p>
               </div>
             `;
-            
+
             // Auto-refresh status after showing QR code
             setTimeout(() => verificarStatusWhatsApp(), 3000);
           } else {
@@ -898,7 +909,7 @@
         if (!confirm("Tem certeza que deseja desconectar o WhatsApp?")) {
           return;
         }
-        
+
         try {
           const apiUrl =
             window.location.hostname === "localhost"
@@ -912,7 +923,7 @@
               headers: { Authorization: `Bearer ${authToken}` },
             },
           );
-          
+
           if (response.ok) {
             alert("WhatsApp desconectado com sucesso!");
             verificarStatusWhatsApp();

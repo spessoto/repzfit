@@ -130,9 +130,14 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       personal.evolution_instance_name,
     );
 
+    // Evolution API returns {instance: {state: "open", instanceName: "..."}}
+    // Extract the nested instance object
+    const instanceData = (status as any).instance || status;
+
     return {
       instance: personal.evolution_instance_name,
-      ...status,
+      state: instanceData.state || instanceData.status,
+      ...instanceData,
     };
   });
 
