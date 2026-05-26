@@ -933,7 +933,13 @@
           .querySelectorAll(".tab-content")
           .forEach((t) => t.classList.remove("active"));
 
-        event.target.classList.add("active");
+        // Adiciona active na tab clicada
+        const clickedTab = Array.from(document.querySelectorAll(".tab")).find(
+          t => t.textContent.toLowerCase().includes(tab.toLowerCase()) ||
+               t.getAttribute("onclick")?.includes(tab)
+        );
+        if (clickedTab) clickedTab.classList.add("active");
+
         document.getElementById(tab + "Tab").classList.add("active");
 
         if (tab === "alunos") carregarAlunos();
