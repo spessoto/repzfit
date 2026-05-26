@@ -13,17 +13,20 @@
 **Problema**: Múltiplos pontos do frontend inseriam dados de usuário diretamente no HTML sem sanitização.
 
 **Locais Afetados**:
+
 - Listagem de alunos (nome, whatsapp)
 - Listagem de exercícios (nome, descrição, tags, grupo muscular)
 - Autocomplete de exercícios
 - Detalhes de treinos
 
 **Impacto**: Atacante poderia injetar código JavaScript malicioso através de:
+
 - Nome de exercício: `<script>alert('XSS')</script>`
 - Tags: `<img src=x onerror=alert('XSS')>`
 - Descrição: `</td><script>...</script>`
 
 **Correção**:
+
 ```javascript
 // Adicionada função de escape HTML
 function escapeHtml(text) {
@@ -45,14 +48,16 @@ function escapeHtml(text) {
 **Problema**: CORS aceitava qualquer subdomínio `*.vercel.app`, permitindo que projetos maliciosos de terceiros fizessem requisições à API.
 
 **Antes**:
+
 ```javascript
-/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)
+/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
 ```
 
 **Depois**:
+
 ```javascript
 // Apenas subdomínios do projeto específico
-/^https:\/\/repzfit-[a-z0-9-]+\.vercel.app$/i.test(origin)
+/^https:\/\/repzfit-[a-z0-9-]+\.vercel.app$/i.test(origin);
 ```
 
 **Impacto Reduzido**: Ataque CSRF de domínios Vercel de terceiros bloqueado.
@@ -89,6 +94,7 @@ description: z.string().max(2000)
 ```
 
 **Impacto**: Previne:
+
 - Payloads gigantes que causam DoS
 - Strings infinitas no banco de dados
 - Arrays com milhares de itens
@@ -104,45 +110,54 @@ description: z.string().max(2000)
 ✅ **Validação de UUID**: Todos IDs validados com Zod  
 ✅ **HTTPS Only**: Produção usa apenas HTTPS  
 ✅ **.env no .gitignore**: Chaves secretas protegidas  
-✅ **Trim em inputs**: Remove espaços indesejados  
+✅ **Trim em inputs**: Remove espaços indesejados
 
 ---
 
 ## 📊 Checklist de Segurança
 
-| Item | Status |
-|------|--------|
-| XSS Protection | ✅ |
-| CORS Restrito | ✅ |
-| Input Validation | ✅ |
-| SQL Injection | ✅ (Supabase ORM) |
-| Authentication | ✅ |
-| Authorization (RLS) | ✅ |
-| HTTPS | ✅ |
-| Secrets Management | ✅ |
-| Rate Limiting | ⚠️ Recomendado* |
-| CSRF Protection | ⚠️ Parcial** |
+| Item                | Status            |
+| ------------------- | ----------------- |
+| XSS Protection      | ✅                |
+| CORS Restrito       | ✅                |
+| Input Validation    | ✅                |
+| SQL Injection       | ✅ (Supabase ORM) |
+| Authentication      | ✅                |
+| Authorization (RLS) | ✅                |
+| HTTPS               | ✅                |
+| Secrets Management  | ✅                |
+| Rate Limiting       | ⚠️ Recomendado\*  |
+| CSRF Protection     | ⚠️ Parcial\*\*    |
 
 ---
 
 ## 🔄 Recomendações Futuras
 
 ### 1. **Rate Limiting** (Médio)
+
 Adicionar limite de requisições por IP/usuário:
+
 ```bash
 npm install @fastify/rate-limit
 ```
 
 ### 2. **Content Security Policy** (Baixo)
+
 Adicionar headers CSP no frontend:
+
 ```html
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+<meta
+  http-equiv="Content-Security-Policy"
+  content="default-src 'self'; script-src 'self'"
+/>
 ```
 
 ### 3. **CSRF Tokens** (Baixo)
+
 Para formulários críticos, adicionar tokens CSRF.
 
 ### 4. **Audit Logs** (Baixo)
+
 Registrar ações sensíveis (criação de treinos, alteração de alunos).
 
 ---
@@ -159,6 +174,7 @@ Registrar ações sensíveis (criação de treinos, alteração de alunos).
 **Severidade**: 🟢 BAIXA (após correções)
 
 O projeto está agora **significativamente mais seguro** com:
+
 - XSS bloqueado em todos os pontos
 - CORS restrito ao projeto
 - Validações rigorosas de input
