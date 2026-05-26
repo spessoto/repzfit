@@ -649,6 +649,12 @@
         location.reload();
       }
 
+      function handleUnauthorized() {
+        console.warn("Token expirado ou inválido, fazendo logout...");
+        alert("Sua sessão expirou. Por favor, faça login novamente.");
+        logout();
+      }
+
       async function loadApp() {
         document.getElementById("loginScreen").classList.add("hidden");
         document.getElementById("appScreen").classList.remove("hidden");
@@ -725,29 +731,48 @@
       }
 
       async function carregarAlunos() {
-        const apiUrl =
-          window.location.hostname === "localhost"
-            ? "http://localhost:3333"
-            : window.location.origin;
+        try {
+          const apiUrl =
+            window.location.hostname === "localhost"
+              ? "http://localhost:3333"
+              : window.location.origin;
 
-        const response = await fetch(`${apiUrl}/api/students`, {
-          headers: { Authorization: `Bearer ${authToken}` },
-        });
-        const alunos = await response.json();
+          const response = await fetch(`${apiUrl}/api/students`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
 
-        const tbody = document.getElementById("alunosBody");
-        tbody.innerHTML = alunos
-          .map(
-            (a) => `
-                <tr>
-                    <td>${a.name}</td>
-                    <td>${a.whatsapp_number}</td>
-                    <td><span class="status-badge ${a.is_active ? "status-connected" : "status-disconnected"}">${a.is_active ? "Ativo" : "Inativo"}</span></td>
-                    <td><button class="btn btn-secondary" onclick="alert('Em breve!')">Editar</button></td>
-                </tr>
-            `,
-          )
-          .join("");
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const alunos = await response.json();
+
+          const tbody = document.getElementById("alunosBody");
+
+          if (!alunos || alunos.length === 0) {
+            tbody.innerHTML =
+              '<tr><td colspan="4" style="text-align: center; color: #6b7280;">Nenhum aluno cadastrado</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = alunos
+            .map(
+              (a) => `
+                  <tr>
+                      <td>${a.name}</td>
+                      <td>${a.whatsapp_number}</td>
+                      <td><span class="status-badge ${a.is_active ? "status-connected" : "status-disconnected"}">${a.is_active ? "Ativo" : "Inativo"}</span></td>
+                      <td><button class="btn btn-secondary" onclick="alert('Em breve!')">Editar</button></td>
+                  </tr>
+              `,
+            )
+            .join("");
+        } catch (error) {
+          console.error("Erro ao carregar alunos:", error);
+          const tbody = document.getElementById("alunosBody");
+          tbody.innerHTML =
+            '<tr><td colspan="4" style="text-align: center; color: #ef4444;">Erro ao carregar alunos</td></tr>';
+        }
       }
 
       function limparFormularioExercicio() {
@@ -826,27 +851,38 @@
       }
 
       async function carregarExercicios() {
-        const apiUrl =
-          window.location.hostname === "localhost"
-            ? "http://localhost:3333"
-            : window.location.origin;
+        try {
+          const apiUrl =
+            window.location.hostname === "localhost"
+              ? "http://localhost:3333"
+              : window.location.origin;
 
-        const response = await fetch(`${apiUrl}/api/exercises`, {
-          headers: { Authorization: `Bearer ${authToken}` },
-        });
-        const exercicios = await response.json();
+          const response = await fetch(`${apiUrl}/api/exercises`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
 
-        const tbody = document.getElementById("exerciciosBody");
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          
+          const exercicios = await response.json();
 
-        if (exercicios.length === 0) {
-          tbody.innerHTML =
-            '<tr><td colspan="5" style="text-align: center; color: #6b7280;">Nenhum exercício cadastrado</td></tr>';
-          return;
-        }
+          const tbody = document.getElementById("exerciciosBody");
 
-        tbody.innerHTML = exercicios
-          .map(
-            (e) => `
+          if (!exercicios || exercicios.length === 0) {
+            tbody.innerHTML =
+              '<tr><td colspan="5" style="text-align: center; color: #6b7280;">Nenhum exercício cadastrado</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = exercicios
+            .map(
+              (e) => `
                 <tr>
                     <td><strong>${e.name}</strong></td>
                     <td>${e.muscle_group || "-"}</td>
@@ -855,32 +891,70 @@
                     <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${e.description || ""}">${e.description || "-"}</td>
                 </tr>
             `,
-          )
-          .join("");
+            )
+            .join("");
+        } catch (error) {
+          console.error("Erro ao carregar exercícios:", error);
+          const tbody = document.getElementById("exerciciosBody");
+          tbody.innerHTML =
+            '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Erro ao carregar exercícios</td></tr>';
+        }
       }
 
       async function carregarAlunosSelect() {
-        const apiUrl =
-          window.location.hostname === "localhost"
-            ? "http://localhost:3333"
-            : window.location.origin;
+        try {
+          const apiUrl =
+            window.location.hostname === "localhost"
+              ? "http://localhost:3333"
+              : window.location.origin;
 
-        const response = await fetch(`${apiUrl}/api/students`, {
-          headers: { Authorization: `Bearer ${authToken}` },
-        });
-        const alunos = await response.json();
+          const response = await fetch(`${apiUrl}/api/students`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
 
-        const selects = [
-          document.getElementById("treinoAluno"),
-          document.getElementById("filtroAlunoTreinos"),
-        ];
-        selects.forEach((select) => {
-          select.innerHTML =
-            '<option value="">Selecione um aluno</option>' +
-            alunos
-              .map((a) => `<option value="${a.id}">${a.name}</option>`)
-              .join("");
-        });
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const alunos = await response.json();
+
+          const selects = [
+            document.getElementById("treinoAluno"),
+            document.getElementById("filtroAlunoTreinos"),
+          ];
+
+          selects.forEach((select) => {
+            if (!select) return;
+
+            if (!alunos || alunos.length === 0) {
+              select.innerHTML =
+                '<option value="">Nenhum aluno cadastrado</option>';
+            } else {
+              select.innerHTML =
+                '<option value="">Selecione um aluno</option>' +
+                alunos
+                  .map((a) => `<option value="${a.id}">${a.name}</option>`)
+                  .join("");
+            }
+          });
+        } catch (error) {
+          console.error("Erro ao carregar alunos para select:", error);
+          const selects = [
+            document.getElementById("treinoAluno"),
+            document.getElementById("filtroAlunoTreinos"),
+          ];
+          selects.forEach((select) => {
+            if (select) {
+              select.innerHTML =
+                '<option value="">Erro ao carregar alunos</option>';
+            }
+          });
+        }
       }
 
       let exerciciosDoTreino = [];
@@ -894,18 +968,18 @@
         exercicioDiv.style.cssText =
           "background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 15px; position: relative;";
         exercicioDiv.innerHTML = `
-          <button onclick="removerExercicioDoTreino(${index})" 
+          <button onclick="removerExercicioDoTreino(${index})"
                   style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 18px;">
             ×
           </button>
-          
+
           <div class="form-group">
             <label>Exercício *</label>
             <select id="exercicio_${index}" class="exercicio-select" required>
               <option value="">Selecione um exercício</option>
             </select>
           </div>
-          
+
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
             <div class="form-group">
               <label>Séries *</label>
@@ -930,23 +1004,59 @@
       }
 
       async function preencherExerciciosSelect(index) {
-        const apiUrl =
-          window.location.hostname === "localhost"
-            ? "http://localhost:3333"
-            : window.location.origin;
+        try {
+          const apiUrl =
+            window.location.hostname === "localhost"
+              ? "http://localhost:3333"
+              : window.location.origin;
 
-        const response = await fetch(`${apiUrl}/api/exercises`, {
-          headers: { Authorization: `Bearer ${authToken}` },
-        });
-        const exercicios = await response.json();
+          const response = await fetch(`${apiUrl}/api/exercises`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
 
-        const select = document.getElementById(`exercicio_${index}`);
-        exercicios.forEach((ex) => {
-          const option = document.createElement("option");
-          option.value = ex.id;
-          option.textContent = `${ex.name}${ex.muscle_group ? ` (${ex.muscle_group})` : ""}`;
-          select.appendChild(option);
-        });
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const exercicios = await response.json();
+
+          const select = document.getElementById(`exercicio_${index}`);
+          if (!select) return;
+
+          // Limpar opções existentes exceto a primeira
+          while (select.options.length > 1) {
+            select.remove(1);
+          }
+
+          if (!exercicios || exercicios.length === 0) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "Nenhum exercício cadastrado";
+            select.appendChild(option);
+            return;
+          }
+
+          exercicios.forEach((ex) => {
+            const option = document.createElement("option");
+            option.value = ex.id;
+            option.textContent = `${ex.name}${ex.muscle_group ? ` (${ex.muscle_group})` : ""}`;
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.error("Erro ao carregar exercícios para select:", error);
+          const select = document.getElementById(`exercicio_${index}`);
+          if (select) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "Erro ao carregar exercícios";
+            select.appendChild(option);
+          }
+        }
       }
 
       function removerExercicioDoTreino(index) {
@@ -1078,85 +1188,104 @@
       }
 
       async function carregarTreinosAluno() {
-        const studentId = document.getElementById("filtroAlunoTreinos").value;
-        if (!studentId) {
-          document.getElementById("treinosLista").innerHTML = "";
-          return;
-        }
+        try {
+          const studentId = document.getElementById("filtroAlunoTreinos").value;
+          if (!studentId) {
+            document.getElementById("treinosLista").innerHTML = "";
+            return;
+          }
 
-        const apiUrl =
-          window.location.hostname === "localhost"
-            ? "http://localhost:3333"
-            : window.location.origin;
+          const apiUrl =
+            window.location.hostname === "localhost"
+              ? "http://localhost:3333"
+              : window.location.origin;
 
-        const response = await fetch(
-          `${apiUrl}/api/workouts/student/${studentId}`,
-          {
-            headers: { Authorization: `Bearer ${authToken}` },
-          },
-        );
-        const treinos = await response.json();
-
-        if (treinos.length === 0) {
-          document.getElementById("treinosLista").innerHTML =
-            '<p style="color: #6b7280;">Nenhum treino encontrado</p>';
-          return;
-        }
-
-        let html = "";
-        for (const treino of treinos) {
-          const dataInicio = new Date(treino.start_date).toLocaleDateString(
-            "pt-BR",
-          );
-          const dataValidade = treino.valid_until
-            ? new Date(treino.valid_until).toLocaleDateString("pt-BR")
-            : "Sem validade";
-
-          // Buscar exercícios do treino
-          const exResponse = await fetch(
-            `${apiUrl}/api/workouts/${treino.id}/exercises`,
+          const response = await fetch(
+            `${apiUrl}/api/workouts/student/${studentId}`,
             {
               headers: { Authorization: `Bearer ${authToken}` },
             },
           );
-          const exercicios = await exResponse.json();
 
-          html += `
-            <div class="card" style="background: #f9fafb; margin-bottom: 15px;">
-              <h3 style="color: #667eea; margin-bottom: 10px;">${treino.name}</h3>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                <p style="color: #6b7280;">📅 Início: <strong>${dataInicio}</strong></p>
-                <p style="color: #6b7280;">⏰ Validade: <strong>${dataValidade}</strong></p>
-              </div>
-              
-              ${
-                exercicios.length > 0
-                  ? `
-                <h4 style="margin-top: 15px; margin-bottom: 10px; color: #374151;">Exercícios:</h4>
-                <div style="background: white; padding: 15px; border-radius: 5px;">
-                  ${exercicios
-                    .map(
-                      (ex, idx) => `
-                    <div style="padding: 10px; border-bottom: 1px solid #e5e7eb; ${idx === exercicios.length - 1 ? "border-bottom: none;" : ""}">
-                      <strong>${ex.name}</strong>
-                      <div style="display: flex; gap: 15px; margin-top: 5px; color: #6b7280; font-size: 14px;">
-                        <span>📊 ${ex.target_sets} séries</span>
-                        <span>🔁 ${ex.target_reps} repetições</span>
-                        ${ex.target_weight ? `<span>⚖️ ${ex.target_weight} kg</span>` : ""}
-                      </div>
-                    </div>
-                  `,
-                    )
-                    .join("")}
-                </div>
-              `
-                  : '<p style="color: #9ca3af; font-style: italic;">Nenhum exercício adicionado</p>'
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const treinos = await response.json();
+
+          if (!treinos || treinos.length === 0) {
+            document.getElementById("treinosLista").innerHTML =
+              '<p style="color: #6b7280;">Nenhum treino encontrado</p>';
+            return;
+          }
+
+          let html = "";
+          for (const treino of treinos) {
+            const dataInicio = new Date(treino.start_date).toLocaleDateString(
+              "pt-BR",
+            );
+            const dataValidade = treino.valid_until
+              ? new Date(treino.valid_until).toLocaleDateString("pt-BR")
+              : "Sem validade";
+
+            // Buscar exercícios do treino
+            let exercicios = [];
+            try {
+              const exResponse = await fetch(
+                `${apiUrl}/api/workouts/${treino.id}/exercises`,
+                {
+                  headers: { Authorization: `Bearer ${authToken}` },
+                },
+              );
+
+              if (exResponse.ok) {
+                exercicios = await exResponse.json();
               }
-            </div>
-          `;
-        }
+            } catch (error) {
+              console.error("Erro ao carregar exercícios do treino:", error);
+            }
 
-        document.getElementById("treinosLista").innerHTML = html;
+            html += `
+              <div class="card" style="background: #f9fafb; margin-bottom: 15px;">
+                <h3 style="color: #667eea; margin-bottom: 10px;">${treino.name}</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                  <p style="color: #6b7280;">📅 Início: <strong>${dataInicio}</strong></p>
+                  <p style="color: #6b7280;">⏰ Validade: <strong>${dataValidade}</strong></p>
+                </div>
+
+                ${
+                  exercicios && exercicios.length > 0
+                    ? `
+                  <h4 style="margin-top: 15px; margin-bottom: 10px; color: #374151;">Exercícios:</h4>
+                  <div style="background: white; padding: 15px; border-radius: 5px;">
+                    ${exercicios
+                      .map(
+                        (ex, idx) => `
+                      <div style="padding: 10px; border-bottom: 1px solid #e5e7eb; ${idx === exercicios.length - 1 ? "border-bottom: none;" : ""}">
+                        <strong>${ex.name}</strong>
+                        <div style="display: flex; gap: 15px; margin-top: 5px; color: #6b7280; font-size: 14px;">
+                          <span>📊 ${ex.target_sets} séries</span>
+                          <span>🔁 ${ex.target_reps} repetições</span>
+                          ${ex.target_weight ? `<span>⚖️ ${ex.target_weight} kg</span>` : ""}
+                        </div>
+                      </div>
+                    `,
+                      )
+                      .join("")}
+                  </div>
+                `
+                    : '<p style="color: #9ca3af; font-style: italic;">Nenhum exercício adicionado</p>'
+                }
+              </div>
+            `;
+          }
+
+          document.getElementById("treinosLista").innerHTML = html;
+        } catch (error) {
+          console.error("Erro ao carregar treinos:", error);
+          document.getElementById("treinosLista").innerHTML =
+            '<p style="color: #ef4444;">Erro ao carregar treinos</p>';
+        }
       }
 
       async function verificarStatusWhatsApp() {
