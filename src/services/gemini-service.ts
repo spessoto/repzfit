@@ -1,7 +1,7 @@
 import { env } from "../config/env.js";
 
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
-const GEMINI_MODEL = "gemini-2.0-flash-exp"; // Gemini Flash-Lite Latest
+const GEMINI_MODEL = "gemini-1.5-flash-latest"; // Gemini Flash-Lite Latest
 
 type GeminiMessage = {
   role: "user" | "model";
