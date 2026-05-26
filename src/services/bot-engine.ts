@@ -525,7 +525,9 @@ export async function processIncomingMessage(input: IncomingMessage) {
   // Estado: COLLECTING_RPE
   if (state.current_state === "COLLECTING_RPE") {
     const rpeMatch = effectiveInput.match(/^RPE_(\d+)$/);
-    const rpe = rpeMatch ? parseInt(rpeMatch[1], 10) : parseInt(effectiveInput, 10);
+    const rpe = rpeMatch
+      ? parseInt(rpeMatch[1], 10)
+      : parseInt(effectiveInput, 10);
 
     if (Number.isNaN(rpe) || rpe < 1 || rpe > 10) {
       await sendTextMessage({
@@ -562,9 +564,9 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
     if (exerciseResult.data) {
       const targetSets = exerciseResult.data.target_sets;
-      const exerciseName = Array.isArray(exerciseResult.data.exercises) 
-        ? exerciseResult.data.exercises[0]?.name 
-        : (exerciseResult.data.exercises as any)?.name ?? "Exercício";
+      const exerciseName = Array.isArray(exerciseResult.data.exercises)
+        ? exerciseResult.data.exercises[0]?.name
+        : ((exerciseResult.data.exercises as any)?.name ?? "Exercício");
       const nextSet = state.current_set_number + 1;
 
       if (nextSet <= targetSets) {

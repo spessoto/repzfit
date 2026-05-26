@@ -81,8 +81,7 @@ export async function generateBotResponse(context: {
     }>;
   };
 
-  const generatedText =
-    data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
   if (!generatedText) {
     throw new Error("Gemini retornou resposta vazia");
