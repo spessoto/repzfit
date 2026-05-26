@@ -807,7 +807,9 @@
       async function login() {
         const email = document.getElementById("loginEmail").value.trim();
         const password = document.getElementById("loginPassword").value;
-        const loginBtn = document.querySelector('.btn-primary[onclick="login()"]');
+        const loginBtn = document.querySelector(
+          '.btn-primary[onclick="login()"]',
+        );
         const errorDiv = document.getElementById("loginError");
 
         // Validar campos
@@ -852,7 +854,10 @@
               loginBtn.disabled = false;
               loginBtn.textContent = "Entrar";
             }
-            showError("loginError", data.error_description || data.msg || "Email ou senha incorretos");
+            showError(
+              "loginError",
+              data.error_description || data.msg || "Email ou senha incorretos",
+            );
           }
         } catch (error) {
           console.error("Erro no login:", error);
@@ -860,7 +865,10 @@
             loginBtn.disabled = false;
             loginBtn.textContent = "Entrar";
           }
-          showError("loginError", "Erro ao conectar com o servidor. Tente novamente.");
+          showError(
+            "loginError",
+            "Erro ao conectar com o servidor. Tente novamente.",
+          );
         }
       }
 
@@ -935,8 +943,9 @@
 
         // Adiciona active na tab clicada
         const clickedTab = Array.from(document.querySelectorAll(".tab")).find(
-          t => t.textContent.toLowerCase().includes(tab.toLowerCase()) ||
-               t.getAttribute("onclick")?.includes(tab)
+          (t) =>
+            t.textContent.toLowerCase().includes(tab.toLowerCase()) ||
+            t.getAttribute("onclick")?.includes(tab),
         );
         if (clickedTab) clickedTab.classList.add("active");
 
@@ -1359,6 +1368,10 @@
                 >
                   <strong>${escapeHtml(ex.name)}</strong>
                   ${ex.muscle_group ? `<br><small style="color: #6b7280;">${escapeHtml(ex.muscle_group)}</small>` : ""}
+                </div>
+              `,
+              )
+              .join("");
             dropdown.style.display = "block";
           } catch (error) {
             console.error("Erro ao buscar exercícios:", error);
