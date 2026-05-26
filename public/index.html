@@ -784,6 +784,14 @@
       let authToken = localStorage.getItem("repz_token");
       let personalData = null;
 
+      // Função de escape HTML para prevenir XSS
+      function escapeHtml(text) {
+        if (!text) return "";
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
       // Paginação de exercícios
       let exerciciosPaginaAtual = 1;
       let exerciciosTotalPaginas = 1;
@@ -944,8 +952,8 @@
             .map(
               (a) => `
                   <tr>
-                      <td>${a.name}</td>
-                      <td>${a.whatsapp_number}</td>
+                      <td>${escapeHtml(a.name)}</td>
+                      <td>${escapeHtml(a.whatsapp_number)}</td>
                       <td><span class="status-badge ${a.is_active ? "status-connected" : "status-disconnected"}">${a.is_active ? "Ativo" : "Inativo"}</span></td>
                       <td><button class="btn btn-secondary" onclick="alert('Em breve!')">Editar</button></td>
                   </tr>
@@ -1080,11 +1088,11 @@
             .map(
               (e) => `
                 <tr>
-                    <td><strong>${e.name}</strong></td>
-                    <td>${e.muscle_group || "-"}</td>
-                    <td>${e.equipment || "-"}</td>
-                    <td>${e.tags && e.tags.length > 0 ? e.tags.map((t) => `<span style="background: #e5e7eb; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 4px;">${t}</span>`).join("") : "-"}</td>
-                    <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${e.description || ""}">${e.description || "-"}</td>
+                    <td><strong>${escapeHtml(e.name)}</strong></td>
+                    <td>${escapeHtml(e.muscle_group) || "-"}</td>
+                    <td>${escapeHtml(e.equipment) || "-"}</td>
+                    <td>${e.tags && e.tags.length > 0 ? e.tags.map((t) => `<span style="background: #e5e7eb; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 4px;">${escapeHtml(t)}</span>`).join("") : "-"}</td>
+                    <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(e.description || "")}">${escapeHtml(e.description) || "-"}</td>
                 </tr>
             `,
             )
@@ -1194,9 +1202,9 @@
 
           <div class="form-group" style="position: relative;">
             <label>Exercício *</label>
-            <input 
-              type="text" 
-              id="exercicio_search_${index}" 
+            <input
+              type="text"
+              id="exercicio_search_${index}"
               placeholder="Digite para buscar exercício..."
               autocomplete="off"
               oninput="buscarExercicios(${index}, this.value)"
@@ -1285,20 +1293,15 @@
             dropdown.innerHTML = exercicios
               .map(
                 (ex) => `
-                <div 
-                  class="autocomplete-item" 
-                  onclick="selecionarExercicio(${index}, '${ex.id}', '${ex.name.replace(/'/g, "\\'")}')"
+                <div
+                  class="autocomplete-item"
+                  onclick="selecionarExercicio(${index}, '${escapeHtml(ex.id)}', '${escapeHtml(ex.name).replace(/'/g, "\\'")}')"
                   style="padding: 10px; cursor: pointer; border-bottom: 1px solid #e5e7eb;"
                   onmouseover="this.style.background='#f3f4f6'"
                   onmouseout="this.style.background='white'"
                 >
-                  <strong>${ex.name}</strong>
-                  ${ex.muscle_group ? `<br><small style="color: #6b7280;">${ex.muscle_group}</small>` : ""}
-                </div>
-              `,
-              )
-              .join("");
-
+                  <strong>${escapeHtml(ex.name)}</strong>
+                  ${ex.muscle_group ? `<br><small style="color: #6b7280;">${escapeHtml(ex.muscle_group)}</small>` : ""}
             dropdown.style.display = "block";
           } catch (error) {
             console.error("Erro ao buscar exercícios:", error);
@@ -1513,7 +1516,7 @@
 
             html += `
               <div class="card" style="background: #f9fafb; margin-bottom: 15px;">
-                <h3 style="color: #667eea; margin-bottom: 10px;">${treino.name}</h3>
+                <h3 style="color: #667eea; margin-bottom: 10px;">${escapeHtml(treino.name)}</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
                   <p style="color: #6b7280;">📅 Início: <strong>${dataInicio}</strong></p>
                   <p style="color: #6b7280;">⏰ Validade: <strong>${dataValidade}</strong></p>
@@ -1528,11 +1531,11 @@
                       .map(
                         (ex, idx) => `
                       <div style="padding: 10px; border-bottom: 1px solid #e5e7eb; ${idx === exercicios.length - 1 ? "border-bottom: none;" : ""}">
-                        <strong>${ex.name}</strong>
+                        <strong>${escapeHtml(ex.name)}</strong>
                         <div style="display: flex; gap: 15px; margin-top: 5px; color: #6b7280; font-size: 14px;">
-                          <span>📊 ${ex.target_sets} séries</span>
-                          <span>🔁 ${ex.target_reps} repetições</span>
-                          ${ex.target_weight ? `<span>⚖️ ${ex.target_weight} kg</span>` : ""}
+                          <span>📊 ${escapeHtml(String(ex.target_sets))} séries</span>
+                          <span>🔁 ${escapeHtml(String(ex.target_reps))} repetições</span>
+                          ${ex.target_weight ? `<span>⚖️ ${escapeHtml(String(ex.target_weight))} kg</span>` : ""}
                         </div>
                       </div>
                     `,

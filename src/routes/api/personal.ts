@@ -12,15 +12,24 @@ import {
 } from "../../services/evolution-service.js";
 
 const StudentCreateSchema = z.object({
-  name: z.string().min(1),
-  whatsapp_number: z.string().min(8),
+  name: z.string().min(1).max(255).trim(),
+  whatsapp_number: z
+    .string()
+    .min(8)
+    .max(20)
+    .regex(/^[0-9+\s()-]+$/),
   is_active: z.boolean().optional(),
 });
 
 const StudentPatchSchema = z
   .object({
-    name: z.string().min(1).optional(),
-    whatsapp_number: z.string().min(8).optional(),
+    name: z.string().min(1).max(255).trim().optional(),
+    whatsapp_number: z
+      .string()
+      .min(8)
+      .max(20)
+      .regex(/^[0-9+\s()-]+$/)
+      .optional(),
     is_active: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
@@ -28,20 +37,20 @@ const StudentPatchSchema = z
   });
 
 const ExerciseCreateSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  muscle_group: z.string().optional(),
-  equipment: z.string().optional(),
-  tags: z.array(z.string()).optional(),
+  name: z.string().min(1).max(255).trim(),
+  description: z.string().max(2000).optional(),
+  muscle_group: z.string().max(100).optional(),
+  equipment: z.string().max(500).optional(),
+  tags: z.array(z.string().max(50)).max(20).optional(),
 });
 
 const ExercisePatchSchema = z
   .object({
-    name: z.string().min(1).optional(),
-    description: z.string().optional(),
-    muscle_group: z.string().optional(),
-    equipment: z.string().optional(),
-    tags: z.array(z.string()).optional(),
+    name: z.string().min(1).max(255).trim().optional(),
+    description: z.string().max(2000).optional(),
+    muscle_group: z.string().max(100).optional(),
+    equipment: z.string().max(500).optional(),
+    tags: z.array(z.string().max(50)).max(20).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided",
@@ -49,32 +58,33 @@ const ExercisePatchSchema = z
 
 const WorkoutCreateSchema = z.object({
   student_id: z.string().uuid(),
-  name: z.string().min(1),
+  name: z.string().min(1).max(255).trim(),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   valid_until: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
-  day_of_week: z.array(z.number().int().min(0).max(6)).optional(),
+  day_of_week: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   exercises: z
     .array(
       z.object({
         exercise_id: z.string().uuid(),
-        target_sets: z.number().int().positive(),
-        target_reps: z.number().int().positive(),
-        target_weight: z.number().nonnegative().optional(),
-        order_index: z.number().int().nonnegative(),
+        target_sets: z.number().int().positive().max(100),
+        target_reps: z.number().int().positive().max(1000),
+        target_weight: z.number().nonnegative().max(1000).optional(),
+        order_index: z.number().int().nonnegative().max(100),
       }),
     )
+    .max(50)
     .optional(),
 });
 
 const WorkoutExerciseCreateSchema = z.object({
   exercise_id: z.string().uuid(),
-  target_sets: z.number().int().positive(),
-  target_reps: z.number().int().positive(),
-  target_weight: z.number().nonnegative().optional(),
-  order_index: z.number().int().nonnegative(),
+  target_sets: z.number().int().positive().max(100),
+  target_reps: z.number().int().positive().max(1000),
+  target_weight: z.number().nonnegative().max(1000).optional(),
+  order_index: z.number().int().nonnegative().max(100),
 });
 
 function extractBearerToken(request: FastifyRequest): string {

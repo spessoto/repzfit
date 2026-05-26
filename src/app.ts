@@ -57,16 +57,21 @@ export async function buildApp(options: BuildAppOptions = {}) {
         return;
       }
 
-      if (
-        allowedOrigins.includes(origin) ||
-        /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)
-      ) {
+      // Verificar origens permitidas
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      // Permitir apenas domínios Vercel específicos do projeto
+      if (/^https:\/\/repzfit-[a-z0-9-]+\.vercel\.app$/i.test(origin)) {
         callback(null, true);
         return;
       }
 
       callback(new Error("CORS origin denied"), false);
     },
+    credentials: true,
   });
 
   app.get("/health", async () => {
