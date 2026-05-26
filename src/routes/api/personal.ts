@@ -174,6 +174,37 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     };
   });
 
+  app.patch("/personal/config", async (request) => {
+    const { token, personalId } = await getAuthenticatedPersonal(app, request);
+
+    const ConfigUpdateSchema = z.object({
+      gemini_api_key: z.string().nullable().optional(),
+    });
+
+    const parsed = ConfigUpdateSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    const client = getRlsClient(token);
+
+    const { data, error } = await client
+      .from("personals")
+      .update({
+        gemini_api_key: parsed.data.gemini_api_key,
+      })
+      .eq("id", personalId)
+      .select("id,name,email,gemini_api_key")
+      .single();
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    return data;
+  });
+
   app.post("/students", async (request) => {
     const { token, personalId } = await getAuthenticatedPersonal(app, request);
     const parsed = StudentCreateSchema.safeParse(request.body);
