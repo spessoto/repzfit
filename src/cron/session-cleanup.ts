@@ -5,7 +5,7 @@ import { supabaseAdmin } from "../config/supabase.js";
 const CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
 const ABANDON_AFTER_HOURS = 4;
 
-async function runSessionCleanup(app: FastifyInstance) {
+export async function runSessionCleanup(app: FastifyInstance) {
   const threshold = new Date(
     Date.now() - ABANDON_AFTER_HOURS * 60 * 60 * 1000,
   ).toISOString();

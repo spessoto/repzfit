@@ -5,42 +5,83 @@ import sensible from "@fastify/sensible";
 import { env } from "./config/env.js";
 import { registerEvolutionWebhookRoute } from "./routes/webhooks/evolution.js";
 import { registerPersonalApiRoutes } from "./routes/api/personal.js";
-import { scheduleSessionCleanup } from "./cron/session-cleanup.js";
+import {
+  runSessionCleanup,
+  scheduleSessionCleanup,
+} from "./cron/session-cleanup.js";
 
-const app = Fastify({
-  logger: {
-    level: env.LOG_LEVEL,
-  },
-});
+type BuildAppOptions = {
+  enableCleanupScheduler?: boolean;
+};
 
-await app.register(sensible);
-await app.register(cors, {
-  origin: true,
-});
+function getAllowedOrigins(): string[] {
+  const origins = new Set<string>();
 
-app.get("/health", async () => {
-  return { ok: true, service: "repz-fit-backend" };
-});
+  if (env.FRONTEND_URL) {
+    origins.add(env.FRONTEND_URL);
+  }
 
-await app.register(registerEvolutionWebhookRoute, { prefix: "/v1/webhooks" });
-await app.register(registerPersonalApiRoutes, { prefix: "/api" });
+  origins.add("http://localhost:3000");
+  origins.add("http://localhost:5173");
 
-app.addHook("onReady", async () => {
-  scheduleSessionCleanup(app);
-});
-
-const closeSignals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
-for (const signal of closeSignals) {
-  process.on(signal, async () => {
-    app.log.info({ signal }, "Shutting down server");
-    await app.close();
-    process.exit(0);
-  });
+  return Array.from(origins);
 }
 
-try {
-  await app.listen({ port: env.PORT, host: "0.0.0.0" });
-} catch (error) {
-  app.log.error(error, "Failed to start server");
-  process.exit(1);
+export async function buildApp(options: BuildAppOptions = {}) {
+  const app = Fastify({
+    logger: {
+      level: env.LOG_LEVEL,
+    },
+  });
+
+  const allowedOrigins = getAllowedOrigins();
+
+  await app.register(sensible);
+  await app.register(cors, {
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (
+        allowedOrigins.includes(origin) ||
+        /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)
+      ) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("CORS origin denied"), false);
+    },
+  });
+
+  app.get("/health", async () => {
+    return { ok: true, service: "repz-fit-backend" };
+  });
+
+  app.post("/api/internal/session-cleanup", async (request, reply) => {
+    if (env.CRON_SECRET) {
+      const authHeader = request.headers.authorization;
+      const expected = `Bearer ${env.CRON_SECRET}`;
+
+      if (authHeader !== expected) {
+        throw app.httpErrors.unauthorized("Invalid cron secret");
+      }
+    }
+
+    await runSessionCleanup(app);
+    return reply.send({ ok: true });
+  });
+
+  await app.register(registerEvolutionWebhookRoute, { prefix: "/v1/webhooks" });
+  await app.register(registerPersonalApiRoutes, { prefix: "/api" });
+
+  if (options.enableCleanupScheduler ?? true) {
+    app.addHook("onReady", async () => {
+      scheduleSessionCleanup(app);
+    });
+  }
+
+  return app;
 }
