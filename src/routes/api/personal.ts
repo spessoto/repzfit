@@ -547,7 +547,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("workout_exercises")
       .select(
-        "id,target_sets,target_reps,target_weight,order_index,exercises(id,name,description,muscle_group)",
+        "id,target_sets,target_reps,target_weight,order_index,exercises!inner(id,name,description,muscle_group)",
       )
       .eq("workout_id", workoutId)
       .order("order_index", { ascending: true });
@@ -557,16 +557,21 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     }
 
     // Flatten the response to have exercise data at root level
-    const exercises = (data ?? []).map((we) => ({
-      id: we.exercises?.id,
-      name: we.exercises?.name,
-      description: we.exercises?.description,
-      muscle_group: we.exercises?.muscle_group,
-      target_sets: we.target_sets,
-      target_reps: we.target_reps,
-      target_weight: we.target_weight,
-      order_index: we.order_index,
-    }));
+    const exercises = (data ?? []).map((we: any) => {
+      const exercise = Array.isArray(we.exercises)
+        ? we.exercises[0]
+        : we.exercises;
+      return {
+        id: exercise?.id,
+        name: exercise?.name,
+        description: exercise?.description,
+        muscle_group: exercise?.muscle_group,
+        target_sets: we.target_sets,
+        target_reps: we.target_reps,
+        target_weight: we.target_weight,
+        order_index: we.order_index,
+      };
+    });
 
     return exercises;
   });
