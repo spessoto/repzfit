@@ -803,28 +803,7 @@
         document.getElementById("loginScreen").classList.remove("hidden");
       }
 
-      // Event listeners para login com Enter
-      document.addEventListener("DOMContentLoaded", function () {
-        const emailInput = document.getElementById("loginEmail");
-        const passwordInput = document.getElementById("loginPassword");
-
-        if (emailInput && passwordInput) {
-          emailInput.addEventListener("keypress", function (e) {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              passwordInput.focus();
-            }
-          });
-
-          passwordInput.addEventListener("keypress", function (e) {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              login();
-            }
-          });
-        }
-      });
-
+      // Função login precisa estar no escopo global para ser chamada pelo onclick
       async function login() {
         const email = document.getElementById("loginEmail").value.trim();
         const password = document.getElementById("loginPassword").value;
@@ -884,6 +863,28 @@
           showError("loginError", "Erro ao conectar com o servidor. Tente novamente.");
         }
       }
+
+      // Event listeners para login com Enter
+      document.addEventListener("DOMContentLoaded", function () {
+        const emailInput = document.getElementById("loginEmail");
+        const passwordInput = document.getElementById("loginPassword");
+
+        if (emailInput && passwordInput) {
+          emailInput.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              passwordInput.focus();
+            }
+          });
+
+          passwordInput.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              login();
+            }
+          });
+        }
+      });
 
       function logout() {
         stopStatusMonitoring();
