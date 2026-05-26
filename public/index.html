@@ -214,6 +214,36 @@
         display: block;
       }
 
+      .autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        margin-top: 4px;
+      }
+
+      .autocomplete-item {
+        padding: 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #e5e7eb;
+        transition: background 0.2s;
+      }
+
+      .autocomplete-item:last-child {
+        border-bottom: none;
+      }
+
+      .autocomplete-item:hover {
+        background: #f3f4f6;
+      }
+
       .status-badge {
         display: inline-block;
         padding: 4px 12px;
@@ -1162,11 +1192,18 @@
             ×
           </button>
 
-          <div class="form-group">
+          <div class="form-group" style="position: relative;">
             <label>Exercício *</label>
-            <select id="exercicio_${index}" class="exercicio-select" required>
-              <option value="">Selecione um exercício</option>
-            </select>
+            <input 
+              type="text" 
+              id="exercicio_search_${index}" 
+              placeholder="Digite para buscar exercício..."
+              autocomplete="off"
+              oninput="buscarExercicios(${index}, this.value)"
+              onfocus="buscarExercicios(${index}, this.value)"
+            />
+            <input type="hidden" id="exercicio_${index}" required />
+            <div id="exercicio_dropdown_${index}" class="autocomplete-dropdown" style="display: none;"></div>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
@@ -1187,68 +1224,106 @@
 
         container.appendChild(exercicioDiv);
         exerciciosDoTreino.push({ index });
-
-        // Preencher select de exercícios
-        preencherExerciciosSelect(index);
       }
 
-      async function preencherExerciciosSelect(index) {
-        try {
-          const apiUrl =
-            window.location.hostname === "localhost"
-              ? "http://localhost:3333"
-              : window.location.origin;
+      // Cache de busca de exercícios
+      let exerciciosCache = {};
+      let exerciciosBuscaTimeout = {};
 
-          // Buscar todos os exercícios (sem paginação) usando limit alto
-          const response = await fetch(`${apiUrl}/api/exercises?limit=10000`, {
-            headers: { Authorization: `Bearer ${authToken}` },
-          });
-
-          if (response.status === 401) {
-            handleUnauthorized();
-            return;
-          }
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-
-          const result = await response.json();
-          const exercicios = result.data || [];
-
-          const select = document.getElementById(`exercicio_${index}`);
-          if (!select) return;
-
-          // Limpar opções existentes exceto a primeira
-          while (select.options.length > 1) {
-            select.remove(1);
-          }
-
-          if (!exercicios || exercicios.length === 0) {
-            const option = document.createElement("option");
-            option.value = "";
-            option.textContent = "Nenhum exercício cadastrado";
-            select.appendChild(option);
-            return;
-          }
-
-          exercicios.forEach((ex) => {
-            const option = document.createElement("option");
-            option.value = ex.id;
-            option.textContent = `${ex.name}${ex.muscle_group ? ` (${ex.muscle_group})` : ""}`;
-            select.appendChild(option);
-          });
-        } catch (error) {
-          console.error("Erro ao carregar exercícios para select:", error);
-          const select = document.getElementById(`exercicio_${index}`);
-          if (select) {
-            const option = document.createElement("option");
-            option.value = "";
-            option.textContent = "Erro ao carregar exercícios";
-            select.appendChild(option);
-          }
+      async function buscarExercicios(index, termo) {
+        // Limpar timeout anterior
+        if (exerciciosBuscaTimeout[index]) {
+          clearTimeout(exerciciosBuscaTimeout[index]);
         }
+
+        const dropdown = document.getElementById(`exercicio_dropdown_${index}`);
+
+        // Se o termo está vazio, esconder dropdown
+        if (!termo || termo.trim().length < 2) {
+          dropdown.style.display = "none";
+          return;
+        }
+
+        // Debounce: aguardar 300ms antes de buscar
+        exerciciosBuscaTimeout[index] = setTimeout(async () => {
+          try {
+            const apiUrl =
+              window.location.hostname === "localhost"
+                ? "http://localhost:3333"
+                : window.location.origin;
+
+            const response = await fetch(
+              `${apiUrl}/api/exercises?search=${encodeURIComponent(termo)}&limit=20`,
+              {
+                headers: { Authorization: `Bearer ${authToken}` },
+              },
+            );
+
+            if (response.status === 401) {
+              handleUnauthorized();
+              return;
+            }
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            const exercicios = result.data || [];
+
+            // Mostrar dropdown com resultados
+            if (exercicios.length === 0) {
+              dropdown.innerHTML = `
+                <div style="padding: 10px; color: #6b7280; text-align: center;">
+                  Nenhum exercício encontrado
+                </div>
+              `;
+              dropdown.style.display = "block";
+              return;
+            }
+
+            dropdown.innerHTML = exercicios
+              .map(
+                (ex) => `
+                <div 
+                  class="autocomplete-item" 
+                  onclick="selecionarExercicio(${index}, '${ex.id}', '${ex.name.replace(/'/g, "\\'")}')"
+                  style="padding: 10px; cursor: pointer; border-bottom: 1px solid #e5e7eb;"
+                  onmouseover="this.style.background='#f3f4f6'"
+                  onmouseout="this.style.background='white'"
+                >
+                  <strong>${ex.name}</strong>
+                  ${ex.muscle_group ? `<br><small style="color: #6b7280;">${ex.muscle_group}</small>` : ""}
+                </div>
+              `,
+              )
+              .join("");
+
+            dropdown.style.display = "block";
+          } catch (error) {
+            console.error("Erro ao buscar exercícios:", error);
+          }
+        }, 300);
       }
+
+      function selecionarExercicio(index, exercicioId, exercicioNome) {
+        document.getElementById(`exercicio_${index}`).value = exercicioId;
+        document.getElementById(`exercicio_search_${index}`).value =
+          exercicioNome;
+        document.getElementById(`exercicio_dropdown_${index}`).style.display =
+          "none";
+      }
+
+      // Fechar dropdown ao clicar fora
+      document.addEventListener("click", function (e) {
+        if (!e.target.matches('[id^="exercicio_search_"]')) {
+          document
+            .querySelectorAll(".autocomplete-dropdown")
+            .forEach((dropdown) => {
+              dropdown.style.display = "none";
+            });
+        }
+      });
 
       function removerExercicioDoTreino(index) {
         const container = document.getElementById("exerciciosContainer");

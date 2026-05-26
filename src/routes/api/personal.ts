@@ -330,9 +330,9 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       );
     }
 
-    // Aplicar paginação e ordenação
+    // Aplicar paginação e ordenação alfabética por nome
     const { data, error, count } = await query
-      .order("created_at", { ascending: false })
+      .order("name", { ascending: true })
       .range(from, to);
 
     if (error) {
