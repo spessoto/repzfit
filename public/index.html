@@ -686,8 +686,8 @@
         event.target.classList.add("active");
         document.getElementById(tab + "Tab").classList.add("active");
 
-        if (tab === "alunos") listarAlunos();
-        if (tab === "exercicios") listarExercicios();
+        if (tab === "alunos") carregarAlunos();
+        if (tab === "exercicios") carregarExercicios();
         if (tab === "whatsapp") {
           verificarStatusWhatsApp();
         }
@@ -697,7 +697,12 @@
         const nome = document.getElementById("alunoNome").value;
         const whatsapp = document.getElementById("alunoWhatsapp").value;
 
-        const response = await fetch("http://localhost:3333/api/students", {
+        const apiUrl =
+          window.location.hostname === "localhost"
+            ? "http://localhost:3333"
+            : window.location.origin;
+
+        const response = await fetch(`${apiUrl}/api/students`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -720,7 +725,12 @@
       }
 
       async function carregarAlunos() {
-        const response = await fetch("http://localhost:3333/api/students", {
+        const apiUrl =
+          window.location.hostname === "localhost"
+            ? "http://localhost:3333"
+            : window.location.origin;
+
+        const response = await fetch(`${apiUrl}/api/students`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
         const alunos = await response.json();
@@ -850,7 +860,12 @@
       }
 
       async function carregarAlunosSelect() {
-        const response = await fetch("http://localhost:3333/api/students", {
+        const apiUrl =
+          window.location.hostname === "localhost"
+            ? "http://localhost:3333"
+            : window.location.origin;
+
+        const response = await fetch(`${apiUrl}/api/students`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
         const alunos = await response.json();
@@ -1037,7 +1052,12 @@
         const nome = document.getElementById("treinoNome").value;
         const data = document.getElementById("treinoData").value;
 
-        const response = await fetch("http://localhost:3333/api/workouts", {
+        const apiUrl =
+          window.location.hostname === "localhost"
+            ? "http://localhost:3333"
+            : window.location.origin;
+
+        const response = await fetch(`${apiUrl}/api/workouts`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
