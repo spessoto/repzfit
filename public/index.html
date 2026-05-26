@@ -865,11 +865,11 @@
             handleUnauthorized();
             return;
           }
-          
+
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }
-          
+
           const exercicios = await response.json();
 
           const tbody = document.getElementById("exerciciosBody");

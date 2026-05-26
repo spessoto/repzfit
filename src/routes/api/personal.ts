@@ -524,7 +524,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("workouts")
       .select(
-        "id,student_id,name,day_of_week,created_at,workout_exercises(id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,created_at)",
+        "id,student_id,name,day_of_week,start_date,valid_until,created_at,workout_exercises(id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,created_at)",
       )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
@@ -534,6 +534,41 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     }
 
     return data ?? [];
+  });
+
+  app.get("/workouts/:id/exercises", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const workoutId = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+    const client = getRlsClient(token);
+
+    const { data, error } = await client
+      .from("workout_exercises")
+      .select(
+        "id,target_sets,target_reps,target_weight,order_index,exercises(id,name,description,muscle_group)",
+      )
+      .eq("workout_id", workoutId)
+      .order("order_index", { ascending: true });
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    // Flatten the response to have exercise data at root level
+    const exercises = (data ?? []).map((we) => ({
+      id: we.exercises?.id,
+      name: we.exercises?.name,
+      description: we.exercises?.description,
+      muscle_group: we.exercises?.muscle_group,
+      target_sets: we.target_sets,
+      target_reps: we.target_reps,
+      target_weight: we.target_weight,
+      order_index: we.order_index,
+    }));
+
+    return exercises;
   });
 
   app.get("/analytics/daily-performance", async (request) => {
