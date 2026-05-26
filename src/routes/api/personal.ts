@@ -303,18 +303,55 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { token } = await getAuthenticatedPersonal(app, request);
     const client = getRlsClient(token);
 
-    const { data, error } = await client
+    // Parâmetros de paginação
+    const queryParams = request.query as {
+      page?: string;
+      limit?: string;
+      search?: string;
+    };
+    const page = parseInt(queryParams.page || "1", 10);
+    const limit = parseInt(queryParams.limit || "15", 10);
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    const search = queryParams.search || "";
+
+    // Query base
+    let query = client
       .from("exercises")
       .select(
         "id,personal_id,name,description,muscle_group,equipment,tags,created_at",
-      )
-      .order("created_at", { ascending: false });
+        { count: "exact" },
+      );
+
+    // Filtro de busca (se fornecido)
+    if (search) {
+      query = query.or(
+        `name.ilike.%${search}%,muscle_group.ilike.%${search}%,equipment.ilike.%${search}%`,
+      );
+    }
+
+    // Aplicar paginação e ordenação
+    const { data, error, count } = await query
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) {
       throw app.httpErrors.badRequest(error.message);
     }
 
-    return data ?? [];
+    const totalPages = Math.ceil((count || 0) / limit);
+
+    return {
+      data: data ?? [],
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
   });
 
   app.patch("/exercises/:id", async (request) => {

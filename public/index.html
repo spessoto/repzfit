@@ -476,6 +476,43 @@
               </tr>
             </tbody>
           </table>
+
+          <!-- Controles de Paginação -->
+          <div
+            id="exerciciosPaginacao"
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-top: 20px;
+              padding: 15px;
+              background: #f9fafb;
+              border-radius: 8px;
+            "
+          >
+            <button
+              id="exerciciosPrevBtn"
+              class="btn btn-secondary"
+              onclick="carregarExerciciosPagina('prev')"
+              disabled
+            >
+              ← Anterior
+            </button>
+            <span
+              id="exerciciosPaginaInfo"
+              style="color: #6b7280; font-weight: 500"
+            >
+              Página 1 de 1
+            </span>
+            <button
+              id="exerciciosNextBtn"
+              class="btn btn-secondary"
+              onclick="carregarExerciciosPagina('next')"
+              disabled
+            >
+              Próxima →
+            </button>
+          </div>
         </div>
       </div>
 
@@ -602,6 +639,10 @@
     <script>
       let authToken = localStorage.getItem("repz_token");
       let personalData = null;
+
+      // Paginação de exercícios
+      let exerciciosPaginaAtual = 1;
+      let exerciciosTotalPaginas = 1;
 
       // Initialize
       if (authToken) {
@@ -850,16 +891,21 @@
         }
       }
 
-      async function carregarExercicios() {
+      async function carregarExercicios(pagina = 1) {
         try {
+          exerciciosPaginaAtual = pagina;
+
           const apiUrl =
             window.location.hostname === "localhost"
               ? "http://localhost:3333"
               : window.location.origin;
 
-          const response = await fetch(`${apiUrl}/api/exercises`, {
-            headers: { Authorization: `Bearer ${authToken}` },
-          });
+          const response = await fetch(
+            `${apiUrl}/api/exercises?page=${pagina}&limit=15`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
 
           if (response.status === 401) {
             handleUnauthorized();
@@ -870,13 +916,19 @@
             throw new Error(`HTTP ${response.status}`);
           }
 
-          const exercicios = await response.json();
+          const result = await response.json();
+          const exercicios = result.data || [];
+          const pagination = result.pagination || {};
 
           const tbody = document.getElementById("exerciciosBody");
 
           if (!exercicios || exercicios.length === 0) {
             tbody.innerHTML =
               '<tr><td colspan="5" style="text-align: center; color: #6b7280;">Nenhum exercício cadastrado</td></tr>';
+
+            // Ocultar paginação
+            document.getElementById("exerciciosPaginacao").style.display =
+              "none";
             return;
           }
 
@@ -893,11 +945,34 @@
             `,
             )
             .join("");
+
+          // Atualizar controles de paginação
+          exerciciosTotalPaginas = pagination.totalPages || 1;
+
+          document.getElementById("exerciciosPaginacao").style.display = "flex";
+          document.getElementById("exerciciosPaginaInfo").textContent =
+            `Página ${pagination.page} de ${pagination.totalPages} (${pagination.total} exercícios)`;
+
+          document.getElementById("exerciciosPrevBtn").disabled =
+            !pagination.hasPrev;
+          document.getElementById("exerciciosNextBtn").disabled =
+            !pagination.hasNext;
         } catch (error) {
           console.error("Erro ao carregar exercícios:", error);
           const tbody = document.getElementById("exerciciosBody");
           tbody.innerHTML =
             '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Erro ao carregar exercícios</td></tr>';
+        }
+      }
+
+      function carregarExerciciosPagina(direcao) {
+        if (
+          direcao === "next" &&
+          exerciciosPaginaAtual < exerciciosTotalPaginas
+        ) {
+          carregarExercicios(exerciciosPaginaAtual + 1);
+        } else if (direcao === "prev" && exerciciosPaginaAtual > 1) {
+          carregarExercicios(exerciciosPaginaAtual - 1);
         }
       }
 
@@ -1010,7 +1085,8 @@
               ? "http://localhost:3333"
               : window.location.origin;
 
-          const response = await fetch(`${apiUrl}/api/exercises`, {
+          // Buscar todos os exercícios (sem paginação) usando limit alto
+          const response = await fetch(`${apiUrl}/api/exercises?limit=10000`, {
             headers: { Authorization: `Bearer ${authToken}` },
           });
 
@@ -1023,7 +1099,8 @@
             throw new Error(`HTTP ${response.status}`);
           }
 
-          const exercicios = await response.json();
+          const result = await response.json();
+          const exercicios = result.data || [];
 
           const select = document.getElementById(`exercicio_${index}`);
           if (!select) return;
