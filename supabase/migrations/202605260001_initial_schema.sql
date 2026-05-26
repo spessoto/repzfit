@@ -1,7 +1,7 @@
-create extension if not exists "uuid-ossp";
+create extension if not exists "pgcrypto";
 
 create table if not exists public.personals (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   name text not null,
   email text unique not null,
   evolution_instance_name text unique not null,
@@ -18,7 +18,7 @@ create policy "Personals podem ler e atualizar apenas os seus próprios dados"
   with check (auth.uid() = id);
 
 create table if not exists public.students (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   personal_id uuid references public.personals(id) on delete cascade not null,
   name text not null,
   whatsapp_number text not null,
@@ -36,7 +36,7 @@ create policy "Personals gerem apenas os seus próprios alunos"
   with check (personal_id = auth.uid());
 
 create table if not exists public.exercises (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   personal_id uuid references public.personals(id) on delete cascade not null,
   name text not null,
   description text,
@@ -52,7 +52,7 @@ create policy "Personals gerem os seus próprios exercícios"
   with check (personal_id = auth.uid());
 
 create table if not exists public.workouts (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   student_id uuid references public.students(id) on delete cascade not null,
   name text not null,
   day_of_week integer[],
@@ -68,7 +68,7 @@ create policy "Personals gerem treinos dos seus alunos"
   with check (student_id in (select id from public.students where personal_id = auth.uid()));
 
 create table if not exists public.workout_exercises (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   workout_id uuid references public.workouts(id) on delete cascade not null,
   exercise_id uuid references public.exercises(id) on delete cascade not null,
   target_sets integer not null,
@@ -103,7 +103,7 @@ create policy "Personals gerem itens das fichas de treino"
   );
 
 create table if not exists public.daily_sessions (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   student_id uuid references public.students(id) on delete cascade not null,
   workout_id uuid references public.workouts(id) on delete cascade not null,
   status text default 'started'::text check (status in ('started', 'completed', 'abandoned')) not null,
@@ -121,7 +121,7 @@ create policy "Personals acedem às sessões dos seus alunos"
   with check (student_id in (select id from public.students where personal_id = auth.uid()));
 
 create table if not exists public.set_logs (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   session_id uuid references public.daily_sessions(id) on delete cascade not null,
   workout_exercise_id uuid references public.workout_exercises(id) on delete cascade not null,
   set_number integer not null,
