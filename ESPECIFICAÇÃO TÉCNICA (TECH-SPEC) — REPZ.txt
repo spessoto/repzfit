@@ -1,0 +1,348 @@
+﻿Python
+markdown_content = """# ESPECIFICAÇÃO TÉCNICA (TECH-SPEC) — REPZ.FIT (VERSÃO CONSOLIDADA V2)
+
+
+Este documento estabelece as diretrizes definitivas de engenharia, modelação de dados, segurança e resiliência para o desenvolvimento do MVP do **repz.fit**. Esta versão funde todos os mecanismos de tratamento de erros, segurança multi-tenant (RLS), limpeza de sessões e ingestão de mídias diretamente nas suas secções nativas, servindo como contexto de alta fidelidade para o desenvolvimento via **Vibe Coding**.
+
+
+---
+
+
+## 1. Arquitetura do Sistema e Fluxo de Dados
+
+
+O ecossistema baseia-se num modelo de microsserviços e mensageria assíncrona orientada a eventos (Webhooks), processados por uma Máquina de Estados Finitos persistida em base de dados.
+
+
+
+
+Saída de código
+File V2 generated successfully.
+
+
+```text
+[ WhatsApp do Aluno ] 
+       ▲  │
+       │  ▼ (Texto, Clique em Botão ou Áudio)
+[ Evolution API (Alojada) ]
+       │
+       ▼ (Webhook: MESSAGES_UPSERT com Validação Zod)
+[ Backend Fastify ] ◄───► [ Camada LLM & Whisper (OpenAI/Gemini) ]
+       ▲
+       ▼ (Queries Restritas via PostgreSQL RLS)
+[ Supabase (PostgreSQL) ]
+
+
+O Ciclo de Execução Resiliente:
+1. Origem do Estímulo: O aluno envia um input (texto, áudio ou clique de botão) no WhatsApp.
+2. Interceção e Encaminhamento: A Evolution API (evolution.pododesk.com.br) recebe o evento e dispara um HTTP POST (MESSAGES_UPSERT) para o webhook público do Fastify.
+3. Ingestão e Filtragem: O Fastify valida o payload rigidamente na camada de roteamento. Se o input for um arquivo de áudio, o backend faz o download temporário do binário e aciona a API do Whisper para transcrever o áudio em texto antes de passar para o motor lógico.
+4. Processamento do Estado: O backend busca o estado atual do aluno na tabela bot_state. Se o input falhar na validação lógica (ex: o usuário respondeu texto onde se esperava um número), o motor desvia o fluxo temporariamente para um estado de FALLBACK, permitindo que a LLM trate a resposta de forma humanizada sem perder o progresso do treino.
+5. Persistência e Resposta: As alterações são gravadas no Supabase. O texto final gerado com a personalidade da IA é enviado de volta à Evolution API, que entrega a mensagem formatada (com botões nativos) ao aluno.
+2. Conetividade com a Evolution API e Validação de Webhooks
+O servidor da Evolution API está centralizado em evolution.pododesk.com.br. Para garantir o isolamento total entre os diferentes Personal Trainers (Multi-tenancy), o sistema adota regras estritas de conexão e validação.
+Autenticação e Gestão de Instâncias
+* Global API Key: Chave mestre configurada via variável de ambiente (EVOLUTION_GLOBAL_KEY) para permitir que o backend crie, remova e consulte instâncias dinamicamente quando um Personal se registar na plataforma.
+* Mapeamento Dinâmico: Cada Personal Trainer possui uma instância dedicada cujo instanceName segue o padrão personal_[UUID_DO_SUPABASE]. O painel administrativo web consome esta rota para exibir o QR Code de emparelhamento nativo da Evolution API.
+Validação Rígida de Payload (Camada de Roteamento)
+Para mitigar processamento desnecessário de mensagens de status (entregue, lido) ou loops gerados pelo próprio bot, a rota /v1/webhooks/evolution implementa uma validação rigorosa utilizando Zod. Payloads que não correspondam à estrutura de mensagem recebida de terceiros são descartados imediatamente no nível HTTP 200 (OK) para evitar sobrecarga no Supabase.
+TypeScript
+// Exemplo de Schema Zod para Validação do Webhook
+import { z } from 'zod';
+
+
+export const EvolutionWebhookSchema = z.object({
+  event: z.literal('messages.upsert'),
+  instance: z.string(),
+  data: z.object({
+    key: z.object({
+      remoteJid: z.string(),
+      fromMe: z.boolean()
+    }),
+    messageType: z.enum(['conversation', 'extendedTextMessage', 'buttonsResponseMessage', 'audioMessage']),
+    message: z.object({
+      conversation: z.string().optional(),
+      buttonsResponseMessage: z.object({
+        selectedButtonId: z.string()
+      }).optional()
+    }).optional()
+  })
+});
+
+
+3. Modelação da Base de Dados e Segurança (Supabase / PostgreSQL)
+O script SQL abaixo inclui a estrutura de tabelas normalizada, restrições de integridade, índices de alta performance e as políticas de segurança de linha (Row Level Security - RLS) para proteger o ecossistema multi-tenant.
+SQL
+-- Habilitar extensão para geração de UUIDs universais
+create extension if not exists "uuid-ossp";
+
+
+-- 1. TABELA DE PERSONAL TRAINERS
+create table public.personals (
+    id uuid default uuid_generate_v4() primary key,
+    name text not null,
+    email text unique not null,
+    evolution_instance_name text unique not null,
+    evolution_api_key text,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+
+-- Ativar RLS para Personals
+alter table public.personals enable row level security;
+
+
+create policy "Personals podem ler e atualizar apenas os seus próprios dados"
+    on public.personals for all
+    using (auth.uid() = id);
+
+
+-- 2. TABELA DE ALUNOS (STUDENTS)
+create table public.students (
+    id uuid default uuid_generate_v4() primary key,
+    personal_id uuid references public.personals(id) on delete cascade not null,
+    name text not null,
+    whatsapp_number text not null,
+    is_active boolean default true,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    constraint unique_whatsapp_per_personal unique(personal_id, whatsapp_number)
+);
+
+
+-- Ativar RLS para Students
+alter table public.students enable row level security;
+
+
+create policy "Personals gerem apenas os seus próprios alunos"
+    on public.students for all
+    using (personal_id = auth.uid());
+
+
+-- 3. TABELA DE EXERCÍCIOS
+create table public.exercises (
+    id uuid default uuid_generate_v4() primary key,
+    personal_id uuid references public.personals(id) on delete cascade not null,
+    name text not null,
+    description text,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+
+alter table public.exercises enable row level security;
+create policy "Personals gerem os seus próprios exercícios" 
+    on public.exercises for all using (personal_id = auth.uid());
+
+
+-- 4. TABELA DE TREINOS (FICHAS)
+create table public.workouts (
+    id uuid default uuid_generate_v4() primary key,
+    student_id uuid references public.students(id) on delete cascade not null,
+    name text not null, 
+    day_of_week integer[], 
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+
+alter table public.workouts enable row level security;
+create policy "Personals gerem treinos dos seus alunos"
+    on public.workouts for all
+    using (student_id in (select id from public.students where personal_id = auth.uid()));
+
+
+-- 5. TABELA DE EXERCÍCIOS VINCULADOS AO TREINO (ITENS DA FICHA)
+create table public.workout_exercises (
+    id uuid default uuid_generate_v4() primary key,
+    workout_id uuid references public.workouts(id) on delete cascade not null,
+    exercise_id uuid references public.exercises(id) on delete cascade not null,
+    target_sets integer not null, 
+    target_reps integer not null, 
+    target_weight numeric(5,2),   
+    order_index integer not null, 
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+
+alter table public.workout_exercises enable row level security;
+create policy "Personals gerem itens das fichas de treino"
+    on public.workout_exercises for all
+    using (workout_id in (select id from public.workouts where student_id in (select id from public.students where personal_id = auth.uid())));
+
+
+-- 6. TABELA DE CONTROLO DE SESSÕES DIÁRIAS
+create table public.daily_sessions (
+    id uuid default uuid_generate_v4() primary key,
+    student_id uuid references public.students(id) on delete cascade not null,
+    workout_id uuid references public.workouts(id) on delete cascade not null,
+    status text default 'started'::text check (status in ('started', 'completed', 'abandoned')) not null, 
+    date date default current_date not null,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+
+alter table public.daily_sessions enable row level security;
+create policy "Personals acedem às sessões dos seus alunos"
+    on public.daily_sessions for all
+    using (student_id in (select id from public.students where personal_id = auth.uid()));
+
+
+-- 7. TABELA DE REGISTOS DE SÉRIES EXECUTADAS (MÉTRICAS DO ALUNO)
+create table public.set_logs (
+    id uuid default uuid_generate_v4() primary key,
+    session_id uuid references public.daily_sessions(id) on delete cascade not null,
+    workout_exercise_id uuid references public.workout_exercises(id) on delete cascade not null,
+    set_number integer not null, 
+    reps_done integer not null,
+    weight_used numeric(5,2) not null,
+    rpe_score integer check (rpe_score >= 1 and rpe_score <= 10) not null, 
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+
+alter table public.set_logs enable row level security;
+create policy "Personals acedem aos logs de treino"
+    on public.set_logs for all
+    using (session_id in (select id from public.daily_sessions where student_id in (select id from public.students where personal_id = auth.uid())));
+
+
+-- 8. TABELA DA MÁQUINA DE ESTADOS DO BOT (SISTEMA)
+create table public.bot_state (
+    whatsapp_number text primary key,
+    student_id uuid references public.students(id) on delete cascade not null,
+    current_state text default 'IDLE'::text not null, 
+    current_session_id uuid references public.daily_sessions(id) on delete set null,
+    current_workout_exercise_id uuid references public.workout_exercises(id) on delete set null,
+    current_set_number integer default 1,
+    last_input_attempt text, -- Guarda o input temporário em caso de processamento multifase
+    updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+
+-- Índices recomendados para otimização em tempo de execução de Webhooks
+create index idx_students_whatsapp on public.students(whatsapp_number);
+create index idx_bot_state_lookup on public.bot_state(whatsapp_number);
+create index idx_daily_sessions_timeout on public.daily_sessions(status, updated_at) WHERE status = 'started';
+
+
+4. Estrutura de Pastas Recomendada (Backend Fastify)
+Plaintext
+repz-fit-backend/
+├── src/
+│   ├── config/
+│   │   ├── env.ts              # Validação de variáveis de ambiente com Zod
+│   │   └── supabase.ts         # Inicialização do cliente Supabase administrativo
+│   ├── routes/
+│   │   ├── webhooks/
+│   │   │   └── evolution.ts    # Rota com validação Zod e processamento de mídias/áudios
+│   │   └── api/                # Endpoints CRUD da plataforma web protegidos por Supabase Auth
+│   ├── services/
+│   │   ├── bot-engine.ts       # Centralizador da Máquina de Estados e tratamento de Fallbacks
+│   │   ├── evolution-service.ts# Abstração HTTP das chamadas de envio (Texto/Botões) para o servidor
+│   │   └── openai-service.ts   # Integração com GPT/Gemini (Personalidade) e Whisper (Áudio)
+│   ├── cron/
+│   │   └── session-cleanup.ts  # Job periódico para expiração de treinos abandonados
+│   └── app.ts                  # Inicialização do Fastify e registo de plugins do ecossistema
+├── .env.example
+├── package.json
+└── tsconfig.json
+
+
+5. Engenharia da Máquina de Estados e Resiliência
+O comportamento do bot baseia-se numa máquina de estados sequencial, com inteligência para lidar com desvios de comportamento, áudios e abandonos.
+Mapeamento Técnico de Estados
+Estado Atual (current_state)
+	Input Esperado
+	Ação Técnica no Backend
+	Próximo Estado Alvo
+	IDLE
+	Qualquer gatilho
+	Localiza aluno pelo número. Se houver treino, envia botão de início.
+	AWAITING_TRAINING_START
+	AWAITING_TRAINING_START
+	Botão: Sim, começar!
+	Cria registro em daily_sessions. Lista exercícios pendentes em botões.
+	SELECTING_EXERCISE
+	SELECTING_EXERCISE
+	ID do Exercício
+	Salva current_workout_exercise_id, define set_number = 1, envia metas.
+	EXECUTING_SET
+	EXECUTING_SET
+	Botão: Já terminei o set!
+	Dispara pergunta: "Quantas repetições foram feitas?"
+	COLLECTING_REPS
+	COLLECTING_REPS
+	Inteiro Válido
+	Salva reps temporariamente. Pergunta: "Confirme a carga utilizada (kg):"
+	COLLECTING_WEIGHT
+	COLLECTING_WEIGHT
+	Numérico Válido
+	Salva carga temporariamente. Envia lista de botões RPE (1 a 10).
+	COLLECTING_RPE
+	COLLECTING_RPE
+	Seleção de 1 a 10
+	Consolida dados em set_logs. Executa avaliação de loop.
+	Condicional (Ver abaixo)
+	FALLBACK
+	Qualquer Input
+	LLM processa de forma amigável e força o retorno ao estado anterior.
+	Retorno ao Estado Anterior
+	Mecanismos Avançados de Resiliência
+1. Ingestão de Áudio via Whisper
+Sempre que a propriedade messageType do webhook for igual a audioMessage, o middleware intercepta o arquivo .ogg, faz o streaming do binário para a API do Whisper e injeta a string de texto transcrita de volta na variável de entrada do bot-engine. A partir desse ponto, o bot processa a informação como se tivesse sido digitada pelo aluno.
+2. Tratamento do Estado de FALLBACK
+Se o aluno enviar um texto livre ou um comando inválido durante os estados de coleta (COLLECTING_REPS ou COLLECTING_WEIGHT), o motor de estados:
+1. Altera temporariamente o estado para FALLBACK.
+2. Envia o input do aluno para a camada da LLM com um prompt contextualizado (Ex: "O aluno está no meio do treino de Supisno e disse '[TEXTO]'. Responda de forma curta, motivadora e peça educadamente para ele confirmar o dado numérico solicitado anteriormente").
+3. Após o envio da resposta gerada pela IA, o sistema reverte o estado do aluno na tabela bot_state para o estado de coleta original, garantindo que o fluxo não quebre.
+3. Expiração de Sessões Abandonadas (Cron Job)
+Para evitar que treinos fiquem "presos" indefinidamente se o aluno for embora da academia sem encerrar a sessão, um job interno (cron/session-cleanup.ts) é executado a cada 30 minutos via Fastify ou Supabase Edge Functions.
+TypeScript
+// Lógica de Limpeza Base:
+// 1. Seleciona todos os estados na tabela bot_state onde 'updated_at' é superior a 4 horas.
+// 2. Se o 'current_session_id' estiver preenchido, atualiza o status na tabela 'daily_sessions' para 'abandoned'.
+// 3. Atualiza o registro em 'bot_state' redefinindo os campos para os valores padrão:
+//    SET current_state = 'IDLE', current_session_id = NULL, current_workout_exercise_id = NULL, current_set_number = 1;
+
+
+"""
+with open("repz_fit_tech_spec_v2.md", "w", encoding="utf-8") as f:
+f.write(markdown_content)
+print("File V2 generated successfully.")
+O teu ficheiro MD com a Especificação Técnica Consolidada está pronto:
+[file-tag: code-generated-file-0-1779804242204104520]
+
+
+A fusão foi feita com sucesso. Agora, todas as lógicas de segurança multi-tenant (incluindo as políticas de RLS), ingestão de áudio via Whisper, validação estrita com Zod e o tratamento nativo do estado de `FALLBACK` e limpezas via Cron Job estão perfeitamente encaixadas nas suas respetivas secções técnicas. 
+
+
+Este ficheiro, entregue desta forma, fornece um contexto perfeito e livre de ambiguidades para utilizares nas tuas ferramentas de código.
+
+
+
+
+Para consolidar a gestão da plataforma pelos Personal Trainers, apresento abaixo o plano de Endpoints da API (RESTful) e o fluxo de suporte à gestão. Este plano deve ser implementado no backend Fastify, garantindo que todas as ações sejam filtradas pelo personal_id autenticado (via auth.uid() do Supabase).
+Plano de Endpoints (Gestão do Personal Trainer)
+Estes endpoints formam o contrato para o seu frontend administrativo (o painel onde o Personal gere os alunos).
+1. Gestão de Instância (Conexão WhatsApp)
+* GET /api/personal/connection/qrcode: Retorna o QR Code gerado pela Evolution API para o Personal realizar o handshake inicial.
+* GET /api/personal/connection/status: Verifica se a instância personal_[UUID] está connected, connecting ou disconnected.
+2. Gestão de Alunos (CRUD)
+* POST /api/students: Adiciona um novo aluno.
+* GET /api/students: Lista todos os alunos do Personal logado (RLS filtrado).
+* PATCH /api/students/:id: Edita dados do aluno (ex: desativar aluno).
+* DELETE /api/students/:id: Remove aluno e todo o seu histórico.
+3. Gestão de Exercícios (Biblioteca)
+* POST /api/exercises: Cria um novo exercício na biblioteca pessoal.
+* GET /api/exercises: Lista exercícios disponíveis para o Personal.
+* PATCH /api/exercises/:id: Atualiza instruções/descrição de um exercício.
+4. Gestão de Treinos (Fichas)
+* POST /api/workouts: Cria uma nova "Ficha" para um aluno específico.
+* POST /api/workouts/:id/exercises: Adiciona um exercício à ficha (definindo séries/reps).
+* GET /api/workouts/student/:student_id: Visualiza todos os treinos daquele aluno.
+5. Monitorização (Dashboards)
+* GET /api/analytics/daily-performance: Lista sessões do dia, indicando quais alunos concluíram o treino (status: 'completed') e o volume total (carga total movida).
+Fluxo de Implementação Sugerido
+Para manter o desenvolvimento limpo (Vibe Coding), sugiro seguir esta ordem:
+1. Camada de Segurança: Configurar o Supabase Auth e ativar as políticas de RLS (conforme definido no Tech-Spec v2). Sem isso, não há gestão segura.
+2. Camada de Conexão: Implementar a lógica de evolution-service.ts para criar instâncias dinamicamente quando um Personal se regista.
+3. Camada de CRUD: Desenvolver os endpoints básicos de Alunos e Exercícios.
+4. Camada de Fluxo: Integrar o bot (o bot-engine que processa as mensagens) com a base de dados que o frontend já está a preencher.
