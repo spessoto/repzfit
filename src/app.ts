@@ -1,8 +1,14 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import sensible from "@fastify/sensible";
+import fastifyStatic from "@fastify/static";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { env } from "./config/env.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { registerEvolutionWebhookRoute } from "./routes/webhooks/evolution.js";
 import { registerPersonalApiRoutes } from "./routes/api/personal.js";
 import {
@@ -37,6 +43,12 @@ export async function buildApp(options: BuildAppOptions = {}) {
   const allowedOrigins = getAllowedOrigins();
 
   await app.register(sensible);
+
+  await app.register(fastifyStatic, {
+    root: path.join(__dirname, "..", "public"),
+    prefix: "/",
+  });
+
   await app.register(cors, {
     origin(origin, callback) {
       if (!origin) {
