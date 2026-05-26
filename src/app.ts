@@ -27,9 +27,13 @@ function getAllowedOrigins(): string[] {
     origins.add(env.FRONTEND_URL);
   }
 
+  // Localhost para desenvolvimento
   origins.add("http://localhost:3000");
   origins.add("http://localhost:3333");
   origins.add("http://localhost:5173");
+
+  // URL de produção
+  origins.add("https://project-pxgam.vercel.app");
 
   return Array.from(origins);
 }
@@ -92,7 +96,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
     return reply.send({ ok: true });
   });
 
-  await app.register(registerEvolutionWebhookRoute, { prefix: "/v1/webhooks" });
+  await app.register(registerEvolutionWebhookRoute, { prefix: "/webhooks" });
   await app.register(registerPersonalApiRoutes, { prefix: "/api" });
 
   if (options.enableCleanupScheduler ?? true) {
