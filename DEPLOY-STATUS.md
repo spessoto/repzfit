@@ -8,6 +8,7 @@
 ## 📦 Commits Realizados
 
 ### Últimos Commits (Total: 15)
+
 ```
 a958ac5 - chore: remover script de reversao e backups
 45f799c - chore: ajustes finais no bot e documentacao
@@ -28,6 +29,7 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 ### ✅ Aplicadas com Sucesso
 
 #### Migration 1: Schema Inicial
+
 - ✅ Tabela `personals` com RLS
 - ✅ Tabela `students` com RLS
 - ✅ Tabela `exercises` com RLS
@@ -38,15 +40,18 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 - ✅ Tabela `bot_state` (sem RLS - sistema)
 
 #### Migration 2: Datas em Workouts
+
 - ✅ Campo `start_date` (data de início)
 - ✅ Campo `valid_until` (data de validade)
 
 #### Migration 3: Campos de Exercícios
+
 - ✅ Campo `muscle_group` (grupo muscular)
 - ✅ Campo `equipment` (equipamentos)
 - ✅ Campo `tags` (array de tags)
 
 #### Campos Críticos do Bot
+
 - ✅ `bot_state.last_input_attempt` (armazena reps|weight temporariamente)
 - ✅ `bot_state.current_state` (máquina de estados)
 - ✅ `bot_state.current_session_id` (sessão ativa)
@@ -61,16 +66,19 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 ## 🚀 Deploy na Vercel
 
 ### URLs de Produção
+
 - **Principal**: https://project-pxgam.vercel.app
 - **Última Build**: https://repzfit-caulqjrq3-agencia-stagesixs-projects.vercel.app
 
 ### Status da Aplicação
+
 - **HTTP Status**: ✅ 200 OK
 - **Frontend**: ✅ Carregando corretamente
 - **API Backend**: ✅ Serverless Functions ativas
 - **Variáveis de Ambiente**: ✅ Configuradas
 
 ### Variáveis Críticas (Verificadas)
+
 - ✅ `SUPABASE_URL`
 - ✅ `SUPABASE_SERVICE_KEY`
 - ✅ `SUPABASE_ANON_KEY`
@@ -89,6 +97,7 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 **IA**: Gemini Flash-Lite Latest (`gemini-2.0-flash-exp`)
 
 **Gatilhos de Início**:
+
 - "Iniciar treino"
 - "Começar treino"
 - "Bora treinar"
@@ -96,6 +105,7 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 - E variações similares
 
 **Fluxo Completo**:
+
 1. ✅ Detecção de intenção
 2. ✅ Validação de cadastro por WhatsApp
 3. ✅ Verificação de treino do dia
@@ -106,9 +116,11 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 8. ✅ Finalização e parabenização
 
 **Estados da Máquina**:
+
 - IDLE → AWAITING_TRAINING_START → EXECUTING_SET → COLLECTING_REPS → COLLECTING_WEIGHT → COLLECTING_RPE → Loop ou Fim
 
 **Recursos Especiais**:
+
 - ✅ Transcrição de áudio via Whisper
 - ✅ Fallback inteligente com Gemini
 - ✅ Validação rigorosa de inputs
@@ -119,6 +131,7 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 ## 🔒 Segurança
 
 ### Vulnerabilidades Corrigidas
+
 - ✅ XSS (Cross-Site Scripting) - função `escapeHtml()` aplicada
 - ✅ CORS restrito ao projeto (`repzfit-*.vercel.app`)
 - ✅ Validação de input com limites rigorosos (Zod)
@@ -133,12 +146,14 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 ## 📊 Dados Importados
 
 ### Exercícios
+
 - **Total**: 1.544 exercícios
 - **Campos**: nome, descrição, grupo muscular, equipamento, tags
 - **Ordenação**: Alfabética
 - **Paginação**: 15 por página
 
 ### Alunos
+
 - **Total**: 2 alunos de teste
 - **Status**: Ativos
 
@@ -147,12 +162,14 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 ## ✅ Checklist Final
 
 ### Git & GitHub
+
 - [x] Todos os arquivos commitados
 - [x] Push realizado com sucesso
 - [x] Branch `main` sincronizada
 - [x] Sem alterações pendentes
 
 ### Banco de Dados
+
 - [x] 8 tabelas criadas e operacionais
 - [x] RLS configurado (7 tabelas)
 - [x] Todos os campos necessários presentes
@@ -160,6 +177,7 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 - [x] Índices de performance criados
 
 ### Deploy Vercel
+
 - [x] Build executado sem erros
 - [x] Deployment em produção
 - [x] URL principal ativa (200 OK)
@@ -167,6 +185,7 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 - [x] Serverless Functions operacionais
 
 ### Bot WhatsApp
+
 - [x] Gemini Flash-Lite integrado
 - [x] Detecção de "iniciar treino"
 - [x] Validação de cadastro implementada
@@ -199,9 +218,11 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 ## 📞 Endpoints Ativos
 
 ### Frontend
+
 - `GET /` - Interface do Personal Trainer
 
 ### API Backend
+
 - `GET /api/exercises` - Lista exercícios (paginado, busca AJAX)
 - `POST /api/exercises` - Cria exercício
 - `GET /api/students` - Lista alunos
@@ -212,6 +233,7 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 - `GET /api/personal/connection/status` - Status WhatsApp
 
 ### Webhooks
+
 - `POST /v1/webhooks/evolution` - Recebe mensagens do WhatsApp
 
 ---
@@ -222,6 +244,6 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 **Build**: ✅ PASSOU  
 **Migrations**: ✅ APLICADAS  
 **Deploy**: ✅ CONCLUÍDO  
-**Commits**: ✅ SINCRONIZADOS  
+**Commits**: ✅ SINCRONIZADOS
 
 **🎉 TUDO PRONTO PARA PRODUÇÃO! 🎉**
