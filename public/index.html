@@ -485,9 +485,14 @@
               Atualização automática a cada 10 segundos
             </p>
           </div>
-          <button class="btn btn-primary" onclick="gerarQRCode()">
-            Conectar WhatsApp
-          </button>
+          <div id="whatsappActions" style="display: flex; gap: 10px;">
+            <button id="connectBtn" class="btn btn-primary" onclick="gerarQRCode()">
+              Conectar WhatsApp
+            </button>
+            <button id="disconnectBtn" class="btn btn-danger" onclick="desconectarWhatsApp()" style="display: none;">
+              Desconectar
+            </button>
+          </div>
           <div id="qrCodeContainer" class="qr-container hidden"></div>
         </div>
       </div>
@@ -785,6 +790,20 @@
             <span class="status-dot ${statusClass}"></span>
             <span>WhatsApp: ${statusText}</span>
           `;
+          
+          // Show/hide buttons based on connection status
+          const connectBtn = document.getElementById("connectBtn");
+          const disconnectBtn = document.getElementById("disconnectBtn");
+          if (connectBtn && disconnectBtn) {
+            if (isConnected) {
+              connectBtn.style.display = "none";
+              disconnectBtn.style.display = "block";
+              document.getElementById("qrCodeContainer").classList.add("hidden");
+            } else {
+              connectBtn.style.display = "block";
+              disconnectBtn.style.display = "none";
+            }
+          }
         } catch (error) {
           document.getElementById("connectionStatus").textContent =
             "Erro ao verificar";
@@ -820,6 +839,26 @@
               ? "http://localhost:3333"
               : window.location.origin;
 
+          // Check connection status first
+          const statusResp = await fetch(
+            `${apiUrl}/api/personal/connection/status`,
+            { headers: { Authorization: `Bearer ${authToken}` } }
+          );
+          const statusData = await statusResp.json();
+          
+          if (statusData.state === "open") {
+            const container = document.getElementById("qrCodeContainer");
+            container.classList.remove("hidden");
+            container.innerHTML = `
+              <div style="padding: 20px; background: #d1fae5; border-radius: 8px; margin-top: 15px;">
+                <h3 style="color: #065f46; margin-bottom: 10px;">✓ WhatsApp Já Conectado</h3>
+                <p style="color: #047857;">Seu WhatsApp já está conectado e funcionando.</p>
+                <p style="color: #047857; margin-top: 8px; font-size: 14px;">Se quiser reconectar, clique em "Desconectar" primeiro.</p>
+              </div>
+            `;
+            return;
+          }
+
           const response = await fetch(
             `${apiUrl}/api/personal/connection/qrcode`,
             {
@@ -833,18 +872,55 @@
 
           if (data.base64) {
             container.innerHTML = `
-                        <h3>Escaneie o QR Code com seu WhatsApp</h3>
-                        <img src="${data.base64}" alt="QR Code">
-                        <p style="color: #6b7280;">Abra o WhatsApp > Aparelhos conectados > Conectar aparelho</p>
-                    `;
+              <div style="margin-top: 20px;">
+                <h3>Escaneie o QR Code com seu WhatsApp</h3>
+                <img src="${data.base64}" alt="QR Code">
+                <p style="color: #6b7280;">Abra o WhatsApp > Aparelhos conectados > Conectar aparelho</p>
+                <p style="color: #6b7280; font-size: 12px; margin-top: 10px;">O QR Code expira em alguns segundos. Atualize se necessário.</p>
+              </div>
+            `;
+            
+            // Auto-refresh status after showing QR code
+            setTimeout(() => verificarStatusWhatsApp(), 3000);
           } else {
             container.innerHTML =
-              '<p style="color: #ef4444;">Erro ao gerar QR Code. Verifique a configuração da Evolution API.</p>';
+              '<p style="color: #ef4444;">Erro ao gerar QR Code. Tente novamente.</p>';
           }
         } catch (error) {
-          alert(
-            "Erro ao gerar QR Code. Verifique se a Evolution API está configurada corretamente.",
+          const container = document.getElementById("qrCodeContainer");
+          container.classList.remove("hidden");
+          container.innerHTML =
+            '<p style="color: #ef4444;">Erro ao conectar com a Evolution API. Verifique a configuração.</p>';
+        }
+      }
+
+      async function desconectarWhatsApp() {
+        if (!confirm("Tem certeza que deseja desconectar o WhatsApp?")) {
+          return;
+        }
+        
+        try {
+          const apiUrl =
+            window.location.hostname === "localhost"
+              ? "http://localhost:3333"
+              : window.location.origin;
+
+          const response = await fetch(
+            `${apiUrl}/api/personal/connection/logout`,
+            {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
           );
+          
+          if (response.ok) {
+            alert("WhatsApp desconectado com sucesso!");
+            verificarStatusWhatsApp();
+          } else {
+            alert("Erro ao desconectar. Tente novamente.");
+          }
+        } catch (error) {
+          alert("Erro ao desconectar WhatsApp.");
         }
       }
 

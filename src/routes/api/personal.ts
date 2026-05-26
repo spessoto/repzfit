@@ -8,6 +8,7 @@ import {
   ensureEvolutionInstance,
   getEvolutionConnectionStatus,
   getEvolutionQrCode,
+  logoutEvolutionInstance,
 } from "../../services/evolution-service.js";
 
 const StudentCreateSchema = z.object({
@@ -132,6 +133,17 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return {
       instance: personal.evolution_instance_name,
       ...status,
+    };
+  });
+
+  app.delete("/personal/connection/logout", async (request) => {
+    const { personal } = await getAuthenticatedPersonal(app, request);
+
+    await logoutEvolutionInstance(personal.evolution_instance_name);
+
+    return {
+      instance: personal.evolution_instance_name,
+      message: "Instance logged out successfully",
     };
   });
 

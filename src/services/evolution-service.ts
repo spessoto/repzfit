@@ -114,3 +114,22 @@ export async function getEvolutionConnectionStatus(
 
   return payload;
 }
+
+export async function logoutEvolutionInstance(instanceName: string) {
+  const response = await fetch(
+    `${env.EVOLUTION_BASE_URL}/instance/logout/${instanceName}`,
+    {
+      method: "DELETE",
+      headers: {
+        apikey: env.EVOLUTION_GLOBAL_KEY,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Evolution API error ${response.status}: ${details}`);
+  }
+
+  return response.json().catch(() => ({}));
+}
