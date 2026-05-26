@@ -13,25 +13,25 @@ async function resetPassword() {
   console.log(`🔐 Resetando senha do usuário: ${email}`);
 
   // Buscar o usuário
-  const { data: users, error: listError } = await supabase.auth.admin.listUsers();
-  
+  const { data: users, error: listError } =
+    await supabase.auth.admin.listUsers();
+
   if (listError) {
     console.error("❌ Erro ao listar usuários:", listError.message);
     return;
   }
 
-  const user = users.users.find(u => u.email === email);
-  
+  const user = users.users.find((u) => u.email === email);
+
   if (!user) {
     console.error("❌ Usuário não encontrado");
     return;
   }
 
   // Atualizar senha
-  const { data, error } = await supabase.auth.admin.updateUserById(
-    user.id,
-    { password: newPassword }
-  );
+  const { data, error } = await supabase.auth.admin.updateUserById(user.id, {
+    password: newPassword,
+  });
 
   if (error) {
     console.error("❌ Erro ao resetar senha:", error.message);

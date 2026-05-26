@@ -56,7 +56,19 @@ export async function buildApp(options: BuildAppOptions = {}) {
 
   await app.register(cors, {
     origin(origin, callback) {
+      // Log para debug
+      app.log.info({ origin }, "CORS request");
+
       if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      // Permitir localhost em qualquer porta (desenvolvimento)
+      if (
+        origin.startsWith("http://localhost:") ||
+        origin.startsWith("http://127.0.0.1:")
+      ) {
         callback(null, true);
         return;
       }
@@ -73,6 +85,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
         return;
       }
 
+      app.log.warn({ origin, allowedOrigins }, "CORS origin denied");
       callback(new Error("CORS origin denied"), false);
     },
     credentials: true,
