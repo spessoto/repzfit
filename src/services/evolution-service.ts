@@ -67,9 +67,9 @@ export async function sendButtonsMessage(input: SendButtonsInput) {
     description: input.text,
     footer: "Selecione uma opcao",
     buttons: input.buttons.map((button) => ({
-      buttonId: button.id,
-      buttonText: { displayText: button.text },
-      type: 1,
+      type: "reply",
+      displayText: button.text,
+      id: button.id,
     })),
   });
 }
