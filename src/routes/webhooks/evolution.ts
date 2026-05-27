@@ -6,6 +6,8 @@ import { processIncomingMessage } from "../../services/bot-engine.js";
 
 // Emergency circuit breaker to stop bot loops quickly in production.
 const EMERGENCY_BOT_PAUSE = true;
+const RECENT_MESSAGE_TTL_MS = 2 * 60 * 1000;
+const recentMessageFingerprints = new Map<string, number>();
 
 const EvolutionWebhookSchema = z.object({
   // Evolution API can send the event as "messages.upsert" or "MESSAGES_UPSERT"
@@ -13,6 +15,7 @@ const EvolutionWebhookSchema = z.object({
   instance: z.string(),
   data: z.object({
     key: z.object({
+      id: z.string().optional(),
       remoteJid: z.string(),
       fromMe: z.boolean(),
     }),
@@ -43,6 +46,48 @@ const EvolutionWebhookSchema = z.object({
 });
 
 type EvolutionWebhook = z.infer<typeof EvolutionWebhookSchema>;
+
+function purgeOldFingerprints(nowMs: number) {
+  for (const [key, ts] of recentMessageFingerprints.entries()) {
+    if (nowMs - ts > RECENT_MESSAGE_TTL_MS) {
+      recentMessageFingerprints.delete(key);
+    }
+  }
+}
+
+function buildMessageFingerprint(
+  payload: EvolutionWebhook,
+  extracted: { text?: string; buttonId?: string; audioUrl?: string },
+): string {
+  const msgId = payload.data.key.id ?? "no-id";
+  const ts = payload.data.messageTimestamp ?? 0;
+  const normalizedText = (extracted.text ?? "").trim().toLowerCase();
+  return [
+    payload.instance,
+    payload.data.key.remoteJid,
+    msgId,
+    String(ts),
+    payload.data.messageType,
+    extracted.buttonId ?? "",
+    extracted.audioUrl ?? "",
+    normalizedText,
+  ].join("|");
+}
+
+function isDuplicateWebhookMessage(
+  payload: EvolutionWebhook,
+  extracted: { text?: string; buttonId?: string; audioUrl?: string },
+): boolean {
+  const nowMs = Date.now();
+  purgeOldFingerprints(nowMs);
+  const fingerprint = buildMessageFingerprint(payload, extracted);
+  const lastSeen = recentMessageFingerprints.get(fingerprint);
+  if (lastSeen && nowMs - lastSeen <= RECENT_MESSAGE_TTL_MS) {
+    return true;
+  }
+  recentMessageFingerprints.set(fingerprint, nowMs);
+  return false;
+}
 
 function extractInput(payload: EvolutionWebhook): {
   text?: string;
@@ -95,6 +140,15 @@ export async function registerEvolutionWebhookRoute(app: FastifyInstance) {
       return reply.code(200).send({ ignored: true });
     }
 
+    // Ignorar grupos, broadcasts e JIDs fora do padrão usuário->usuário
+    if (!payload.data.key.remoteJid.endsWith("@s.whatsapp.net")) {
+      app.log.info(
+        { remoteJid: payload.data.key.remoteJid },
+        "Non-user JID ignored",
+      );
+      return reply.code(200).send({ ignored: true });
+    }
+
     // Rejeitar mensagens sem timestamp ou com mais de 5 minutos
     // (previne reprocessamento de fila acumulada do WhatsApp)
     const msgTs = payload.data.messageTimestamp;
@@ -108,6 +162,28 @@ export async function registerEvolutionWebhookRoute(app: FastifyInstance) {
     }
 
     const { text, buttonId, audioUrl } = extractInput(payload);
+
+    // Ignorar eventos sem conteúdo acionável
+    if (!text && !buttonId && !audioUrl) {
+      app.log.info(
+        { messageType: payload.data.messageType },
+        "Empty/unsupported message payload ignored",
+      );
+      return reply.code(200).send({ ignored: true });
+    }
+
+    // Suprimir duplicatas recentes para evitar loop por reentrega do webhook
+    if (isDuplicateWebhookMessage(payload, { text, buttonId, audioUrl })) {
+      app.log.info(
+        {
+          remoteJid: payload.data.key.remoteJid,
+          messageType: payload.data.messageType,
+          messageId: payload.data.key.id,
+        },
+        "Duplicate webhook message ignored",
+      );
+      return reply.code(200).send({ ignored: true, duplicate: true });
+    }
 
     await processIncomingMessage({
       app,

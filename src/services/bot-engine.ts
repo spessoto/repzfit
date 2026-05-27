@@ -5,7 +5,6 @@ import { sendTextMessage } from "./evolution-service.js";
 import {
   generateFallbackReply,
   generateBotResponse,
-  isTrainingStartIntent,
   COACH_SYSTEM_PROMPT,
 } from "./gemini-service.js";
 import { transcribeAudioFromUrl } from "./openai-service.js";
@@ -65,6 +64,30 @@ function isSetDoneIntent(msg: string): boolean {
   return /^(feito|terminei|pronto|ok|sim|s|1|done|acabei|fiz|✅|conclu)/.test(
     n,
   );
+}
+
+function isStrictTrainingStartRequest(msg: string): boolean {
+  const normalized = msg
+    .toLowerCase()
+    .trim()
+    .replace(/[!?.;,]+/g, "")
+    .replace(/\s+/g, " ");
+
+  const allowed = new Set([
+    "iniciar treino",
+    "inicia treino",
+    "comecar treino",
+    "começar treino",
+    "iniciar treinamento",
+    "iniciar sessao",
+    "iniciar sessão",
+    "quero treinar",
+    "bora treinar",
+    "start treino",
+    "start workout",
+  ]);
+
+  return allowed.has(normalized);
 }
 
 function formatExerciseDetails(ex: WorkoutExercise): string {
@@ -498,7 +521,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
   }
 
   // 2. Verificar se é uma mensagem de início de treino — apenas no estado IDLE
-  if (isTrainingStartIntent(effectiveInput)) {
+  if (isStrictTrainingStartRequest(effectiveInput)) {
     const student = await getStudentByWhatsapp(whatsapp);
 
     if (!student) {
@@ -979,16 +1002,6 @@ export async function processIncomingMessage(input: IncomingMessage) {
     }
   }
 
-  // Fallback: mensagem não reconhecida
-  const fallbackMessage = await safeCoachReply(
-    input.app,
-    `O aluno disse "${effectiveInput}" mas não está em um contexto de treino ativo. Responda de forma amigável (1 linha) e sugira que ele diga "iniciar treino" quando quiser começar.`,
-    'Quando quiser começar, me manda "iniciar treino" e eu te guio no treino! 💪',
-  );
-
-  await sendTextMessage({
-    instanceName: input.instance,
-    number: whatsapp,
-    text: fallbackMessage,
-  });
+  // Mensagens fora dos fluxos esperados são ignoradas para evitar disparos indevidos.
+  return;
 }
