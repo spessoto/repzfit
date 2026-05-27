@@ -5,19 +5,16 @@ import { env } from "../../config/env.js";
 import { processIncomingMessage } from "../../services/bot-engine.js";
 
 const EvolutionWebhookSchema = z.object({
-  event: z.literal("messages.upsert"),
+  // Evolution API can send the event as "messages.upsert" or "MESSAGES_UPSERT"
+  event: z.string(),
   instance: z.string(),
   data: z.object({
     key: z.object({
       remoteJid: z.string(),
       fromMe: z.boolean(),
     }),
-    messageType: z.enum([
-      "conversation",
-      "extendedTextMessage",
-      "buttonsResponseMessage",
-      "audioMessage",
-    ]),
+    // Accept any messageType string — filter for supported ones at runtime
+    messageType: z.string(),
     message: z
       .object({
         conversation: z.string().optional(),
@@ -69,11 +66,21 @@ export async function registerEvolutionWebhookRoute(app: FastifyInstance) {
 
     const parsed = EvolutionWebhookSchema.safeParse(request.body);
     if (!parsed.success) {
-      app.log.warn({ issues: parsed.error.issues }, "Invalid webhook payload");
+      app.log.warn(
+        { issues: parsed.error.issues, body: request.body },
+        "Invalid webhook payload — raw body logged for debugging",
+      );
       return reply.code(200).send({ ignored: true });
     }
 
     const payload = parsed.data;
+
+    // Accept both "messages.upsert" and "MESSAGES_UPSERT" formats
+    const eventNorm = payload.event.toLowerCase().replace(/_/g, ".");
+    if (eventNorm !== "messages.upsert") {
+      app.log.info({ event: payload.event }, "Webhook event ignored");
+      return reply.code(200).send({ ignored: true });
+    }
 
     if (payload.data.key.fromMe) {
       return reply.code(200).send({ ignored: true });
