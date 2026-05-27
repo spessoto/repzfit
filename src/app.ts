@@ -35,6 +35,7 @@ function getAllowedOrigins(): string[] {
 
   // URL de produção
   origins.add("https://project-pxgam.vercel.app");
+  origins.add("https://app.repz.fit");
 
   return Array.from(origins);
 }
@@ -82,6 +83,12 @@ export async function buildApp(options: BuildAppOptions = {}) {
 
       // Permitir apenas domínios Vercel específicos do projeto
       if (/^https:\/\/repzfit-[a-z0-9-]+\.vercel\.app$/i.test(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      // Permitir domínios oficiais do produto
+      if (/^https:\/\/([a-z0-9-]+\.)?repz\.fit$/i.test(origin)) {
         callback(null, true);
         return;
       }

@@ -905,8 +905,8 @@
 
               <div style="display: grid; grid-template-columns: 1fr; gap: 15px">
                 <div class="form-group">
-                  <label>Data de Início *</label>
-                  <input type="date" id="treinoDataInicio" required />
+                  <label>Data de Início (opcional)</label>
+                  <input type="date" id="treinoDataInicio" />
                 </div>
               </div>
 
@@ -2782,10 +2782,10 @@
         const nome = document.getElementById("treinoNome").value;
         const dataInicio = document.getElementById("treinoDataInicio").value;
 
-        if (!nome || !dataInicio) {
+        if (!nome) {
           showAlert(
             "treinosAlert",
-            "Preencha os campos obrigatórios!",
+            "Preencha o nome do treino.",
             "error",
           );
           return;
@@ -2817,8 +2817,11 @@
 
         const payload = {
           name: nome,
-          start_date: dataInicio,
         };
+
+        if (dataInicio) {
+          payload.start_date = dataInicio;
+        }
 
         if (exercises.length > 0) {
           payload.exercises = exercises;

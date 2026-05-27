@@ -72,7 +72,9 @@ const ExercisePatchSchema = z
 
 const WorkoutCreateSchema = z.object({
   name: z.string().min(1).max(255).trim(),
-  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  start_date: z
+    .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")])
+    .optional(),
   day_of_week: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   exercises: z
     .array(
