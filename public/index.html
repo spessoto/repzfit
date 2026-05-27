@@ -609,7 +609,7 @@
     <div id="loginScreen" class="login-container">
       <div class="card">
         <div class="login-brand">
-          <img src="/img/repzfit-logo.png" alt="Repz Fit" />
+          <img src="/img/repzfit.png" alt="Repz Fit" />
         </div>
         <div class="form-group">
           <label>Email</label>
@@ -894,13 +894,6 @@
               <div id="treinosAlert"></div>
 
               <div class="form-group">
-                <label>Aluno (opcional)</label>
-                <select id="treinoAluno">
-                  <option value="">Sem aluno (treino modelo)</option>
-                </select>
-              </div>
-
-              <div class="form-group">
                 <label>Nome do Treino *</label>
                 <input
                   type="text"
@@ -910,16 +903,10 @@
                 />
               </div>
 
-              <div
-                style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px"
-              >
+              <div style="display: grid; grid-template-columns: 1fr; gap: 15px">
                 <div class="form-group">
                   <label>Data de Início *</label>
                   <input type="date" id="treinoDataInicio" required />
-                </div>
-                <div class="form-group">
-                  <label>Validade (opcional)</label>
-                  <input type="date" id="treinoDataValidade" />
                 </div>
               </div>
 
@@ -1927,12 +1914,12 @@
                     <input type="text" id="w_name_${workout.id}" value="${escapeHtml(workout.name || "")}" />
                   </div>
                   <div class="form-group">
-                    <label>Data de início</label>
+                    <label>Data base do treino</label>
                     <input type="date" id="w_start_${workout.id}" value="${escapeHtml(workout.start_date || "")}" />
                   </div>
                   <div class="form-group">
-                    <label>Validade</label>
-                    <input type="date" id="w_until_${workout.id}" value="${escapeHtml(workout.valid_until || "")}" />
+                    <label>Validade para este aluno</label>
+                    <input type="date" id="w_until_${workout.id}" value="${escapeHtml(workout.assignment_valid_until || "")}" />
                   </div>
                 </div>
                 <button class="btn btn-primary" onclick="salvarTreinoAluno('${workout.id}')">Salvar treino</button>
@@ -1971,6 +1958,7 @@
                               </div>
                               <div class="exercise-actions">
                                 <button class="btn btn-secondary" onclick="salvarExercicioTreino('${workout.id}','${ex.id}')">Salvar exercício</button>
+                                <button class="btn btn-danger" onclick="excluirExercicioTreino('${workout.id}','${ex.id}')">Excluir exercício</button>
                               </div>
                             </div>
                           `;
@@ -2001,6 +1989,10 @@
                   <div>
                     <strong>${escapeHtml(workout.name || "Treino")}</strong>
                     <p style="color:#6b7280;font-size:12px;">Início: ${escapeHtml(workout.start_date || "-")}</p>
+                    <div style="margin-top:8px;">
+                      <label style="font-size:12px;color:#374151;">Validade para este aluno</label>
+                      <input type="date" id="aw_until_${workout.id}" style="margin-top:4px;" />
+                    </div>
                   </div>
                   <button class="btn btn-primary" onclick="atribuirTreinoAoAlunoAtual('${workout.id}')">Atribuir</button>
                 </div>
@@ -2012,15 +2004,17 @@
 
       async function salvarTreinoAluno(workoutId) {
         try {
-          const payload = {
+          const workoutPayload = {
             name: document.getElementById(`w_name_${workoutId}`).value.trim(),
             start_date:
               document.getElementById(`w_start_${workoutId}`).value || null,
+          };
+          const assignmentPayload = {
             valid_until:
               document.getElementById(`w_until_${workoutId}`).value || null,
           };
 
-          const response = await fetch(
+          const workoutResp = await fetch(
             `${getApiBaseUrl()}/api/workouts/${workoutId}`,
             {
               method: "PATCH",
@@ -2028,13 +2022,32 @@
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${authToken}`,
               },
-              body: JSON.stringify(payload),
+              body: JSON.stringify(workoutPayload),
             },
           );
 
-          if (!response.ok) {
-            const err = await response.json();
+          if (!workoutResp.ok) {
+            const err = await workoutResp.json();
             throw new Error(err.message || "Erro ao salvar treino");
+          }
+
+          if (currentEditingStudentId) {
+            const assignmentResp = await fetch(
+              `${getApiBaseUrl()}/api/students/${currentEditingStudentId}/workouts/${workoutId}`,
+              {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${authToken}`,
+                },
+                body: JSON.stringify(assignmentPayload),
+              },
+            );
+
+            if (!assignmentResp.ok) {
+              const err = await assignmentResp.json();
+              throw new Error(err.message || "Erro ao atualizar validade");
+            }
           }
 
           showAlert("studentEditorAlert", "Treino atualizado", "success");
@@ -2057,15 +2070,14 @@
         }
 
         try {
+          if (!currentEditingStudentId) return;
           const response = await fetch(
-            `${getApiBaseUrl()}/api/workouts/${workoutId}`,
+            `${getApiBaseUrl()}/api/students/${currentEditingStudentId}/workouts/${workoutId}`,
             {
-              method: "PATCH",
+              method: "DELETE",
               headers: {
-                "Content-Type": "application/json",
                 Authorization: `Bearer ${authToken}`,
               },
-              body: JSON.stringify({ student_id: null }),
             },
           );
 
@@ -2092,15 +2104,20 @@
         if (!currentEditingStudentId) return;
 
         try {
+          const validUntilInput = document.getElementById(
+            `aw_until_${workoutId}`,
+          );
           const response = await fetch(
-            `${getApiBaseUrl()}/api/workouts/${workoutId}`,
+            `${getApiBaseUrl()}/api/students/${currentEditingStudentId}/workouts/${workoutId}`,
             {
-              method: "PATCH",
+              method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${authToken}`,
               },
-              body: JSON.stringify({ student_id: currentEditingStudentId }),
+              body: JSON.stringify({
+                valid_until: validUntilInput?.value || null,
+              }),
             },
           );
 
@@ -2173,6 +2190,41 @@
           showAlert(
             "studentEditorAlert",
             error.message || "Erro ao atualizar exercício",
+            "error",
+          );
+        }
+      }
+
+      async function excluirExercicioTreino(workoutId, workoutExerciseId) {
+        if (!confirm("Deseja excluir este exercício do treino?")) {
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/workouts/${workoutId}/exercises/${workoutExerciseId}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${authToken}`,
+              },
+            },
+          );
+
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || "Erro ao excluir exercício");
+          }
+
+          showAlert("studentEditorAlert", "Exercício removido", "success");
+          if (currentEditingStudentId) {
+            await carregarDetalhesAlunoEditor(currentEditingStudentId);
+          }
+          carregarTreinosAluno();
+        } catch (error) {
+          showAlert(
+            "studentEditorAlert",
+            error.message || "Erro ao excluir exercício",
             "error",
           );
         }
@@ -2558,34 +2610,8 @@
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }
-
-          const alunos = await response.json();
-
-          const selects = [document.getElementById("treinoAluno")];
-
-          selects.forEach((select) => {
-            if (!select) return;
-
-            if (!alunos || alunos.length === 0) {
-              select.innerHTML =
-                '<option value="">Nenhum aluno cadastrado</option>';
-            } else {
-              select.innerHTML =
-                '<option value="">Sem aluno (treino modelo)</option>' +
-                alunos
-                  .map((a) => `<option value="${a.id}">${a.name}</option>`)
-                  .join("");
-            }
-          });
         } catch (error) {
           console.error("Erro ao carregar alunos para select:", error);
-          const selects = [document.getElementById("treinoAluno")];
-          selects.forEach((select) => {
-            if (select) {
-              select.innerHTML =
-                '<option value="">Erro ao carregar alunos</option>';
-            }
-          });
         }
       }
 
@@ -2745,21 +2771,16 @@
       }
 
       function limparFormularioTreino() {
-        document.getElementById("treinoAluno").value = "";
         document.getElementById("treinoNome").value = "";
         document.getElementById("treinoDataInicio").value = "";
-        document.getElementById("treinoDataValidade").value = "";
         document.getElementById("exerciciosContainer").innerHTML = "";
         exerciciosDoTreino = [];
         document.getElementById("treinosAlert").innerHTML = "";
       }
 
       async function criarTreinoCompleto() {
-        const studentId = document.getElementById("treinoAluno").value;
         const nome = document.getElementById("treinoNome").value;
         const dataInicio = document.getElementById("treinoDataInicio").value;
-        const dataValidade =
-          document.getElementById("treinoDataValidade").value;
 
         if (!nome || !dataInicio) {
           showAlert(
@@ -2795,14 +2816,9 @@
             : window.location.origin;
 
         const payload = {
-          student_id: studentId || null,
           name: nome,
           start_date: dataInicio,
         };
-
-        if (dataValidade) {
-          payload.valid_until = dataValidade;
-        }
 
         if (exercises.length > 0) {
           payload.exercises = exercises;
@@ -2853,11 +2869,34 @@
             return;
           }
 
+          for (const treino of treinos) {
+            try {
+              const exResponse = await fetch(
+                `${getApiBaseUrl()}/api/workouts/${treino.id}/exercises`,
+                {
+                  headers: { Authorization: `Bearer ${authToken}` },
+                },
+              );
+
+              if (exResponse.ok) {
+                treino.exercises = await exResponse.json();
+              } else {
+                treino.exercises = [];
+              }
+            } catch (error) {
+              treino.exercises = [];
+            }
+          }
+
           document.getElementById("treinosLista").innerHTML = treinos
             .map((treino) => {
-              const assignedLabel = treino.student_name
-                ? `Aluno: ${escapeHtml(treino.student_name)}`
-                : "Treino modelo (sem aluno)";
+              const assignedLabel =
+                treino.assigned_students && treino.assigned_students.length > 0
+                  ? `${treino.assigned_students.length} aluno(s): ${escapeHtml(treino.assigned_students.join(", "))}`
+                  : "Treino modelo (sem atribuicao)";
+
+              const exercises = treino.exercises || [];
+
               return `
                 <div class="workout-card" style="margin-bottom: 12px;">
                   <div class="workout-meta">
@@ -2872,10 +2911,44 @@
                       <label>Data de início</label>
                       <input type="date" id="tab_w_start_${treino.id}" value="${escapeHtml(treino.start_date || "")}" />
                     </div>
-                    <div class="form-group">
-                      <label>Validade</label>
-                      <input type="date" id="tab_w_until_${treino.id}" value="${escapeHtml(treino.valid_until || "")}" />
-                    </div>
+                  </div>
+                  <div style="margin-top: 10px; margin-bottom: 10px;">
+                    <h4 class="workout-section-title">Exercícios do treino</h4>
+                    ${
+                      exercises.length > 0
+                        ? exercises
+                            .map(
+                              (ex) => `
+                          <div class="exercise-row" style="margin-bottom:8px;">
+                            <p class="exercise-title">🏋️ ${escapeHtml(ex.name || "Exercício")}</p>
+                            <div class="exercise-fields-grid">
+                              <div class="exercise-field">
+                                <label>Séries</label>
+                                <input type="number" min="1" id="tw_sets_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+                              </div>
+                              <div class="exercise-field">
+                                <label>Repetições</label>
+                                <input type="number" min="1" id="tw_reps_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
+                              </div>
+                              <div class="exercise-field">
+                                <label>Peso (kg)</label>
+                                <input type="number" min="0" step="0.1" id="tw_weight_${ex.workout_exercise_id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
+                              </div>
+                              <div class="exercise-field">
+                                <label>Ordem</label>
+                                <input type="number" min="0" id="tw_order_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.order_index || 0))}" />
+                              </div>
+                            </div>
+                            <div class="exercise-actions">
+                              <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Salvar exercício</button>
+                              <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Excluir exercício</button>
+                            </div>
+                          </div>
+                        `,
+                            )
+                            .join("")
+                        : '<p style="color:#6b7280;">Sem exercícios neste treino.</p>'
+                    }
                   </div>
                   <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button class="btn btn-primary" onclick="salvarTreinoNaAba('${treino.id}')">Salvar</button>
@@ -2900,8 +2973,6 @@
               .value.trim(),
             start_date:
               document.getElementById(`tab_w_start_${workoutId}`).value || null,
-            valid_until:
-              document.getElementById(`tab_w_until_${workoutId}`).value || null,
           };
 
           const response = await fetch(
@@ -2965,6 +3036,94 @@
           showAlert(
             "treinosAlert",
             error.message || "Erro ao excluir treino",
+            "error",
+          );
+        }
+      }
+
+      async function salvarExercicioTreinoNaAba(workoutId, workoutExerciseId) {
+        try {
+          const payload = {
+            target_sets: Number(
+              document.getElementById(`tw_sets_${workoutExerciseId}`).value,
+            ),
+            target_reps: Number(
+              document.getElementById(`tw_reps_${workoutExerciseId}`).value,
+            ),
+            target_weight:
+              document.getElementById(`tw_weight_${workoutExerciseId}`)
+                .value === ""
+                ? null
+                : Number(
+                    document.getElementById(`tw_weight_${workoutExerciseId}`)
+                      .value,
+                  ),
+            order_index: Number(
+              document.getElementById(`tw_order_${workoutExerciseId}`).value,
+            ),
+          };
+
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/workouts/${workoutId}/exercises/${workoutExerciseId}`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify(payload),
+            },
+          );
+
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.message || "Erro ao salvar exercício");
+          }
+
+          showAlert("treinosAlert", "Exercício atualizado", "success");
+          await carregarTreinosAluno();
+          if (currentEditingStudentId) {
+            await carregarDetalhesAlunoEditor(currentEditingStudentId);
+          }
+        } catch (error) {
+          showAlert(
+            "treinosAlert",
+            error.message || "Erro ao salvar exercício",
+            "error",
+          );
+        }
+      }
+
+      async function excluirExercicioTreinoNaAba(workoutId, workoutExerciseId) {
+        if (!confirm("Deseja excluir este exercício do treino?")) {
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/workouts/${workoutId}/exercises/${workoutExerciseId}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${authToken}`,
+              },
+            },
+          );
+
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || "Erro ao excluir exercício");
+          }
+
+          showAlert("treinosAlert", "Exercício removido", "success");
+          await carregarTreinosAluno();
+          if (currentEditingStudentId) {
+            await carregarDetalhesAlunoEditor(currentEditingStudentId);
+          }
+        } catch (error) {
+          showAlert(
+            "treinosAlert",
+            error.message || "Erro ao excluir exercício",
             "error",
           );
         }

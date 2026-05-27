@@ -71,13 +71,8 @@ const ExercisePatchSchema = z
   });
 
 const WorkoutCreateSchema = z.object({
-  student_id: z.union([z.string().uuid(), z.null(), z.literal("")]).optional(),
   name: z.string().min(1).max(255).trim(),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  valid_until: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
   day_of_week: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   exercises: z
     .array(
@@ -103,18 +98,28 @@ const WorkoutExerciseCreateSchema = z.object({
 
 const WorkoutPatchSchema = z
   .object({
-    student_id: z
-      .union([z.string().uuid(), z.null(), z.literal("")])
-      .optional(),
     name: z.string().min(1).max(255).trim().optional(),
     start_date: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional(),
+    day_of_week: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field must be provided",
+  });
+
+const StudentWorkoutAssignSchema = z.object({
+  valid_until: z
+    .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.null(), z.literal("")])
+    .optional(),
+});
+
+const StudentWorkoutPatchSchema = z
+  .object({
     valid_until: z
       .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.null(), z.literal("")])
       .optional(),
-    day_of_week: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided",
@@ -590,38 +595,39 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     const student = normalizeStudentRow(studentRaw);
 
-    let workoutsResult: any = await client
-      .from("workouts")
+    const { data: assignments, error: workoutsError } = await client
+      .from("student_workouts")
       .select(
-        "id,student_id,name,day_of_week,start_date,valid_until,created_at,workout_exercises(id,exercise_id,target_sets,target_reps,target_weight,order_index,exercises(id,name,description,muscle_group,equipment))",
+        "id,workout_id,student_id,start_date,valid_until,created_at,workouts(id,name,day_of_week,start_date,created_at,workout_exercises(id,exercise_id,target_sets,target_reps,target_weight,order_index,exercises(id,name,description,muscle_group,equipment)))",
       )
       .eq("student_id", id)
       .order("created_at", { ascending: false });
-
-    if (
-      workoutsResult.error &&
-      isMissingStudentFieldError(workoutsResult.error)
-    ) {
-      workoutsResult = await client
-        .from("workouts")
-        .select(
-          "id,student_id,name,day_of_week,start_date,valid_until,created_at,workout_exercises(id,exercise_id,target_sets,target_reps,target_weight,order_index,exercises(id,name,description))",
-        )
-        .eq("student_id", id)
-        .order("created_at", { ascending: false });
-    }
-
-    const { data: workouts, error: workoutsError } = workoutsResult;
 
     if (workoutsError) {
       throw app.httpErrors.badRequest(workoutsError.message);
     }
 
+    const workouts = (assignments ?? []).map((assignment: any) => {
+      const workout = Array.isArray(assignment.workouts)
+        ? assignment.workouts[0]
+        : assignment.workouts;
+
+      return {
+        ...(workout ?? {}),
+        assignment_id: assignment.id,
+        assignment_start_date: assignment.start_date,
+        assignment_valid_until: assignment.valid_until,
+      };
+    });
+
+    const assignedWorkoutIds = workouts
+      .map((w: any) => w?.id)
+      .filter((value: any) => typeof value === "string");
+
     const { data: availableWorkouts, error: availableWorkoutsError } =
       await client
         .from("workouts")
-        .select("id,name,start_date,valid_until,created_at")
-        .is("student_id", null)
+        .select("id,name,start_date,created_at")
         .order("created_at", { ascending: false });
 
     if (availableWorkoutsError) {
@@ -662,7 +668,9 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return {
       student,
       workouts: workouts ?? [],
-      available_workouts: availableWorkouts ?? [],
+      available_workouts: (availableWorkouts ?? []).filter(
+        (workout: any) => !assignedWorkoutIds.includes(workout.id),
+      ),
       completed_sessions: (sessions ?? []).map((s: any) => ({
         id: s.id,
         date: s.date,
@@ -823,29 +831,9 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     const client = getRlsClient(token);
 
-    const normalizedStudentId =
-      parsed.data.student_id === "" ? null : (parsed.data.student_id ?? null);
-
-    if (normalizedStudentId) {
-      const { data: student, error: studentError } = await client
-        .from("students")
-        .select("id")
-        .eq("id", normalizedStudentId)
-        .maybeSingle();
-
-      if (studentError) {
-        throw app.httpErrors.badRequest(studentError.message);
-      }
-
-      if (!student) {
-        throw app.httpErrors.notFound("Student not found");
-      }
-    }
-
     // Create workout
     const workoutData: any = {
       personal_id: personalId,
-      student_id: normalizedStudentId,
       name: parsed.data.name,
       day_of_week: parsed.data.day_of_week ?? null,
     };
@@ -853,9 +841,6 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     // Add dates if provided
     if (parsed.data.start_date) {
       workoutData.start_date = parsed.data.start_date;
-    }
-    if (parsed.data.valid_until) {
-      workoutData.valid_until = parsed.data.valid_until;
     }
 
     const { data, error } = await client
@@ -923,19 +908,12 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { token } = await getAuthenticatedPersonal(app, request);
     const client = getRlsClient(token);
 
-    const query = request.query as { student_id?: string };
-    let builder = client
+    const { data, error } = await client
       .from("workouts")
       .select(
-        "id,student_id,name,day_of_week,start_date,valid_until,created_at,students(name)",
+        "id,name,day_of_week,start_date,created_at,student_workouts(student_id,students(name))",
       )
       .order("created_at", { ascending: false });
-
-    if (query.student_id) {
-      builder = builder.eq("student_id", query.student_id);
-    }
-
-    const { data, error } = await builder;
 
     if (error) {
       throw app.httpErrors.badRequest(error.message);
@@ -943,9 +921,18 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     return (data ?? []).map((workout: any) => ({
       ...workout,
-      student_name: Array.isArray(workout.students)
-        ? (workout.students[0]?.name ?? null)
-        : (workout.students?.name ?? null),
+      assignments_count: Array.isArray(workout.student_workouts)
+        ? workout.student_workouts.length
+        : 0,
+      assigned_students: Array.isArray(workout.student_workouts)
+        ? workout.student_workouts
+            .map((a: any) =>
+              Array.isArray(a.students)
+                ? a.students[0]?.name
+                : a.students?.name,
+            )
+            .filter(Boolean)
+        : [],
     }));
   });
 
@@ -1014,7 +1001,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
   });
 
   app.patch("/workouts/:id", async (request) => {
-    const { token, personalId } = await getAuthenticatedPersonal(app, request);
+    const { token } = await getAuthenticatedPersonal(app, request);
     const parsed = WorkoutPatchSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -1028,70 +1015,14 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const client = getRlsClient(token);
 
     const payload: Record<string, unknown> = { ...parsed.data };
-    if (payload.student_id === "") payload.student_id = null;
-    if (payload.valid_until === "") payload.valid_until = null;
-
-    if (payload.student_id) {
-      const { data: student, error: studentError } = await client
-        .from("students")
-        .select("id")
-        .eq("id", payload.student_id)
-        .maybeSingle();
-
-      if (studentError) {
-        throw app.httpErrors.badRequest(studentError.message);
-      }
-
-      if (!student) {
-        throw app.httpErrors.notFound("Student not found");
-      }
-    }
-
-    let updateResult = await client
+    const { data, error } = await client
       .from("workouts")
       .update(payload)
       .eq("id", workoutId)
-      .select(
-        "id,student_id,name,day_of_week,start_date,valid_until,created_at",
-      )
+      .select("id,name,day_of_week,start_date,created_at")
       .maybeSingle();
 
-    const isDetachRequest =
-      Object.prototype.hasOwnProperty.call(payload, "student_id") &&
-      payload.student_id === null;
-
-    if (
-      updateResult.error &&
-      isDetachRequest &&
-      isWorkoutRlsError(updateResult.error)
-    ) {
-      const canManage = await ensureWorkoutBelongsToPersonalLegacy(
-        workoutId,
-        personalId,
-      );
-
-      if (!canManage) {
-        throw app.httpErrors.forbidden("Workout not found or not allowed");
-      }
-
-      updateResult = await supabaseAdmin
-        .from("workouts")
-        .update(payload)
-        .eq("id", workoutId)
-        .select(
-          "id,student_id,name,day_of_week,start_date,valid_until,created_at",
-        )
-        .maybeSingle();
-    }
-
-    const { data, error } = updateResult;
-
     if (error) {
-      if (isDetachRequest && isStudentIdNotNullError(error)) {
-        throw app.httpErrors.badRequest(
-          "Nao foi possivel desvincular este treino porque o banco ainda exige aluno obrigatorio. Aplique a migracao 202605270005_workout_templates_and_assignment.sql.",
-        );
-      }
       throw app.httpErrors.badRequest(error.message);
     }
 
@@ -1121,6 +1052,143 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     return reply.code(204).send();
   });
+
+  app.post("/students/:student_id/workouts/:workout_id", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const parsed = StudentWorkoutAssignSchema.safeParse(request.body ?? {});
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    const studentId = z
+      .string()
+      .uuid()
+      .parse((request.params as { student_id?: string }).student_id);
+    const workoutId = z
+      .string()
+      .uuid()
+      .parse((request.params as { workout_id?: string }).workout_id);
+    const client = getRlsClient(token);
+
+    const { data: student, error: studentError } = await client
+      .from("students")
+      .select("id")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    if (studentError) {
+      throw app.httpErrors.badRequest(studentError.message);
+    }
+
+    if (!student) {
+      throw app.httpErrors.notFound("Student not found");
+    }
+
+    const { data: workout, error: workoutError } = await client
+      .from("workouts")
+      .select("id")
+      .eq("id", workoutId)
+      .maybeSingle();
+
+    if (workoutError) {
+      throw app.httpErrors.badRequest(workoutError.message);
+    }
+
+    if (!workout) {
+      throw app.httpErrors.notFound("Workout not found");
+    }
+
+    const validUntil =
+      parsed.data.valid_until === "" ? null : (parsed.data.valid_until ?? null);
+
+    const { data, error } = await client
+      .from("student_workouts")
+      .upsert(
+        {
+          student_id: studentId,
+          workout_id: workoutId,
+          valid_until: validUntil,
+        },
+        { onConflict: "workout_id,student_id" },
+      )
+      .select("id,student_id,workout_id,start_date,valid_until,created_at")
+      .single();
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    return data;
+  });
+
+  app.patch("/students/:student_id/workouts/:workout_id", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const parsed = StudentWorkoutPatchSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    const studentId = z
+      .string()
+      .uuid()
+      .parse((request.params as { student_id?: string }).student_id);
+    const workoutId = z
+      .string()
+      .uuid()
+      .parse((request.params as { workout_id?: string }).workout_id);
+    const client = getRlsClient(token);
+
+    const payload: Record<string, unknown> = { ...parsed.data };
+    if (payload.valid_until === "") payload.valid_until = null;
+
+    const { data, error } = await client
+      .from("student_workouts")
+      .update(payload)
+      .eq("student_id", studentId)
+      .eq("workout_id", workoutId)
+      .select("id,student_id,workout_id,start_date,valid_until,created_at")
+      .maybeSingle();
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    if (!data) {
+      throw app.httpErrors.notFound("Workout assignment not found");
+    }
+
+    return data;
+  });
+
+  app.delete(
+    "/students/:student_id/workouts/:workout_id",
+    async (request, reply) => {
+      const { token } = await getAuthenticatedPersonal(app, request);
+      const studentId = z
+        .string()
+        .uuid()
+        .parse((request.params as { student_id?: string }).student_id);
+      const workoutId = z
+        .string()
+        .uuid()
+        .parse((request.params as { workout_id?: string }).workout_id);
+      const client = getRlsClient(token);
+
+      const { error } = await client
+        .from("student_workouts")
+        .delete()
+        .eq("student_id", studentId)
+        .eq("workout_id", workoutId);
+
+      if (error) {
+        throw app.httpErrors.badRequest(error.message);
+      }
+
+      return reply.code(204).send();
+    },
+  );
 
   app.patch(
     "/workouts/:workout_id/exercises/:workout_exercise_id",
@@ -1170,6 +1238,37 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     },
   );
 
+  app.delete(
+    "/workouts/:workout_id/exercises/:workout_exercise_id",
+    async (request, reply) => {
+      const { token } = await getAuthenticatedPersonal(app, request);
+      const workoutId = z
+        .string()
+        .uuid()
+        .parse((request.params as { workout_id?: string }).workout_id);
+      const workoutExerciseId = z
+        .string()
+        .uuid()
+        .parse(
+          (request.params as { workout_exercise_id?: string })
+            .workout_exercise_id,
+        );
+      const client = getRlsClient(token);
+
+      const { error } = await client
+        .from("workout_exercises")
+        .delete()
+        .eq("id", workoutExerciseId)
+        .eq("workout_id", workoutId);
+
+      if (error) {
+        throw app.httpErrors.badRequest(error.message);
+      }
+
+      return reply.code(204).send();
+    },
+  );
+
   app.get("/workouts/student/:student_id", async (request) => {
     const { token } = await getAuthenticatedPersonal(app, request);
     const studentId = z
@@ -1179,9 +1278,9 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const client = getRlsClient(token);
 
     const { data, error } = await client
-      .from("workouts")
+      .from("student_workouts")
       .select(
-        "id,student_id,name,day_of_week,start_date,valid_until,created_at,workout_exercises(id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,created_at)",
+        "id,student_id,workout_id,start_date,valid_until,created_at,workouts(id,name,day_of_week,start_date,created_at,workout_exercises(id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,created_at))",
       )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
@@ -1190,7 +1289,17 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.badRequest(error.message);
     }
 
-    return data ?? [];
+    return (data ?? []).map((assignment: any) => {
+      const workout = Array.isArray(assignment.workouts)
+        ? assignment.workouts[0]
+        : assignment.workouts;
+
+      return {
+        ...(workout ?? {}),
+        assignment_start_date: assignment.start_date,
+        assignment_valid_until: assignment.valid_until,
+      };
+    });
   });
 
   app.get("/workouts/:id/exercises", async (request) => {
