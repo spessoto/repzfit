@@ -45,6 +45,39 @@ function normalizeWhatsapp(remoteJid: string): string {
   return remoteJid.replace(/@.*/, "");
 }
 
+async function safeCoachReply(
+  app: FastifyInstance,
+  userMessage: string,
+  fallbackText: string,
+): Promise<string> {
+  try {
+    return await generateBotResponse({
+      systemPrompt: COACH_SYSTEM_PROMPT,
+      userMessage,
+    });
+  } catch (error) {
+    app.log.error(error, "Gemini unavailable, using static coach reply");
+    return fallbackText;
+  }
+}
+
+async function safeInputFallback(
+  app: FastifyInstance,
+  params: {
+    studentName: string;
+    currentState: string;
+    userInput: string;
+    expectedInput: string;
+  },
+): Promise<string> {
+  try {
+    return await generateFallbackReply(params);
+  } catch (error) {
+    app.log.error(error, "Gemini unavailable, using static input fallback");
+    return `Não entendi muito bem. Me envie ${params.expectedInput} para continuar. 💪`;
+  }
+}
+
 async function getStudentByWhatsapp(whatsapp: string) {
   const { data, error } = await supabaseAdmin
     .from("students")
@@ -293,10 +326,11 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
     if (!student) {
       // Aluno não cadastrado - enviar mensagem amigável
-      const response = await generateBotResponse({
-        systemPrompt: COACH_SYSTEM_PROMPT,
-        userMessage: `O usuário tentou iniciar um treino mas não está cadastrado no sistema. Explique de forma amigável e breve (2 linhas) que ele precisa ser cadastrado pelo personal trainer antes de usar o sistema.`,
-      });
+      const response = await safeCoachReply(
+        input.app,
+        `O usuário tentou iniciar um treino mas não está cadastrado no sistema. Explique de forma amigável e breve (2 linhas) que ele precisa ser cadastrado pelo personal trainer antes de usar o sistema.`,
+        "Você ainda não está cadastrado no sistema. Peça ao seu personal para concluir seu cadastro e eu te ajudo a iniciar o treino! 💪",
+      );
 
       await sendTextMessage({
         instanceName: input.instance,
@@ -311,10 +345,11 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
     if (!workout) {
       // Sem treino para hoje
-      const response = await generateBotResponse({
-        systemPrompt: COACH_SYSTEM_PROMPT,
-        userMessage: `O aluno ${student.name} quer treinar mas não tem treino programado para hoje. Responda de forma motivadora mas explique que ele precisa falar com o personal para definir um treino.`,
-      });
+      const response = await safeCoachReply(
+        input.app,
+        `O aluno ${student.name} quer treinar mas não tem treino programado para hoje. Responda de forma motivadora mas explique que ele precisa falar com o personal para definir um treino.`,
+        "Hoje não encontrei treino programado para você. Fala com seu personal que eu te ajudo assim que ele liberar! 🔥",
+      );
 
       await sendTextMessage({
         instanceName: input.instance,
@@ -327,10 +362,11 @@ export async function processIncomingMessage(input: IncomingMessage) {
     // Tem treino! Iniciar fluxo
     const state = await getOrCreateState(whatsapp, student.id);
 
-    const welcomeMessage = await generateBotResponse({
-      systemPrompt: COACH_SYSTEM_PROMPT,
-      userMessage: `Saude o aluno ${student.name} de forma animada (1 linha) e pergunte se ele está pronto para começar o treino "${workout.name}". Seja breve e motivador.`,
-    });
+    const welcomeMessage = await safeCoachReply(
+      input.app,
+      `Saude o aluno ${student.name} de forma animada (1 linha) e pergunte se ele está pronto para começar o treino "${workout.name}". Seja breve e motivador.`,
+      `Bora, ${student.name}! Pronto para começar o treino "${workout.name}"? 💪`,
+    );
 
     await sendButtonsMessage({
       instanceName: input.instance,
@@ -452,7 +488,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     const reps = parseInt(effectiveInput, 10);
 
     if (Number.isNaN(reps) || reps <= 0 || reps > 1000) {
-      const fallback = await generateFallbackReply({
+      const fallback = await safeInputFallback(input.app, {
         studentName: student.name,
         currentState: "COLLECTING_REPS",
         userInput: effectiveInput,
@@ -486,7 +522,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     const weight = parseFloat(effectiveInput.replace(",", "."));
 
     if (Number.isNaN(weight) || weight < 0 || weight > 1000) {
-      const fallback = await generateFallbackReply({
+      const fallback = await safeInputFallback(input.app, {
         studentName: student.name,
         currentState: "COLLECTING_WEIGHT",
         userInput: effectiveInput,
@@ -641,10 +677,11 @@ export async function processIncomingMessage(input: IncomingMessage) {
         await completeSession(state.current_session_id);
       }
 
-      const congratsMessage = await generateBotResponse({
-        systemPrompt: COACH_SYSTEM_PROMPT,
-        userMessage: `O aluno ${student.name} acabou de completar o treino! Parabenize de forma entusiasmada e motivadora (2-3 linhas). Celebre a conquista!`,
-      });
+      const congratsMessage = await safeCoachReply(
+        input.app,
+        `O aluno ${student.name} acabou de completar o treino! Parabenize de forma entusiasmada e motivadora (2-3 linhas). Celebre a conquista!`,
+        "Parabéns! Treino concluído com sucesso. Você mandou muito bem hoje! 🔥💪",
+      );
 
       await sendTextMessage({
         instanceName: input.instance,
@@ -664,10 +701,11 @@ export async function processIncomingMessage(input: IncomingMessage) {
   }
 
   // Fallback: mensagem não reconhecida
-  const fallbackMessage = await generateBotResponse({
-    systemPrompt: COACH_SYSTEM_PROMPT,
-    userMessage: `O aluno disse "${effectiveInput}" mas não está em um contexto de treino ativo. Responda de forma amigável (1 linha) e sugira que ele diga "iniciar treino" quando quiser começar.`,
-  });
+  const fallbackMessage = await safeCoachReply(
+    input.app,
+    `O aluno disse "${effectiveInput}" mas não está em um contexto de treino ativo. Responda de forma amigável (1 linha) e sugira que ele diga "iniciar treino" quando quiser começar.`,
+    'Quando quiser começar, me manda "iniciar treino" e eu te guio no treino! 💪',
+  );
 
   await sendTextMessage({
     instanceName: input.instance,
