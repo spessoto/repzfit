@@ -4,8 +4,8 @@ import { z } from "zod";
 import { env } from "../../config/env.js";
 import { processIncomingMessage } from "../../services/bot-engine.js";
 
-// Emergency circuit breaker to stop bot loops quickly in production.
-const EMERGENCY_BOT_PAUSE = true;
+// Emergency circuit breaker — set to true to pause bot instantly in production.
+const EMERGENCY_BOT_PAUSE = false;
 const RECENT_MESSAGE_TTL_MS = 2 * 60 * 1000;
 const recentMessageFingerprints = new Map<string, number>();
 
