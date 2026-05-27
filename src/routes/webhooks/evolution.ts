@@ -15,6 +15,7 @@ const EvolutionWebhookSchema = z.object({
     }),
     // Accept any messageType string — filter for supported ones at runtime
     messageType: z.string(),
+    messageTimestamp: z.number().optional(),
     message: z
       .object({
         conversation: z.string().optional(),
@@ -83,6 +84,13 @@ export async function registerEvolutionWebhookRoute(app: FastifyInstance) {
     }
 
     if (payload.data.key.fromMe) {
+      return reply.code(200).send({ ignored: true });
+    }
+
+    // Ignorar mensagens com mais de 2 minutos (evita reprocessar fila acumulada)
+    const msgTs = payload.data.messageTimestamp;
+    if (msgTs && Date.now() / 1000 - msgTs > 120) {
+      app.log.info({ msgTs }, "Message too old, ignoring");
       return reply.code(200).send({ ignored: true });
     }
 

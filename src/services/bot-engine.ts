@@ -17,6 +17,7 @@ type IncomingMessage = {
   inputText?: string;
   buttonId?: string;
   audioUrl?: string;
+  messageTimestamp?: number;
 };
 
 type BotStateRow = {
@@ -336,7 +337,30 @@ export async function processIncomingMessage(input: IncomingMessage) {
     return;
   }
 
-  // 2. Verificar se é uma mensagem de início de treino ANTES de validar cadastro
+  // Comando global: "parar" encerra qualquer sessão ativa
+  if (/^parar$/i.test(effectiveInput.trim())) {
+    const student = await getStudentByWhatsapp(whatsapp);
+    if (student) {
+      const state = await getOrCreateState(whatsapp, student.id);
+      if (state.current_state !== "IDLE") {
+        await updateState(whatsapp, {
+          current_state: "IDLE",
+          current_session_id: null,
+          current_workout_exercise_id: null,
+          current_set_number: 1,
+          last_input_attempt: null,
+        });
+      }
+    }
+    await sendTextMessage({
+      instanceName: input.instance,
+      number: whatsapp,
+      text: "Bot pausado. Quando quiser retomar, é só mandar *iniciar treino*! 💪",
+    });
+    return;
+  }
+
+  // 2. Verificar se é uma mensagem de início de treino — apenas no estado IDLE
   if (isTrainingStartIntent(effectiveInput)) {
     // Verificar se o aluno está cadastrado
     const student = await getStudentByWhatsapp(whatsapp);
@@ -353,6 +377,18 @@ export async function processIncomingMessage(input: IncomingMessage) {
         instanceName: input.instance,
         number: whatsapp,
         text: response,
+      });
+      return;
+    }
+
+    // Verificar estado atual — só iniciar a partir do IDLE
+    const currentState = await getOrCreateState(whatsapp, student.id);
+    if (currentState.current_state !== "IDLE") {
+      // Já está em um fluxo ativo — lembrar o aluno do contexto atual
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: "Você já tem um treino em andamento! Responda a pergunta anterior ou envie *parar* para encerrar. 💪",
       });
       return;
     }
@@ -376,9 +412,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       return;
     }
 
-    // Tem treino! Iniciar fluxo
-    const state = await getOrCreateState(whatsapp, student.id);
-
+    // Tem treino! Iniciar fluxo (currentState já foi carregado acima)
     const welcomeMessage = await safeCoachReply(
       input.app,
       `Saude o aluno ${student.name} de forma animada (1 linha) e pergunte se ele está pronto para começar o treino "${workout.name}". Seja breve e motivador.`,
