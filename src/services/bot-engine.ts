@@ -99,6 +99,8 @@ function formatExerciseDetails(ex: WorkoutExercise): string {
   if (ex.description) lines.push(`📝 ${ex.description}`);
   const weight = ex.target_weight ? ` com ${ex.target_weight}kg` : "";
   lines.push(`📊 Meta: ${ex.target_sets}x${ex.target_reps}${weight}`);
+  if (ex.rest_seconds && ex.rest_seconds > 0)
+    lines.push(`⏱ Descanso: ${ex.rest_seconds}s`);
   return lines.join("\n");
 }
 
@@ -943,6 +945,23 @@ export async function processIncomingMessage(input: IncomingMessage) {
       .eq("id", state.current_workout_exercise_id!)
       .single();
 
+    if (exerciseResult.error || !exerciseResult.data) {
+      input.app.log.error(
+        exerciseResult.error,
+        "COLLECTING_RPE: failed to fetch exercise data",
+      );
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: "Ocorreu um erro ao registrar a série. Tente novamente! 😅",
+      });
+      await updateState(whatsapp, {
+        current_state: "EXECUTING_SET",
+        last_input_attempt: null,
+      });
+      return;
+    }
+
     if (exerciseResult.data) {
       const targetSets = exerciseResult.data.target_sets;
       const exerciseName = Array.isArray(exerciseResult.data.exercises)
@@ -1138,8 +1157,19 @@ async function fireExpiredRest(
     if (!exRow) {
       app.log.warn(
         { nextExerciseId },
-        "fireExpiredRest: next exercise not found",
+        "fireExpiredRest: next exercise not found, clearing RESTING state",
       );
+      // Limpa o estado RESTING para não deixar o aluno travado
+      await updateState(state.whatsapp_number, {
+        current_state: "EXECUTING_SET",
+        rest_end_at: null,
+        last_input_attempt: null,
+      });
+      await sendTextMessage({
+        instanceName,
+        number: state.whatsapp_number,
+        text: "✅ Descanso concluído! Continue com o próximo exercício do seu treino. 💪",
+      });
       return;
     }
 
