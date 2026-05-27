@@ -1,0 +1,1 @@
+alter table public.personals alter column evolution_instance_name drop not null;

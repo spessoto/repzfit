@@ -15,7 +15,7 @@ const AdminPersonalCreateSchema = z.object({
   name: z.string().min(1).max(255).trim(),
   email: z.string().email().max(255).trim(),
   password: z.string().min(6).max(128),
-  evolution_instance_name: z.string().min(1).max(255).trim(),
+  evolution_instance_name: z.string().min(1).max(255).trim().optional(),
 });
 
 const AdminPersonalPatchSchema = z
@@ -187,7 +187,9 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
         id: authUserData.user.id,
         name: input.name,
         email: input.email,
-        evolution_instance_name: input.evolution_instance_name,
+        ...(input.evolution_instance_name
+          ? { evolution_instance_name: input.evolution_instance_name }
+          : {}),
       })
       .select("id,name,email,evolution_instance_name,created_at")
       .single();

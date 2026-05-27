@@ -1150,11 +1150,16 @@
                   />
                 </div>
                 <div class="form-group">
-                  <label>Evolution Instance</label>
+                  <label
+                    >Evolution Instance
+                    <span style="color: #6b7280; font-weight: 400"
+                      >(opcional)</span
+                    ></label
+                  >
                   <input
                     type="text"
                     id="adminPersonalInstance"
-                    placeholder="ex: personal-joao"
+                    placeholder="Preenchido ao conectar via QR Code"
                   />
                 </div>
               </div>
@@ -2330,8 +2335,8 @@
           .getElementById("adminPersonalInstance")
           .value.trim();
 
-        if (!name || !email || !password || !instance) {
-          showAlert("adminAlert", "Preencha todos os campos", "error");
+        if (!name || !email || !password) {
+          showAlert("adminAlert", "Preencha nome, email e senha", "error");
           return;
         }
 
@@ -2348,7 +2353,7 @@
                 name,
                 email,
                 password,
-                evolution_instance_name: instance,
+                ...(instance ? { evolution_instance_name: instance } : {}),
               }),
             },
           );
