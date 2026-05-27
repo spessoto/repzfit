@@ -412,7 +412,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     const student = normalizeStudentRow(studentRaw);
 
-    const { data: workouts, error: workoutsError } = await client
+    let workoutsResult: any = await client
       .from("workouts")
       .select(
         "id,student_id,name,day_of_week,start_date,valid_until,created_at,workout_exercises(id,exercise_id,target_sets,target_reps,target_weight,order_index,exercises(id,name,description,muscle_group,equipment))",
@@ -420,11 +420,26 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .eq("student_id", id)
       .order("created_at", { ascending: false });
 
+    if (
+      workoutsResult.error &&
+      isMissingStudentFieldError(workoutsResult.error)
+    ) {
+      workoutsResult = await client
+        .from("workouts")
+        .select(
+          "id,student_id,name,day_of_week,start_date,valid_until,created_at,workout_exercises(id,exercise_id,target_sets,target_reps,target_weight,order_index,exercises(id,name,description))",
+        )
+        .eq("student_id", id)
+        .order("created_at", { ascending: false });
+    }
+
+    const { data: workouts, error: workoutsError } = workoutsResult;
+
     if (workoutsError) {
       throw app.httpErrors.badRequest(workoutsError.message);
     }
 
-    const { data: sessions, error: sessionsError } = await client
+    let sessionsResult: any = await client
       .from("daily_sessions")
       .select(
         "id,date,status,created_at,updated_at,summary,workout_id,workouts(name)",
@@ -433,6 +448,23 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .eq("status", "completed")
       .order("date", { ascending: false })
       .limit(50);
+
+    if (
+      sessionsResult.error &&
+      isMissingStudentFieldError(sessionsResult.error)
+    ) {
+      sessionsResult = await client
+        .from("daily_sessions")
+        .select(
+          "id,date,status,created_at,updated_at,workout_id,workouts(name)",
+        )
+        .eq("student_id", id)
+        .eq("status", "completed")
+        .order("date", { ascending: false })
+        .limit(50);
+    }
+
+    const { data: sessions, error: sessionsError } = sessionsResult;
 
     if (sessionsError) {
       throw app.httpErrors.badRequest(sessionsError.message);
@@ -447,7 +479,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         status: s.status,
         created_at: s.created_at,
         updated_at: s.updated_at,
-        summary: s.summary,
+        summary: s.summary ?? null,
         workout_id: s.workout_id,
         workout_name: Array.isArray(s.workouts)
           ? s.workouts[0]?.name
