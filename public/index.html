@@ -363,15 +363,84 @@
 
       .exercise-row {
         border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        padding: 10px;
+        border-radius: 10px;
+        padding: 12px;
         margin-top: 8px;
         background: #fff;
+      }
+
+      .exercise-title {
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .exercise-fields-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .exercise-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .exercise-field label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+      }
+
+      .exercise-field input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      .exercise-actions {
+        margin-top: 10px;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .workout-section-title {
+        color: #1f2937;
+        margin-bottom: 8px;
+        font-size: 16px;
+      }
+
+      .workout-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+
+      .workout-meta span {
+        font-size: 12px;
+        color: #64748b;
+        background: #eef2ff;
+        border: 1px solid #e0e7ff;
+        border-radius: 999px;
+        padding: 4px 10px;
       }
 
       @media (max-width: 768px) {
         .editor-grid {
           grid-template-columns: 1fr;
+        }
+
+        .exercise-fields-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .drawer-panel {
@@ -1306,6 +1375,9 @@
             const exercises = workout.workout_exercises || [];
             return `
               <div class="workout-card">
+                <div class="workout-meta">
+                  <span>ID treino: ${escapeHtml(workout.id)}</span>
+                </div>
                 <div class="editor-grid">
                   <div class="form-group full">
                     <label>Nome do treino</label>
@@ -1323,7 +1395,7 @@
                 <button class="btn btn-primary" onclick="salvarTreinoAluno('${workout.id}')">Salvar treino</button>
 
                 <div style="margin-top: 10px;">
-                  <h4 style="color: #374151; margin-bottom: 8px;">Exercícios</h4>
+                  <h4 class="workout-section-title">Exercícios</h4>
                   ${
                     exercises.length > 0
                       ? exercises
@@ -1334,14 +1406,26 @@
                               : ex.exercises;
                             return `
                             <div class="exercise-row">
-                              <p style="font-weight: 600; color: #111827; margin-bottom: 8px;">${escapeHtml(exData?.name || "Exercício")}</p>
-                              <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">
-                                <input type="number" min="1" id="we_sets_${ex.id}" value="${escapeHtml(String(ex.target_sets || ""))}" placeholder="Séries" />
-                                <input type="number" min="1" id="we_reps_${ex.id}" value="${escapeHtml(String(ex.target_reps || ""))}" placeholder="Reps" />
-                                <input type="number" min="0" step="0.1" id="we_weight_${ex.id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" placeholder="Peso" />
-                                <input type="number" min="0" id="we_order_${ex.id}" value="${escapeHtml(String(ex.order_index || 0))}" placeholder="Ordem" />
+                              <p class="exercise-title">🏋️ ${escapeHtml(exData?.name || "Exercício")}</p>
+                              <div class="exercise-fields-grid">
+                                <div class="exercise-field">
+                                  <label for="we_sets_${ex.id}">Séries</label>
+                                  <input type="number" min="1" id="we_sets_${ex.id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+                                </div>
+                                <div class="exercise-field">
+                                  <label for="we_reps_${ex.id}">Repetições</label>
+                                  <input type="number" min="1" id="we_reps_${ex.id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
+                                </div>
+                                <div class="exercise-field">
+                                  <label for="we_weight_${ex.id}">Peso (kg)</label>
+                                  <input type="number" min="0" step="0.1" id="we_weight_${ex.id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
+                                </div>
+                                <div class="exercise-field">
+                                  <label for="we_order_${ex.id}">Ordem no treino</label>
+                                  <input type="number" min="0" id="we_order_${ex.id}" value="${escapeHtml(String(ex.order_index || 0))}" />
+                                </div>
                               </div>
-                              <div style="margin-top: 8px;">
+                              <div class="exercise-actions">
                                 <button class="btn btn-secondary" onclick="salvarExercicioTreino('${workout.id}','${ex.id}')">Salvar exercício</button>
                               </div>
                             </div>
