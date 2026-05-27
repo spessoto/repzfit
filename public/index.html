@@ -846,17 +846,30 @@
       </div>
     </div>
 
-    <div id="studentEditorDrawer" class="drawer-backdrop" onclick="closeAlunoEditor(event)">
+    <div
+      id="studentEditorDrawer"
+      class="drawer-backdrop"
+      onclick="closeAlunoEditor(event)"
+    >
       <div class="drawer-panel" onclick="event.stopPropagation()">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h2 style="color: #1f2937;">Editar Aluno</h2>
-          <button class="btn btn-secondary" onclick="closeAlunoEditor()">Fechar</button>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+          "
+        >
+          <h2 style="color: #1f2937">Editar Aluno</h2>
+          <button class="btn btn-secondary" onclick="closeAlunoEditor()">
+            Fechar
+          </button>
         </div>
 
         <div id="studentEditorAlert"></div>
 
-        <div class="card" style="margin-bottom: 16px;">
-          <h3 style="margin-bottom: 14px; color: #374151;">Dados do Aluno</h3>
+        <div class="card" style="margin-bottom: 16px">
+          <h3 style="margin-bottom: 14px; color: #374151">Dados do Aluno</h3>
           <div class="editor-grid">
             <div class="form-group">
               <label>Nome</label>
@@ -872,7 +885,11 @@
             </div>
             <div class="form-group">
               <label>Tipo Sanguineo</label>
-              <input type="text" id="editAlunoTipoSanguineo" placeholder="Ex: O+" />
+              <input
+                type="text"
+                id="editAlunoTipoSanguineo"
+                placeholder="Ex: O+"
+              />
             </div>
             <div class="form-group">
               <label>Peso (kg)</label>
@@ -883,18 +900,22 @@
               <input type="number" id="editAlunoAltura" min="0" step="0.1" />
             </div>
           </div>
-          <div style="margin-top: 12px;">
-            <button class="btn btn-primary" onclick="salvarAlunoEdicao()">Salvar dados do aluno</button>
+          <div style="margin-top: 12px">
+            <button class="btn btn-primary" onclick="salvarAlunoEdicao()">
+              Salvar dados do aluno
+            </button>
           </div>
         </div>
 
-        <div class="card" style="margin-bottom: 16px;">
-          <h3 style="margin-bottom: 10px; color: #374151;">Treinos do Aluno</h3>
+        <div class="card" style="margin-bottom: 16px">
+          <h3 style="margin-bottom: 10px; color: #374151">Treinos do Aluno</h3>
           <div id="studentEditorWorkouts"></div>
         </div>
 
         <div class="card">
-          <h3 style="margin-bottom: 10px; color: #374151;">Treinos Realizados</h3>
+          <h3 style="margin-bottom: 10px; color: #374151">
+            Treinos Realizados
+          </h3>
           <div id="studentEditorSessions"></div>
         </div>
       </div>
@@ -1227,9 +1248,8 @@
               .getElementById("editAlunoWhatsapp")
               .value.trim(),
             blood_type:
-              document
-                .getElementById("editAlunoTipoSanguineo")
-                .value.trim() || null,
+              document.getElementById("editAlunoTipoSanguineo").value.trim() ||
+              null,
             weight_kg:
               document.getElementById("editAlunoPeso").value === ""
                 ? null
@@ -1257,7 +1277,11 @@
             throw new Error(err.message || "Erro ao salvar aluno");
           }
 
-          showAlert("studentEditorAlert", "Aluno atualizado com sucesso", "success");
+          showAlert(
+            "studentEditorAlert",
+            "Aluno atualizado com sucesso",
+            "success",
+          );
           carregarAlunos();
           carregarAlunosSelect();
         } catch (error) {
@@ -1272,7 +1296,8 @@
       function renderStudentWorkoutsEditor(workouts) {
         const root = document.getElementById("studentEditorWorkouts");
         if (!workouts || workouts.length === 0) {
-          root.innerHTML = '<p style="color:#6b7280;">Nenhum treino cadastrado.</p>';
+          root.innerHTML =
+            '<p style="color:#6b7280;">Nenhum treino cadastrado.</p>';
           return;
         }
 
@@ -1342,14 +1367,17 @@
               document.getElementById(`w_until_${workoutId}`).value || null,
           };
 
-          const response = await fetch(`${getApiBaseUrl()}/api/workouts/${workoutId}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authToken}`,
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/workouts/${workoutId}`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify(payload),
             },
-            body: JSON.stringify(payload),
-          });
+          );
 
           if (!response.ok) {
             const err = await response.json();
@@ -1380,8 +1408,8 @@
               document.getElementById(`we_reps_${workoutExerciseId}`).value,
             ),
             target_weight:
-              document.getElementById(`we_weight_${workoutExerciseId}`).value ===
-              ""
+              document.getElementById(`we_weight_${workoutExerciseId}`)
+                .value === ""
                 ? null
                 : Number(
                     document.getElementById(`we_weight_${workoutExerciseId}`)
@@ -1426,7 +1454,8 @@
       function renderStudentSessionsEditor(sessions) {
         const root = document.getElementById("studentEditorSessions");
         if (!sessions || sessions.length === 0) {
-          root.innerHTML = '<p style="color:#6b7280;">Nenhum treino realizado ainda.</p>';
+          root.innerHTML =
+            '<p style="color:#6b7280;">Nenhum treino realizado ainda.</p>';
           return;
         }
 

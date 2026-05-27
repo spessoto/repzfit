@@ -30,14 +30,18 @@ const NullableNumberInput = z.union([
 const StudentPatchSchema = z
   .object({
     name: z.string().min(1).max(255).trim().optional(),
-    email: z.union([z.string().email().max(255), z.null(), z.literal("")]).optional(),
+    email: z
+      .union([z.string().email().max(255), z.null(), z.literal("")])
+      .optional(),
     whatsapp_number: z
       .string()
       .min(8)
       .max(20)
       .regex(/^[0-9+\s()-]+$/)
       .optional(),
-    blood_type: z.union([z.string().max(20), z.null(), z.literal("")]).optional(),
+    blood_type: z
+      .union([z.string().max(20), z.null(), z.literal("")])
+      .optional(),
     weight_kg: NullableNumberInput.optional(),
     height_cm: NullableNumberInput.optional(),
     is_active: z.boolean().optional(),
@@ -117,12 +121,42 @@ const WorkoutExercisePatchSchema = z
   .object({
     target_sets: z.number().int().positive().max(100).optional(),
     target_reps: z.number().int().positive().max(1000).optional(),
-    target_weight: z.union([z.number().nonnegative().max(1000), z.null(), z.literal("")]).optional(),
+    target_weight: z
+      .union([z.number().nonnegative().max(1000), z.null(), z.literal("")])
+      .optional(),
     order_index: z.number().int().nonnegative().max(100).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided",
   });
+
+const STUDENTS_SELECT_FULL =
+  "id,personal_id,name,email,whatsapp_number,blood_type,weight_kg,height_cm,is_active,created_at";
+const STUDENTS_SELECT_BASE =
+  "id,personal_id,name,whatsapp_number,is_active,created_at";
+
+function isMissingStudentFieldError(error: any): boolean {
+  const msg = String(error?.message ?? "").toLowerCase();
+  const code = String(error?.code ?? "");
+  return (
+    code === "42703" ||
+    msg.includes("column") ||
+    msg.includes("email") ||
+    msg.includes("blood_type") ||
+    msg.includes("weight_kg") ||
+    msg.includes("height_cm")
+  );
+}
+
+function normalizeStudentRow(row: any) {
+  return {
+    ...row,
+    email: row?.email ?? null,
+    blood_type: row?.blood_type ?? null,
+    weight_kg: row?.weight_kg ?? null,
+    height_cm: row?.height_cm ?? null,
+  };
+}
 
 function extractBearerToken(request: FastifyRequest): string {
   const header = request.headers.authorization;
@@ -240,34 +274,39 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("students")
       .insert(payload)
-      .select(
-        "id,personal_id,name,email,whatsapp_number,blood_type,weight_kg,height_cm,is_active,created_at",
-      )
+      .select(STUDENTS_SELECT_BASE)
       .single();
 
     if (error) {
       throw app.httpErrors.badRequest(error.message);
     }
 
-    return data;
+    return normalizeStudentRow(data);
   });
 
   app.get("/students", async (request) => {
     const { token } = await getAuthenticatedPersonal(app, request);
     const client = getRlsClient(token);
 
-    const { data, error } = await client
+    let queryResult: any = await client
       .from("students")
-      .select(
-        "id,personal_id,name,email,whatsapp_number,blood_type,weight_kg,height_cm,is_active,created_at",
-      )
+      .select(STUDENTS_SELECT_FULL)
       .order("created_at", { ascending: false });
+
+    if (queryResult.error && isMissingStudentFieldError(queryResult.error)) {
+      queryResult = await client
+        .from("students")
+        .select(STUDENTS_SELECT_BASE)
+        .order("created_at", { ascending: false });
+    }
+
+    const { data, error } = queryResult;
 
     if (error) {
       throw app.httpErrors.badRequest(error.message);
     }
 
-    return data ?? [];
+    return (data ?? []).map(normalizeStudentRow);
   });
 
   app.patch("/students/:id", async (request) => {
@@ -290,14 +329,40 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     if (payload.weight_kg === "") payload.weight_kg = null;
     if (payload.height_cm === "") payload.height_cm = null;
 
-    const { data, error } = await client
+    if (
+      Object.keys(payload).some((k) =>
+        ["email", "blood_type", "weight_kg", "height_cm"].includes(k),
+      )
+    ) {
+      const { error: writeProbeError } = await client
+        .from("students")
+        .select("id,email")
+        .limit(1);
+      if (writeProbeError && isMissingStudentFieldError(writeProbeError)) {
+        delete payload.email;
+        delete payload.blood_type;
+        delete payload.weight_kg;
+        delete payload.height_cm;
+      }
+    }
+
+    let patchResult = await client
       .from("students")
       .update(payload)
       .eq("id", id)
-      .select(
-        "id,personal_id,name,email,whatsapp_number,blood_type,weight_kg,height_cm,is_active,created_at",
-      )
+      .select(STUDENTS_SELECT_FULL)
       .maybeSingle();
+
+    if (patchResult.error && isMissingStudentFieldError(patchResult.error)) {
+      patchResult = await client
+        .from("students")
+        .update(payload)
+        .eq("id", id)
+        .select(STUDENTS_SELECT_BASE)
+        .maybeSingle();
+    }
+
+    const { data, error } = patchResult;
 
     if (error) {
       throw app.httpErrors.badRequest(error.message);
@@ -307,7 +372,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.notFound("Student not found");
     }
 
-    return data;
+    return normalizeStudentRow(data);
   });
 
   app.get("/students/:id/details", async (request) => {
@@ -318,21 +383,34 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .parse((request.params as { id?: string }).id);
     const client = getRlsClient(token);
 
-    const { data: student, error: studentError } = await client
+    let studentResult = await client
       .from("students")
-      .select(
-        "id,personal_id,name,email,whatsapp_number,blood_type,weight_kg,height_cm,is_active,created_at",
-      )
+      .select(STUDENTS_SELECT_FULL)
       .eq("id", id)
       .maybeSingle();
+
+    if (
+      studentResult.error &&
+      isMissingStudentFieldError(studentResult.error)
+    ) {
+      studentResult = await client
+        .from("students")
+        .select(STUDENTS_SELECT_BASE)
+        .eq("id", id)
+        .maybeSingle();
+    }
+
+    const { data: studentRaw, error: studentError } = studentResult;
 
     if (studentError) {
       throw app.httpErrors.badRequest(studentError.message);
     }
 
-    if (!student) {
+    if (!studentRaw) {
       throw app.httpErrors.notFound("Student not found");
     }
+
+    const student = normalizeStudentRow(studentRaw);
 
     const { data: workouts, error: workoutsError } = await client
       .from("workouts")
@@ -348,7 +426,9 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     const { data: sessions, error: sessionsError } = await client
       .from("daily_sessions")
-      .select("id,date,status,created_at,updated_at,summary,workout_id,workouts(name)")
+      .select(
+        "id,date,status,created_at,updated_at,summary,workout_id,workouts(name)",
+      )
       .eq("student_id", id)
       .eq("status", "completed")
       .order("date", { ascending: false })
@@ -696,7 +776,9 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .from("workouts")
       .update(payload)
       .eq("id", workoutId)
-      .select("id,student_id,name,day_of_week,start_date,valid_until,created_at")
+      .select(
+        "id,student_id,name,day_of_week,start_date,valid_until,created_at",
+      )
       .maybeSingle();
 
     if (error) {
@@ -710,47 +792,53 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return data;
   });
 
-  app.patch("/workouts/:workout_id/exercises/:workout_exercise_id", async (request) => {
-    const { token } = await getAuthenticatedPersonal(app, request);
-    const parsed = WorkoutExercisePatchSchema.safeParse(request.body);
+  app.patch(
+    "/workouts/:workout_id/exercises/:workout_exercise_id",
+    async (request) => {
+      const { token } = await getAuthenticatedPersonal(app, request);
+      const parsed = WorkoutExercisePatchSchema.safeParse(request.body);
 
-    if (!parsed.success) {
-      throw app.httpErrors.badRequest(parsed.error.message);
-    }
+      if (!parsed.success) {
+        throw app.httpErrors.badRequest(parsed.error.message);
+      }
 
-    const workoutId = z
-      .string()
-      .uuid()
-      .parse((request.params as { workout_id?: string }).workout_id);
-    const workoutExerciseId = z
-      .string()
-      .uuid()
-      .parse((request.params as { workout_exercise_id?: string }).workout_exercise_id);
-    const client = getRlsClient(token);
+      const workoutId = z
+        .string()
+        .uuid()
+        .parse((request.params as { workout_id?: string }).workout_id);
+      const workoutExerciseId = z
+        .string()
+        .uuid()
+        .parse(
+          (request.params as { workout_exercise_id?: string })
+            .workout_exercise_id,
+        );
+      const client = getRlsClient(token);
 
-    const payload: Record<string, unknown> = { ...parsed.data };
-    if (payload.target_weight === "") payload.target_weight = null;
+      const payload: Record<string, unknown> = { ...parsed.data };
+      if (payload.target_weight === "") payload.target_weight = null;
 
-    const { data, error } = await client
-      .from("workout_exercises")
-      .update(payload)
-      .eq("id", workoutExerciseId)
-      .eq("workout_id", workoutId)
-      .select(
-        "id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,exercises(id,name)",
-      )
-      .maybeSingle();
+      const { data, error } = await client
+        .from("workout_exercises")
+        .update(payload)
+        .eq("id", workoutExerciseId)
+        .eq("workout_id", workoutId)
+        .select(
+          "id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,exercises(id,name)",
+        )
+        .maybeSingle();
 
-    if (error) {
-      throw app.httpErrors.badRequest(error.message);
-    }
+      if (error) {
+        throw app.httpErrors.badRequest(error.message);
+      }
 
-    if (!data) {
-      throw app.httpErrors.notFound("Workout exercise not found");
-    }
+      if (!data) {
+        throw app.httpErrors.notFound("Workout exercise not found");
+      }
 
-    return data;
-  });
+      return data;
+    },
+  );
 
   app.get("/workouts/student/:student_id", async (request) => {
     const { token } = await getAuthenticatedPersonal(app, request);
