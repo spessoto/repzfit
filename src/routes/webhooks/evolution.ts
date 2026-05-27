@@ -87,10 +87,15 @@ export async function registerEvolutionWebhookRoute(app: FastifyInstance) {
       return reply.code(200).send({ ignored: true });
     }
 
-    // Ignorar mensagens com mais de 2 minutos (evita reprocessar fila acumulada)
+    // Rejeitar mensagens sem timestamp ou com mais de 5 minutos
+    // (previne reprocessamento de fila acumulada do WhatsApp)
     const msgTs = payload.data.messageTimestamp;
-    if (msgTs && Date.now() / 1000 - msgTs > 120) {
-      app.log.info({ msgTs }, "Message too old, ignoring");
+    const ageSeconds = msgTs ? Date.now() / 1000 - msgTs : Infinity;
+    if (ageSeconds > 300) {
+      app.log.info(
+        { msgTs, ageSeconds },
+        "Message too old or missing timestamp, ignoring",
+      );
       return reply.code(200).send({ ignored: true });
     }
 
