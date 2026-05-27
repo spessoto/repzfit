@@ -354,6 +354,18 @@ async function createDailySession(studentId: string, workoutId: string) {
     .single();
 
   if (error) {
+    // Unique constraint violation: an active session already exists for this student.
+    // Can happen on duplicate webhook delivery — reuse the existing session instead.
+    if (error.code === "23505") {
+      const { data: existing, error: fetchError } = await supabaseAdmin
+        .from("daily_sessions")
+        .select("id")
+        .eq("student_id", studentId)
+        .eq("status", "started")
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      if (existing) return existing.id as string;
+    }
     throw error;
   }
 
@@ -381,6 +393,8 @@ async function saveSetLog(params: {
   });
 
   if (error) {
+    // Duplicate set log (same set retried on webhook replay) — skip silently
+    if (error.code === "23505") return;
     throw error;
   }
 }
@@ -752,18 +766,20 @@ export async function processIncomingMessage(input: IncomingMessage) {
       // Listar primeiro exercício
       const firstExercise = exercises[0];
 
-      await sendTextMessage({
-        instanceName: input.instance,
-        number: whatsapp,
-        text: `🔥 Sessão iniciada!\n\n*${firstExercise.exercise_name}*\n${formatExerciseDetails(firstExercise)}\n\nVamos começar a primeira série! Quando terminar, me manda *feito* ✅`,
-      });
-
+      // Persist state BEFORE sending to avoid sending twice if send succeeds
+      // but state update fails (webhook retry would then re-create a second session).
       await updateState(whatsapp, {
         current_state: "EXECUTING_SET",
         current_session_id: sessionId,
         current_workout_exercise_id: firstExercise.id,
         current_set_number: 1,
         last_input_attempt: null,
+      });
+
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: `🔥 Sessão iniciada!\n\n*${firstExercise.exercise_name}*\n${formatExerciseDetails(firstExercise)}\n\nVamos começar a primeira série! Quando terminar, me manda *feito* ✅`,
       });
       return;
     }

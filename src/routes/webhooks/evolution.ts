@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { env } from "../../config/env.js";
+import { supabaseAdmin } from "../../config/supabase.js";
 import { processIncomingMessage } from "../../services/bot-engine.js";
 
 // Emergency circuit breaker — set to true to pause bot instantly in production.
@@ -86,6 +87,41 @@ function isDuplicateWebhookMessage(
     return true;
   }
   recentMessageFingerprints.set(fingerprint, nowMs);
+  return false;
+}
+
+/**
+ * Persistent deduplication using Supabase.
+ * Protects against duplicate webhook delivery across Vercel instances / cold-start resets.
+ * Returns true if the fingerprint was already processed (duplicate).
+ */
+async function isDbDuplicate(
+  fingerprint: string,
+  app: FastifyInstance,
+): Promise<boolean> {
+  const { error } = await supabaseAdmin
+    .from("processed_webhook_events")
+    .insert({ fingerprint });
+
+  if (error) {
+    if (error.code === "23505") {
+      // Already processed — genuine duplicate
+      return true;
+    }
+    // Unexpected DB error — log but allow processing to avoid blocking
+    app.log.error(
+      { error, fingerprint },
+      "DB dedup insert error; allowing processing",
+    );
+    return false;
+  }
+
+  // Async cleanup of entries older than 10 minutes (fire-and-forget)
+  void supabaseAdmin
+    .from("processed_webhook_events")
+    .delete()
+    .lt("processed_at", new Date(Date.now() - 10 * 60 * 1000).toISOString());
+
   return false;
 }
 
@@ -185,14 +221,35 @@ export async function registerEvolutionWebhookRoute(app: FastifyInstance) {
       return reply.code(200).send({ ignored: true, duplicate: true });
     }
 
-    await processIncomingMessage({
-      app,
-      instance: payload.instance,
-      remoteJid: payload.data.key.remoteJid,
-      inputText: text,
+    // Persistent deduplication (cross-instance / cold-start safe)
+    const fingerprint = buildMessageFingerprint(payload, {
+      text,
       buttonId,
       audioUrl,
     });
+    if (await isDbDuplicate(fingerprint, app)) {
+      app.log.info(
+        { fingerprint, remoteJid: payload.data.key.remoteJid },
+        "DB-level duplicate webhook ignored",
+      );
+      return reply.code(200).send({ ignored: true, duplicate: true });
+    }
+
+    try {
+      await processIncomingMessage({
+        app,
+        instance: payload.instance,
+        remoteJid: payload.data.key.remoteJid,
+        inputText: text,
+        buttonId,
+        audioUrl,
+      });
+    } catch (error) {
+      app.log.error(
+        error,
+        "processIncomingMessage uncaught error — returning 200 to prevent webhook retry loop",
+      );
+    }
 
     return reply.code(200).send({ ok: true });
   });
