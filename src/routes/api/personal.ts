@@ -71,7 +71,7 @@ const ExercisePatchSchema = z
   });
 
 const WorkoutCreateSchema = z.object({
-  student_id: z.string().uuid(),
+  student_id: z.union([z.string().uuid(), z.null(), z.literal("")]).optional(),
   name: z.string().min(1).max(255).trim(),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   valid_until: z
@@ -103,6 +103,9 @@ const WorkoutExerciseCreateSchema = z.object({
 
 const WorkoutPatchSchema = z
   .object({
+    student_id: z
+      .union([z.string().uuid(), z.null(), z.literal("")])
+      .optional(),
     name: z.string().min(1).max(255).trim().optional(),
     start_date: z
       .string()
@@ -130,10 +133,28 @@ const WorkoutExercisePatchSchema = z
     message: "At least one field must be provided",
   });
 
+const PersonalProfilePatchSchema = z
+  .object({
+    name: z.string().min(1).max(255).trim().optional(),
+    email: z
+      .union([z.string().email().max(255), z.null(), z.literal("")])
+      .optional(),
+    phone: z.union([z.string().max(30), z.null(), z.literal("")]).optional(),
+    crf_registration: z
+      .union([z.string().max(60), z.null(), z.literal("")])
+      .optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field must be provided",
+  });
+
 const STUDENTS_SELECT_FULL =
   "id,personal_id,name,email,whatsapp_number,blood_type,weight_kg,height_cm,is_active,created_at";
 const STUDENTS_SELECT_BASE =
   "id,personal_id,name,whatsapp_number,is_active,created_at";
+const PERSONAL_SELECT_FULL =
+  "id,name,email,evolution_instance_name,phone,crf_registration,created_at";
+const PERSONAL_SELECT_BASE = "id,name,email,evolution_instance_name,created_at";
 
 function isMissingStudentFieldError(error: any): boolean {
   const msg = String(error?.message ?? "").toLowerCase();
@@ -156,6 +177,58 @@ function normalizeStudentRow(row: any) {
     weight_kg: row?.weight_kg ?? null,
     height_cm: row?.height_cm ?? null,
   };
+}
+
+function isMissingPersonalFieldError(error: any): boolean {
+  const msg = String(error?.message ?? "").toLowerCase();
+  const code = String(error?.code ?? "");
+  return (
+    code === "42703" ||
+    msg.includes("column") ||
+    msg.includes("phone") ||
+    msg.includes("crf_registration")
+  );
+}
+
+function normalizePersonalRow(row: any) {
+  return {
+    ...row,
+    phone: row?.phone ?? null,
+    crf_registration: row?.crf_registration ?? null,
+  };
+}
+
+function isWorkoutRlsError(error: any): boolean {
+  const msg = String(error?.message ?? "").toLowerCase();
+  const code = String(error?.code ?? "");
+  return code === "42501" || msg.includes("row-level security");
+}
+
+function isStudentIdNotNullError(error: any): boolean {
+  const msg = String(error?.message ?? "").toLowerCase();
+  const code = String(error?.code ?? "");
+  return (
+    code === "23502" ||
+    (msg.includes("null value") && msg.includes("student_id"))
+  );
+}
+
+async function ensureWorkoutBelongsToPersonalLegacy(
+  workoutId: string,
+  personalId: string,
+): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("workouts")
+    .select("id,students!inner(personal_id)")
+    .eq("id", workoutId)
+    .eq("students.personal_id", personalId)
+    .maybeSingle();
+
+  if (error) {
+    return false;
+  }
+
+  return Boolean(data?.id);
 }
 
 function extractBearerToken(request: FastifyRequest): string {
@@ -253,6 +326,111 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       instance: personal.evolution_instance_name,
       message: "Instance logged out successfully",
     };
+  });
+
+  app.get("/personal/profile", async (request) => {
+    const { token, personalId } = await getAuthenticatedPersonal(app, request);
+    const client = getRlsClient(token);
+
+    let queryResult: any = await client
+      .from("personals")
+      .select(PERSONAL_SELECT_FULL)
+      .eq("id", personalId)
+      .maybeSingle();
+
+    if (queryResult.error && isMissingPersonalFieldError(queryResult.error)) {
+      queryResult = await client
+        .from("personals")
+        .select(PERSONAL_SELECT_BASE)
+        .eq("id", personalId)
+        .maybeSingle();
+    }
+
+    const { data, error } = queryResult;
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    if (!data) {
+      throw app.httpErrors.notFound("Personal profile not found");
+    }
+
+    return normalizePersonalRow(data);
+  });
+
+  app.patch("/personal/profile", async (request) => {
+    const { token, personalId } = await getAuthenticatedPersonal(app, request);
+    const parsed = PersonalProfilePatchSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    const client = getRlsClient(token);
+    const payload: Record<string, unknown> = { ...parsed.data };
+
+    if (payload.email === "") payload.email = null;
+    if (payload.phone === "") payload.phone = null;
+    if (payload.crf_registration === "") payload.crf_registration = null;
+
+    if (payload.email) {
+      const { error: authUpdateError } =
+        await supabaseAdmin.auth.admin.updateUserById(personalId, {
+          email: String(payload.email),
+        });
+
+      if (authUpdateError) {
+        throw app.httpErrors.badRequest(authUpdateError.message);
+      }
+    }
+
+    if (
+      Object.keys(payload).some((k) =>
+        ["phone", "crf_registration"].includes(k),
+      )
+    ) {
+      const probe = await client.from("personals").select("id,phone").limit(1);
+      if (probe.error && isMissingPersonalFieldError(probe.error)) {
+        delete payload.phone;
+        delete payload.crf_registration;
+      }
+    }
+
+    const { error: updateError } = await client
+      .from("personals")
+      .update(payload)
+      .eq("id", personalId);
+
+    if (updateError) {
+      throw app.httpErrors.badRequest(updateError.message);
+    }
+
+    let result: any = await client
+      .from("personals")
+      .select(PERSONAL_SELECT_FULL)
+      .eq("id", personalId)
+      .maybeSingle();
+
+    if (result.error && isMissingPersonalFieldError(result.error)) {
+      result = await client
+        .from("personals")
+        .select(PERSONAL_SELECT_BASE)
+        .eq("id", personalId)
+        .maybeSingle();
+    }
+
+    const { data, error } = result;
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    if (!data) {
+      throw app.httpErrors.notFound("Personal profile not found");
+    }
+
+    return normalizePersonalRow(data);
   });
 
   app.post("/students", async (request) => {
@@ -439,6 +617,17 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.badRequest(workoutsError.message);
     }
 
+    const { data: availableWorkouts, error: availableWorkoutsError } =
+      await client
+        .from("workouts")
+        .select("id,name,start_date,valid_until,created_at")
+        .is("student_id", null)
+        .order("created_at", { ascending: false });
+
+    if (availableWorkoutsError) {
+      throw app.httpErrors.badRequest(availableWorkoutsError.message);
+    }
+
     let sessionsResult: any = await client
       .from("daily_sessions")
       .select(
@@ -473,6 +662,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return {
       student,
       workouts: workouts ?? [],
+      available_workouts: availableWorkouts ?? [],
       completed_sessions: (sessions ?? []).map((s: any) => ({
         id: s.id,
         date: s.date,
@@ -624,7 +814,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
   });
 
   app.post("/workouts", async (request) => {
-    const { token } = await getAuthenticatedPersonal(app, request);
+    const { token, personalId } = await getAuthenticatedPersonal(app, request);
     const parsed = WorkoutCreateSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -633,23 +823,29 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     const client = getRlsClient(token);
 
-    const { data: student, error: studentError } = await client
-      .from("students")
-      .select("id")
-      .eq("id", parsed.data.student_id)
-      .maybeSingle();
+    const normalizedStudentId =
+      parsed.data.student_id === "" ? null : (parsed.data.student_id ?? null);
 
-    if (studentError) {
-      throw app.httpErrors.badRequest(studentError.message);
-    }
+    if (normalizedStudentId) {
+      const { data: student, error: studentError } = await client
+        .from("students")
+        .select("id")
+        .eq("id", normalizedStudentId)
+        .maybeSingle();
 
-    if (!student) {
-      throw app.httpErrors.notFound("Student not found");
+      if (studentError) {
+        throw app.httpErrors.badRequest(studentError.message);
+      }
+
+      if (!student) {
+        throw app.httpErrors.notFound("Student not found");
+      }
     }
 
     // Create workout
     const workoutData: any = {
-      student_id: parsed.data.student_id,
+      personal_id: personalId,
+      student_id: normalizedStudentId,
       name: parsed.data.name,
       day_of_week: parsed.data.day_of_week ?? null,
     };
@@ -723,6 +919,36 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return data;
   });
 
+  app.get("/workouts", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const client = getRlsClient(token);
+
+    const query = request.query as { student_id?: string };
+    let builder = client
+      .from("workouts")
+      .select(
+        "id,student_id,name,day_of_week,start_date,valid_until,created_at,students(name)",
+      )
+      .order("created_at", { ascending: false });
+
+    if (query.student_id) {
+      builder = builder.eq("student_id", query.student_id);
+    }
+
+    const { data, error } = await builder;
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    return (data ?? []).map((workout: any) => ({
+      ...workout,
+      student_name: Array.isArray(workout.students)
+        ? (workout.students[0]?.name ?? null)
+        : (workout.students?.name ?? null),
+    }));
+  });
+
   app.post("/workouts/:id/exercises", async (request) => {
     const { token } = await getAuthenticatedPersonal(app, request);
     const parsed = WorkoutExerciseCreateSchema.safeParse(request.body);
@@ -788,7 +1014,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
   });
 
   app.patch("/workouts/:id", async (request) => {
-    const { token } = await getAuthenticatedPersonal(app, request);
+    const { token, personalId } = await getAuthenticatedPersonal(app, request);
     const parsed = WorkoutPatchSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -802,9 +1028,26 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const client = getRlsClient(token);
 
     const payload: Record<string, unknown> = { ...parsed.data };
+    if (payload.student_id === "") payload.student_id = null;
     if (payload.valid_until === "") payload.valid_until = null;
 
-    const { data, error } = await client
+    if (payload.student_id) {
+      const { data: student, error: studentError } = await client
+        .from("students")
+        .select("id")
+        .eq("id", payload.student_id)
+        .maybeSingle();
+
+      if (studentError) {
+        throw app.httpErrors.badRequest(studentError.message);
+      }
+
+      if (!student) {
+        throw app.httpErrors.notFound("Student not found");
+      }
+    }
+
+    let updateResult = await client
       .from("workouts")
       .update(payload)
       .eq("id", workoutId)
@@ -813,7 +1056,42 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       )
       .maybeSingle();
 
+    const isDetachRequest =
+      Object.prototype.hasOwnProperty.call(payload, "student_id") &&
+      payload.student_id === null;
+
+    if (
+      updateResult.error &&
+      isDetachRequest &&
+      isWorkoutRlsError(updateResult.error)
+    ) {
+      const canManage = await ensureWorkoutBelongsToPersonalLegacy(
+        workoutId,
+        personalId,
+      );
+
+      if (!canManage) {
+        throw app.httpErrors.forbidden("Workout not found or not allowed");
+      }
+
+      updateResult = await supabaseAdmin
+        .from("workouts")
+        .update(payload)
+        .eq("id", workoutId)
+        .select(
+          "id,student_id,name,day_of_week,start_date,valid_until,created_at",
+        )
+        .maybeSingle();
+    }
+
+    const { data, error } = updateResult;
+
     if (error) {
+      if (isDetachRequest && isStudentIdNotNullError(error)) {
+        throw app.httpErrors.badRequest(
+          "Nao foi possivel desvincular este treino porque o banco ainda exige aluno obrigatorio. Aplique a migracao 202605270005_workout_templates_and_assignment.sql.",
+        );
+      }
       throw app.httpErrors.badRequest(error.message);
     }
 
@@ -822,6 +1100,26 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     }
 
     return data;
+  });
+
+  app.delete("/workouts/:id", async (request, reply) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const workoutId = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+    const client = getRlsClient(token);
+
+    const { error } = await client
+      .from("workouts")
+      .delete()
+      .eq("id", workoutId);
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    return reply.code(204).send();
   });
 
   app.patch(

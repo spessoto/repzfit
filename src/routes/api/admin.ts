@@ -68,14 +68,14 @@ function verifyAdminToken(token: string): AdminTokenPayload | null {
   }
 
   const expected = signPayload(payloadPart);
-    const signatureBuf = Buffer.from(signature);
-    const expectedBuf = Buffer.from(expected);
+  const signatureBuf = Buffer.from(signature);
+  const expectedBuf = Buffer.from(expected);
 
-    if (signatureBuf.length !== expectedBuf.length) {
-      return null;
-    }
+  if (signatureBuf.length !== expectedBuf.length) {
+    return null;
+  }
 
-    if (!crypto.timingSafeEqual(signatureBuf, expectedBuf)) {
+  if (!crypto.timingSafeEqual(signatureBuf, expectedBuf)) {
     return null;
   }
 
@@ -214,13 +214,13 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       .uuid()
       .parse((request.params as { id?: string }).id);
 
-      if (parsed.data.email || parsed.data.password) {
-        const authPatch: Record<string, string> = {};
-        if (parsed.data.email) authPatch.email = parsed.data.email;
-        if (parsed.data.password) authPatch.password = parsed.data.password;
+    if (parsed.data.email || parsed.data.password) {
+      const authPatch: Record<string, string> = {};
+      if (parsed.data.email) authPatch.email = parsed.data.email;
+      if (parsed.data.password) authPatch.password = parsed.data.password;
 
-        const { error: authUpdateError } =
-          await supabaseAdmin.auth.admin.updateUserById(id, authPatch);
+      const { error: authUpdateError } =
+        await supabaseAdmin.auth.admin.updateUserById(id, authPatch);
 
       if (authUpdateError) {
         throw app.httpErrors.badRequest(authUpdateError.message);
