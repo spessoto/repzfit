@@ -662,7 +662,11 @@ export async function processIncomingMessage(input: IncomingMessage) {
     // Verifica seleção por número ANTES de isCancelIntent
     // (isCancelIntent também captura "2", que é uma opção válida de treino)
     const selectedNumber = parseInt(effectiveInput.trim(), 10);
-    if (!Number.isNaN(selectedNumber) && selectedNumber >= 1 && selectedNumber <= optionIds.length) {
+    if (
+      !Number.isNaN(selectedNumber) &&
+      selectedNumber >= 1 &&
+      selectedNumber <= optionIds.length
+    ) {
       // número válido — segue para seleção abaixo
     } else if (isCancelIntent(effectiveInput)) {
       await sendTextMessage({
