@@ -22,6 +22,13 @@ const EnvSchema = z.object({
 
   OPENAI_API_KEY: z.string().min(1).optional(),
   GEMINI_API_KEY: z.string().min(1).optional(),
+
+  ADMIN_PANEL_EMAIL: z.string().email().default("agencia@stagesix.com.br"),
+  ADMIN_PANEL_PASSWORD: z.string().min(1).default("123456"),
+  ADMIN_TOKEN_SECRET: z
+    .string()
+    .min(16)
+    .default("repzfit_admin_secret_change_me_2026"),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

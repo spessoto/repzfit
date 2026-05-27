@@ -497,12 +497,41 @@
       </div>
 
       <div class="tabs">
-        <button class="tab active" onclick="switchTab('alunos')">Alunos</button>
-        <button class="tab" onclick="switchTab('exercicios')">
+        <button
+          id="alunosTabButton"
+          class="tab active"
+          onclick="switchTab('alunos')"
+        >
+          Alunos
+        </button>
+        <button
+          id="exerciciosTabButton"
+          class="tab"
+          onclick="switchTab('exercicios')"
+        >
           Exercícios
         </button>
-        <button class="tab" onclick="switchTab('treinos')">Treinos</button>
-        <button class="tab" onclick="switchTab('whatsapp')">WhatsApp</button>
+        <button
+          id="treinosTabButton"
+          class="tab"
+          onclick="switchTab('treinos')"
+        >
+          Treinos
+        </button>
+        <button
+          id="whatsappTabButton"
+          class="tab"
+          onclick="switchTab('whatsapp')"
+        >
+          WhatsApp
+        </button>
+        <button
+          id="adminTabButton"
+          class="tab hidden"
+          onclick="switchTab('admin')"
+        >
+          Admin
+        </button>
       </div>
 
       <!-- Alunos Tab -->
@@ -913,6 +942,76 @@
           </div>
         </div>
       </div>
+
+      <div id="adminTab" class="tab-content">
+        <div class="card">
+          <h2>Painel Admin</h2>
+          <div id="adminAlert"></div>
+
+          <h3 style="margin-bottom: 12px; color: #1f2937">
+            Cadastrar Novo Personal
+          </h3>
+          <div class="editor-grid">
+            <div class="form-group">
+              <label>Nome</label>
+              <input
+                type="text"
+                id="adminPersonalNome"
+                placeholder="Nome do personal"
+              />
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input
+                type="email"
+                id="adminPersonalEmail"
+                placeholder="email@dominio.com"
+              />
+            </div>
+            <div class="form-group">
+              <label>Senha inicial</label>
+              <input
+                type="password"
+                id="adminPersonalSenha"
+                placeholder="Mínimo 6 caracteres"
+              />
+            </div>
+            <div class="form-group">
+              <label>Evolution Instance</label>
+              <input
+                type="text"
+                id="adminPersonalInstance"
+                placeholder="ex: personal-joao"
+              />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="criarPersonalAdmin()">
+            Cadastrar Personal
+          </button>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom: 12px; color: #1f2937">
+            Personals Cadastrados
+          </h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Instance</th>
+                <th>Criado em</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="adminPersonalsBody">
+              <tr>
+                <td colspan="5" style="text-align: center">Carregando...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <div
@@ -992,6 +1091,8 @@
 
     <script>
       let authToken = localStorage.getItem("repz_token");
+      let adminToken = localStorage.getItem("repz_admin_token");
+      let isAdminSession = false;
       let personalData = null;
       let currentEditingStudentId = null;
 
@@ -1007,8 +1108,53 @@
       let exerciciosPaginaAtual = 1;
       let exerciciosTotalPaginas = 1;
 
+      function getApiBaseUrl() {
+        return window.location.hostname === "localhost"
+          ? "http://localhost:3333"
+          : window.location.origin;
+      }
+
+      function setAdminModeUI(enabled) {
+        const personalTabs = [
+          "alunosTabButton",
+          "exerciciosTabButton",
+          "treinosTabButton",
+          "whatsappTabButton",
+        ];
+        const personalPanels = [
+          "alunosTab",
+          "exerciciosTab",
+          "treinosTab",
+          "whatsappTab",
+          "configuracoesTab",
+        ];
+
+        personalTabs.forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = enabled ? "none" : "inline-block";
+        });
+
+        personalPanels.forEach((id) => {
+          const el = document.getElementById(id);
+          if (el && enabled) el.classList.remove("active");
+        });
+
+        const adminButton = document.getElementById("adminTabButton");
+        if (adminButton) {
+          adminButton.classList.toggle("hidden", !enabled);
+          adminButton.style.display = enabled ? "inline-block" : "none";
+        }
+
+        const whatsappStatus = document.getElementById("headerWhatsAppStatus");
+        if (whatsappStatus) {
+          whatsappStatus.style.display = enabled ? "none" : "flex";
+        }
+      }
+
       // Initialize
-      if (authToken) {
+      if (adminToken) {
+        loadAdminApp();
+      } else if (authToken) {
         loadApp();
       } else {
         document.getElementById("loginScreen").classList.remove("hidden");
@@ -1038,6 +1184,36 @@
 
         try {
           console.log("Iniciando login...");
+
+          if (email.toLowerCase() === "agencia@stagesix.com.br") {
+            const adminResp = await fetch(
+              `${getApiBaseUrl()}/api/admin/login`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ email, password }),
+              },
+            );
+
+            const adminData = await adminResp.json();
+
+            if (!adminResp.ok) {
+              throw new Error(
+                adminData.message || "Credenciais de admin inválidas",
+              );
+            }
+
+            adminToken = adminData.token;
+            isAdminSession = true;
+            authToken = null;
+            localStorage.removeItem("repz_token");
+            localStorage.setItem("repz_admin_token", adminToken);
+            loadAdminApp();
+            return;
+          }
+
           const response = await fetch(
             "https://ofergzualxqqovktyxwu.supabase.co/auth/v1/token?grant_type=password",
             {
@@ -1057,6 +1233,9 @@
 
           if (data.access_token) {
             authToken = data.access_token;
+            adminToken = null;
+            isAdminSession = false;
+            localStorage.removeItem("repz_admin_token");
             localStorage.setItem("repz_token", authToken);
             console.log("Login bem-sucedido!");
             loadApp();
@@ -1108,7 +1287,10 @@
       function logout() {
         stopStatusMonitoring();
         localStorage.removeItem("repz_token");
+        localStorage.removeItem("repz_admin_token");
         authToken = null;
+        adminToken = null;
+        isAdminSession = false;
         location.reload();
       }
 
@@ -1119,6 +1301,8 @@
       }
 
       async function loadApp() {
+        isAdminSession = false;
+        setAdminModeUI(false);
         document.getElementById("loginScreen").classList.add("hidden");
         document.getElementById("appScreen").classList.remove("hidden");
 
@@ -1144,6 +1328,16 @@
         startStatusMonitoring();
       }
 
+      async function loadAdminApp() {
+        isAdminSession = true;
+        setAdminModeUI(true);
+        document.getElementById("loginScreen").classList.add("hidden");
+        document.getElementById("appScreen").classList.remove("hidden");
+        document.getElementById("userName").textContent = "Admin Stagesix";
+        switchTab("admin");
+        await carregarAdminPersonals();
+      }
+
       function switchTab(tab) {
         document
           .querySelectorAll(".tab")
@@ -1164,6 +1358,7 @@
 
         if (tab === "alunos") carregarAlunos();
         if (tab === "exercicios") carregarExercicios();
+        if (tab === "admin") carregarAdminPersonals();
         if (tab === "whatsapp") {
           verificarStatusWhatsApp();
         }
@@ -1243,12 +1438,6 @@
           tbody.innerHTML =
             '<tr><td colspan="4" style="text-align: center; color: #ef4444;">Erro ao carregar alunos</td></tr>';
         }
-      }
-
-      function getApiBaseUrl() {
-        return window.location.hostname === "localhost"
-          ? "http://localhost:3333"
-          : window.location.origin;
       }
 
       async function openAlunoEditor(studentId) {
@@ -1559,6 +1748,171 @@
             `;
           })
           .join("");
+      }
+
+      async function carregarAdminPersonals() {
+        if (!isAdminSession || !adminToken) return;
+
+        const tbody = document.getElementById("adminPersonalsBody");
+        if (!tbody) return;
+
+        try {
+          const response = await fetch(`${getApiBaseUrl()}/api/admin/personals`, {
+            headers: {
+              Authorization: `Bearer ${adminToken}`,
+            },
+          });
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const personals = await response.json();
+
+          if (!personals || personals.length === 0) {
+            tbody.innerHTML =
+              '<tr><td colspan="5" style="text-align:center;color:#6b7280;">Nenhum personal cadastrado</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = personals
+            .map((p) => {
+              const createdAt = p.created_at
+                ? new Date(p.created_at).toLocaleDateString("pt-BR")
+                : "-";
+              return `
+                <tr>
+                  <td><input type="text" id="admin_p_name_${p.id}" value="${escapeHtml(p.name || "")}" /></td>
+                  <td><input type="email" id="admin_p_email_${p.id}" value="${escapeHtml(p.email || "")}" /></td>
+                  <td><input type="text" id="admin_p_instance_${p.id}" value="${escapeHtml(p.evolution_instance_name || "")}" /></td>
+                  <td>${escapeHtml(createdAt)}</td>
+                  <td>
+                    <div style="display:flex;gap:8px;">
+                      <input type="password" id="admin_p_password_${p.id}" placeholder="Nova senha (opcional)" />
+                      <button class="btn btn-secondary" onclick="salvarPersonalAdmin('${p.id}')">Salvar</button>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            })
+            .join("");
+        } catch (error) {
+          console.error("Erro ao carregar personals do admin:", error);
+          tbody.innerHTML =
+            '<tr><td colspan="5" style="text-align:center;color:#ef4444;">Erro ao carregar personals</td></tr>';
+        }
+      }
+
+      async function criarPersonalAdmin() {
+        if (!adminToken) return;
+
+        const name = document.getElementById("adminPersonalNome").value.trim();
+        const email = document
+          .getElementById("adminPersonalEmail")
+          .value.trim()
+          .toLowerCase();
+        const password = document.getElementById("adminPersonalSenha").value;
+        const instance = document
+          .getElementById("adminPersonalInstance")
+          .value.trim();
+
+        if (!name || !email || !password || !instance) {
+          showAlert("adminAlert", "Preencha todos os campos", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch(`${getApiBaseUrl()}/api/admin/personals`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${adminToken}`,
+            },
+            body: JSON.stringify({
+              name,
+              email,
+              password,
+              evolution_instance_name: instance,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || "Erro ao cadastrar personal");
+          }
+
+          showAlert("adminAlert", "Personal cadastrado com sucesso", "success");
+          document.getElementById("adminPersonalNome").value = "";
+          document.getElementById("adminPersonalEmail").value = "";
+          document.getElementById("adminPersonalSenha").value = "";
+          document.getElementById("adminPersonalInstance").value = "";
+          await carregarAdminPersonals();
+        } catch (error) {
+          showAlert(
+            "adminAlert",
+            error.message || "Erro ao cadastrar personal",
+            "error",
+          );
+        }
+      }
+
+      async function salvarPersonalAdmin(personalId) {
+        if (!adminToken) return;
+
+        const name = document.getElementById(`admin_p_name_${personalId}`).value.trim();
+        const email = document
+          .getElementById(`admin_p_email_${personalId}`)
+          .value.trim()
+          .toLowerCase();
+        const evolutionInstance = document
+          .getElementById(`admin_p_instance_${personalId}`)
+          .value.trim();
+        const password = document.getElementById(`admin_p_password_${personalId}`).value;
+
+        const payload = {
+          name,
+          email,
+          evolution_instance_name: evolutionInstance,
+        };
+
+        if (password) {
+          payload.password = password;
+        }
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/personals/${personalId}`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${adminToken}`,
+              },
+              body: JSON.stringify(payload),
+            },
+          );
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || "Erro ao atualizar personal");
+          }
+
+          showAlert("adminAlert", "Personal atualizado com sucesso", "success");
+          await carregarAdminPersonals();
+        } catch (error) {
+          showAlert(
+            "adminAlert",
+            error.message || "Erro ao atualizar personal",
+            "error",
+          );
+        }
       }
 
       function limparFormularioExercicio() {
