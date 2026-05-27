@@ -2645,7 +2645,7 @@
             <div id="exercicio_dropdown_${index}" class="autocomplete-dropdown" style="display: none;"></div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
             <div class="form-group">
               <label>Séries *</label>
               <input type="number" id="series_${index}" min="1" placeholder="Ex: 3" required />
@@ -2657,6 +2657,10 @@
             <div class="form-group">
               <label>Peso (kg)</label>
               <input type="number" id="peso_${index}" min="0" step="0.5" placeholder="Ex: 20" />
+            </div>
+            <div class="form-group">
+              <label>Descanso (s)</label>
+              <input type="number" id="descanso_${index}" min="0" max="3600" step="5" placeholder="Ex: 60" />
             </div>
           </div>
         `;
@@ -2794,6 +2798,7 @@
           const series = document.getElementById(`series_${i}`)?.value;
           const reps = document.getElementById(`reps_${i}`)?.value;
           const peso = document.getElementById(`peso_${i}`)?.value;
+          const descanso = document.getElementById(`descanso_${i}`)?.value;
 
           if (exerciseId && series && reps) {
             exercises.push({
@@ -2802,6 +2807,7 @@
               target_reps: parseInt(reps),
               target_weight: peso ? parseFloat(peso) : null,
               order_index: i,
+              rest_seconds: descanso ? parseInt(descanso) : null,
             });
           }
         }
@@ -2937,6 +2943,10 @@
                                 <label>Ordem</label>
                                 <input type="number" min="0" id="tw_order_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.order_index || 0))}" />
                               </div>
+                              <div class="exercise-field">
+                                <label>Descanso (s)</label>
+                                <input type="number" min="0" max="3600" step="5" id="tw_rest_${ex.workout_exercise_id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" placeholder="Ex: 60" />
+                              </div>
                             </div>
                             <div class="exercise-actions">
                               <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Salvar exercício</button>
@@ -3060,6 +3070,14 @@
             order_index: Number(
               document.getElementById(`tw_order_${workoutExerciseId}`).value,
             ),
+            rest_seconds:
+              document.getElementById(`tw_rest_${workoutExerciseId}`).value ===
+              ""
+                ? null
+                : Number(
+                    document.getElementById(`tw_rest_${workoutExerciseId}`)
+                      .value,
+                  ),
           };
 
           const response = await fetch(

@@ -84,6 +84,13 @@ const WorkoutCreateSchema = z.object({
         target_reps: z.number().int().positive().max(1000),
         target_weight: z.number().nonnegative().max(1000).optional(),
         order_index: z.number().int().nonnegative().max(100),
+        rest_seconds: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(3600)
+          .nullable()
+          .optional(),
       }),
     )
     .max(50)
@@ -96,6 +103,7 @@ const WorkoutExerciseCreateSchema = z.object({
   target_reps: z.number().int().positive().max(1000),
   target_weight: z.number().nonnegative().max(1000).optional(),
   order_index: z.number().int().nonnegative().max(100),
+  rest_seconds: z.number().int().nonnegative().max(3600).nullable().optional(),
 });
 
 const WorkoutPatchSchema = z
@@ -135,6 +143,9 @@ const WorkoutExercisePatchSchema = z
       .union([z.number().nonnegative().max(1000), z.null(), z.literal("")])
       .optional(),
     order_index: z.number().int().nonnegative().max(100).optional(),
+    rest_seconds: z
+      .union([z.number().int().nonnegative().max(3600), z.null()])
+      .optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided",
@@ -864,6 +875,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         target_reps: ex.target_reps,
         target_weight: ex.target_weight ?? null,
         order_index: ex.order_index,
+        rest_seconds: ex.rest_seconds ?? null,
       }));
 
       const { error: exercisesError } = await client
@@ -889,6 +901,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
             target_reps,
             target_weight,
             order_index,
+            rest_seconds,
             exercises (id, name, description, muscle_group)
           )
         `,
@@ -989,9 +1002,10 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         target_reps: parsed.data.target_reps,
         target_weight: parsed.data.target_weight ?? null,
         order_index: parsed.data.order_index,
+        rest_seconds: parsed.data.rest_seconds ?? null,
       })
       .select(
-        "id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,created_at",
+        "id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,rest_seconds,created_at",
       )
       .single();
 
@@ -1315,7 +1329,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("workout_exercises")
       .select(
-        "id,target_sets,target_reps,target_weight,order_index,exercises!inner(id,name,description,muscle_group)",
+        "id,target_sets,target_reps,target_weight,order_index,rest_seconds,exercises!inner(id,name,description,muscle_group)",
       )
       .eq("workout_id", workoutId)
       .order("order_index", { ascending: true });
@@ -1339,6 +1353,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         target_reps: we.target_reps,
         target_weight: we.target_weight,
         order_index: we.order_index,
+        rest_seconds: we.rest_seconds ?? null,
       };
     });
 

@@ -12,6 +12,7 @@ const __dirname = path.dirname(__filename);
 import { registerEvolutionWebhookRoute } from "./routes/webhooks/evolution.js";
 import { registerPersonalApiRoutes } from "./routes/api/personal.js";
 import { registerAdminApiRoutes } from "./routes/api/admin.js";
+import { registerRestTimerPollRoute } from "./routes/internal/rest-timer.js";
 import {
   runSessionCleanup,
   scheduleSessionCleanup,
@@ -120,6 +121,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
   await app.register(registerEvolutionWebhookRoute, { prefix: "/webhooks" });
   await app.register(registerPersonalApiRoutes, { prefix: "/api" });
   await app.register(registerAdminApiRoutes, { prefix: "/api" });
+  await app.register(registerRestTimerPollRoute);
 
   if (options.enableCleanupScheduler ?? true) {
     app.addHook("onReady", async () => {

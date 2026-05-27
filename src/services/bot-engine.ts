@@ -27,6 +27,7 @@ type BotStateRow = {
   current_workout_exercise_id: string | null;
   current_set_number: number;
   last_input_attempt: string | null;
+  rest_end_at: string | null;
 };
 
 type WorkoutExercise = {
@@ -40,6 +41,7 @@ type WorkoutExercise = {
   target_reps: number;
   target_weight: number | null;
   order_index: number;
+  rest_seconds: number | null;
 };
 
 type AssignedWorkout = {
@@ -159,7 +161,7 @@ async function getOrCreateState(
   const { data: existing, error: existingError } = await supabaseAdmin
     .from("bot_state")
     .select(
-      "whatsapp_number,student_id,current_state,current_session_id,current_workout_exercise_id,current_set_number,last_input_attempt",
+      "whatsapp_number,student_id,current_state,current_session_id,current_workout_exercise_id,current_set_number,last_input_attempt,rest_end_at",
     )
     .eq("whatsapp_number", whatsapp)
     .maybeSingle();
@@ -184,7 +186,7 @@ async function getOrCreateState(
     .from("bot_state")
     .insert(seed)
     .select(
-      "whatsapp_number,student_id,current_state,current_session_id,current_workout_exercise_id,current_set_number,last_input_attempt",
+      "whatsapp_number,student_id,current_state,current_session_id,current_workout_exercise_id,current_set_number,last_input_attempt,rest_end_at",
     )
     .single();
 
@@ -309,6 +311,7 @@ async function getWorkoutExercises(
       target_reps,
       target_weight,
       order_index,
+      rest_seconds,
       exercises (
         name,
         muscle_group,
@@ -335,6 +338,7 @@ async function getWorkoutExercises(
     target_reps: item.target_reps,
     target_weight: item.target_weight,
     order_index: item.order_index,
+    rest_seconds: item.rest_seconds ?? null,
   }));
 }
 
@@ -812,6 +816,29 @@ export async function processIncomingMessage(input: IncomingMessage) {
     }
   }
 
+  // Estado: RESTING — aluno enviou mensagem durante o descanso
+  if (state.current_state === "RESTING") {
+    const restEndAt = state.rest_end_at;
+    const remaining = restEndAt
+      ? Math.ceil((new Date(restEndAt).getTime() - Date.now()) / 1000)
+      : 0;
+
+    if (remaining > 0) {
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: `⏱ Você está em descanso! Ainda restam ~${remaining}s. Vou te avisar quando acabar! 💪`,
+      });
+    } else {
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: `⏱ Seu descanso acabou agora! Aguarda um instante, já te envio a próxima série! 💪`,
+      });
+    }
+    return;
+  }
+
   // Estado: COLLECTING_REPS
   if (state.current_state === "COLLECTING_REPS") {
     const reps = parseInt(effectiveInput, 10);
@@ -913,7 +940,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     // Verificar se precisa fazer mais séries
     const exerciseResult = await supabaseAdmin
       .from("workout_exercises")
-      .select("target_sets,exercise_id,exercises(name)")
+      .select("target_sets,exercise_id,rest_seconds,exercises(name)")
       .eq("id", state.current_workout_exercise_id!)
       .single();
 
@@ -922,21 +949,41 @@ export async function processIncomingMessage(input: IncomingMessage) {
       const exerciseName = Array.isArray(exerciseResult.data.exercises)
         ? exerciseResult.data.exercises[0]?.name
         : ((exerciseResult.data.exercises as any)?.name ?? "Exercício");
+      const restSeconds: number | null =
+        (exerciseResult.data as any).rest_seconds ?? null;
       const nextSet = state.current_set_number + 1;
 
       if (nextSet <= targetSets) {
         // Ainda tem séries para fazer
-        await sendTextMessage({
-          instanceName: input.instance,
-          number: whatsapp,
-          text: `🔥 Série ${state.current_set_number}/${targetSets} concluída!\n\nDescanso e vamos para a próxima! Quando terminar a série ${nextSet}, me manda *feito* ✅`,
-        });
+        if (restSeconds && restSeconds > 0) {
+          const restEndAt = new Date(
+            Date.now() + restSeconds * 1000,
+          ).toISOString();
 
-        await updateState(whatsapp, {
-          current_state: "EXECUTING_SET",
-          current_set_number: nextSet,
-          last_input_attempt: null,
-        });
+          await updateState(whatsapp, {
+            current_state: "RESTING",
+            rest_end_at: restEndAt,
+            last_input_attempt: `rest:next_set:${nextSet}`,
+          });
+
+          await sendTextMessage({
+            instanceName: input.instance,
+            number: whatsapp,
+            text: `🔥 Série ${state.current_set_number}/${targetSets} concluída! Boa!\n\n⏱ Iniciando descanso de *${restSeconds}s*. Vou te avisar quando acabar! 💪`,
+          });
+        } else {
+          await sendTextMessage({
+            instanceName: input.instance,
+            number: whatsapp,
+            text: `🔥 Série ${state.current_set_number}/${targetSets} concluída!\n\nDescanso e vamos para a próxima! Quando terminar a série ${nextSet}, me manda *feito* ✅`,
+          });
+
+          await updateState(whatsapp, {
+            current_state: "EXECUTING_SET",
+            current_set_number: nextSet,
+            last_input_attempt: null,
+          });
+        }
         return;
       }
 
@@ -958,18 +1005,36 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
       if (nextExercise) {
         // Próximo exercício
-        await sendTextMessage({
-          instanceName: input.instance,
-          number: whatsapp,
-          text: `✅ ${exerciseName} concluído!\n\n🔸 Próximo: *${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}\n\nQuando estiver pronto, me manda *feito* ✅`,
-        });
+        if (restSeconds && restSeconds > 0) {
+          const restEndAt = new Date(
+            Date.now() + restSeconds * 1000,
+          ).toISOString();
 
-        await updateState(whatsapp, {
-          current_state: "EXECUTING_SET",
-          current_workout_exercise_id: nextExercise.id,
-          current_set_number: 1,
-          last_input_attempt: null,
-        });
+          await updateState(whatsapp, {
+            current_state: "RESTING",
+            rest_end_at: restEndAt,
+            last_input_attempt: `rest:next_exercise:${nextExercise.id}`,
+          });
+
+          await sendTextMessage({
+            instanceName: input.instance,
+            number: whatsapp,
+            text: `✅ ${exerciseName} concluído!\n\n⏱ Iniciando descanso de *${restSeconds}s*. Vou te avisar quando acabar! 💪`,
+          });
+        } else {
+          await sendTextMessage({
+            instanceName: input.instance,
+            number: whatsapp,
+            text: `✅ ${exerciseName} concluído!\n\n🔸 Próximo: *${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}\n\nQuando estiver pronto, me manda *feito* ✅`,
+          });
+
+          await updateState(whatsapp, {
+            current_state: "EXECUTING_SET",
+            current_workout_exercise_id: nextExercise.id,
+            current_set_number: 1,
+            last_input_attempt: null,
+          });
+        }
         return;
       }
 
@@ -1020,4 +1085,141 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
   // Mensagens fora dos fluxos esperados são ignoradas para evitar disparos indevidos.
   return;
+}
+
+/**
+ * Dispara timers de descanso vencidos.
+ * Chamado pelo pg_cron a cada minuto via pg_net.
+ * Retorna a quantidade de timers processados.
+ */
+export async function processExpiredRestTimers(
+  app: FastifyInstance,
+): Promise<number> {
+  const { data: expiredStates, error } = await supabaseAdmin
+    .from("bot_state")
+    .select(
+      "whatsapp_number,student_id,current_set_number,current_workout_exercise_id,current_session_id,last_input_attempt,rest_end_at",
+    )
+    .eq("current_state", "RESTING")
+    .lte("rest_end_at", new Date().toISOString());
+
+  if (error) {
+    app.log.error(error, "processExpiredRestTimers: query failed");
+    return 0;
+  }
+
+  if (!expiredStates || expiredStates.length === 0) return 0;
+
+  let processed = 0;
+
+  for (const raw of expiredStates) {
+    const state = raw as BotStateRow;
+    try {
+      // Resolver instância: bot_state.student_id → students.personal_id → personals.evolution_instance_name
+      const { data: studentRow } = await supabaseAdmin
+        .from("students")
+        .select("personal_id,name")
+        .eq("id", state.student_id)
+        .single();
+
+      if (!studentRow) continue;
+
+      const { data: personalRow } = await supabaseAdmin
+        .from("personals")
+        .select("evolution_instance_name")
+        .eq("id", studentRow.personal_id)
+        .single();
+
+      if (!personalRow?.evolution_instance_name) continue;
+
+      const instanceName = personalRow.evolution_instance_name as string;
+      const hint = state.last_input_attempt ?? "";
+
+      if (hint.startsWith("rest:next_set:")) {
+        const nextSet = parseInt(hint.replace("rest:next_set:", ""), 10);
+
+        const { data: exRow } = await supabaseAdmin
+          .from("workout_exercises")
+          .select("target_sets,exercises(name)")
+          .eq("id", state.current_workout_exercise_id!)
+          .single();
+
+        const exerciseName = Array.isArray((exRow as any)?.exercises)
+          ? (exRow as any).exercises[0]?.name
+          : ((exRow as any)?.exercises?.name ?? "Exercício");
+        const targetSets = (exRow as any)?.target_sets ?? nextSet;
+
+        // Atualizar estado ANTES de enviar a mensagem
+        await updateState(state.whatsapp_number, {
+          current_state: "EXECUTING_SET",
+          current_set_number: nextSet,
+          rest_end_at: null,
+          last_input_attempt: null,
+        });
+
+        await sendTextMessage({
+          instanceName,
+          number: state.whatsapp_number,
+          text: `✅ Fim do descanso! Vamos lá? 💪\n\n*${exerciseName}* — Série ${nextSet}/${targetSets}\nQuando terminar, me manda *feito* ✅`,
+        });
+
+        processed++;
+      } else if (hint.startsWith("rest:next_exercise:")) {
+        const nextExerciseId = hint.replace("rest:next_exercise:", "");
+
+        const { data: exRow } = await supabaseAdmin
+          .from("workout_exercises")
+          .select(
+            "target_sets,target_reps,target_weight,order_index,exercise_id,exercises(name,muscle_group,equipment,description)",
+          )
+          .eq("id", nextExerciseId)
+          .single();
+
+        if (!exRow) continue;
+
+        const ex = exRow as any;
+        const exercise = Array.isArray(ex.exercises)
+          ? ex.exercises[0]
+          : ex.exercises;
+
+        const nextExercise: WorkoutExercise = {
+          id: nextExerciseId,
+          exercise_id: ex.exercise_id,
+          exercise_name: exercise?.name ?? "Exercício",
+          muscle_group: exercise?.muscle_group ?? null,
+          equipment: exercise?.equipment ?? null,
+          description: exercise?.description ?? null,
+          target_sets: ex.target_sets,
+          target_reps: ex.target_reps,
+          target_weight: ex.target_weight ?? null,
+          order_index: ex.order_index,
+          rest_seconds: null,
+        };
+
+        // Atualizar estado ANTES de enviar a mensagem
+        await updateState(state.whatsapp_number, {
+          current_state: "EXECUTING_SET",
+          current_workout_exercise_id: nextExerciseId,
+          current_set_number: 1,
+          rest_end_at: null,
+          last_input_attempt: null,
+        });
+
+        await sendTextMessage({
+          instanceName,
+          number: state.whatsapp_number,
+          text: `✅ Fim do descanso! Próximo exercício:\n\n*${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}\n\nQuando estiver pronto para a 1ª série, me manda *feito* ✅`,
+        });
+
+        processed++;
+      }
+    } catch (err) {
+      app.log.error(
+        err,
+        `processExpiredRestTimers: failed for ${state.whatsapp_number}`,
+      );
+    }
+  }
+
+  return processed;
 }
