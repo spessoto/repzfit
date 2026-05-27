@@ -15,30 +15,75 @@
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
           Cantarell, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #f4f5f8;
         min-height: 100vh;
-        padding: 20px;
+        color: #1f2937;
       }
 
       .container {
-        max-width: 1200px;
-        margin: 0 auto;
+        width: 100%;
+        margin: 0;
+      }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        background: linear-gradient(135deg, #a656f7 0%, #764ba2 100%);
+        color: #ffffff;
+        padding: 24px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        box-shadow: 4px 0 20px rgba(36, 20, 53, 0.18);
+      }
+
+      .sidebar-brand {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+        padding: 4px 10px;
+      }
+
+      .sidebar-user {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .sidebar-user span {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 600;
+      }
+
+      .content-area {
+        padding: 24px;
+        overflow-x: hidden;
       }
 
       .header {
         background: white;
-        padding: 20px 30px;
-        border-radius: 10px;
-        margin-bottom: 20px;
+        padding: 18px 22px;
+        border-radius: 14px;
+        margin-bottom: 18px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        border: 1px solid #ebedf2;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
       }
 
       .header h1 {
-        color: #667eea;
-        font-size: 24px;
+        color: #5a2f83;
+        font-size: 22px;
       }
 
       .header .user-info {
@@ -58,12 +103,12 @@
       }
 
       .btn-primary {
-        background: #667eea;
+        background: linear-gradient(135deg, #a656f7 0%, #764ba2 100%);
         color: white;
       }
 
       .btn-primary:hover {
-        background: #5568d3;
+        filter: brightness(1.04);
         transform: translateY(-2px);
       }
 
@@ -84,9 +129,10 @@
       .card {
         background: white;
         padding: 25px;
-        border-radius: 10px;
+        border-radius: 14px;
         margin-bottom: 20px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        border: 1px solid #ebedf2;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
       }
 
       .card h2 {
@@ -129,23 +175,36 @@
 
       .tabs {
         display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
+        flex-direction: column;
+        gap: 8px;
       }
 
       .tab {
-        padding: 10px 20px;
-        background: #f3f4f6;
-        border: none;
-        border-radius: 5px 5px 0 0;
+        width: 100%;
+        text-align: left;
+        padding: 12px 14px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 10px;
         cursor: pointer;
         font-weight: 600;
-        color: #6b7280;
+        color: #ffffff;
+        transition: all 0.25s ease;
       }
 
       .tab.active {
-        background: white;
-        color: #667eea;
+        background: #ffffff;
+        border-color: #ffffff;
+        color: #6a34a2;
+        box-shadow: 0 8px 20px rgba(45, 20, 76, 0.25);
+      }
+
+      .tab:hover {
+        background: rgba(255, 255, 255, 0.22);
+      }
+
+      .tab.active:hover {
+        background: #ffffff;
       }
 
       .tab-content {
@@ -435,6 +494,25 @@
       }
 
       @media (max-width: 768px) {
+        .app-shell {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          padding: 16px;
+          gap: 12px;
+        }
+
+        .content-area {
+          padding: 16px;
+        }
+
+        .header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+
         .editor-grid {
           grid-template-columns: 1fr;
         }
@@ -481,536 +559,562 @@
 
     <!-- Main App -->
     <div id="appScreen" class="container hidden">
-      <div class="header">
-        <h1>🏋️ Repz Fit</h1>
-        <div class="user-info">
-          <div
-            id="headerWhatsAppStatus"
-            class="whatsapp-status-indicator checking"
-          >
-            <span class="status-dot checking"></span>
-            <span>WhatsApp: Verificando...</span>
-          </div>
-          <span id="userName"></span>
-          <button class="btn btn-secondary" onclick="logout()">Sair</button>
-        </div>
-      </div>
+      <div class="app-shell">
+        <aside class="sidebar">
+          <div class="sidebar-brand">🏋️ Repz Fit</div>
 
-      <div class="tabs">
-        <button
-          id="alunosTabButton"
-          class="tab active"
-          onclick="switchTab('alunos')"
-        >
-          Alunos
-        </button>
-        <button
-          id="exerciciosTabButton"
-          class="tab"
-          onclick="switchTab('exercicios')"
-        >
-          Exercícios
-        </button>
-        <button
-          id="treinosTabButton"
-          class="tab"
-          onclick="switchTab('treinos')"
-        >
-          Treinos
-        </button>
-        <button
-          id="whatsappTabButton"
-          class="tab"
-          onclick="switchTab('whatsapp')"
-        >
-          WhatsApp
-        </button>
-        <button
-          id="adminTabButton"
-          class="tab hidden"
-          onclick="switchTab('admin')"
-        >
-          Admin
-        </button>
-      </div>
-
-      <!-- Alunos Tab -->
-      <div id="alunosTab" class="tab-content active">
-        <div class="card">
-          <h2>Novo Aluno</h2>
-          <div class="form-group">
-            <label>Nome</label>
-            <input type="text" id="alunoNome" />
-          </div>
-          <div class="form-group">
-            <label>WhatsApp (com DDD)</label>
-            <input type="text" id="alunoWhatsapp" placeholder="5521999999999" />
-          </div>
-          <button class="btn btn-primary" onclick="criarAluno()">
-            Adicionar Aluno
-          </button>
-        </div>
-
-        <div class="card">
-          <h2>Meus Alunos</h2>
-          <div id="alunosAlert"></div>
-          <table id="alunosTable">
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>WhatsApp</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="alunosBody">
-              <tr>
-                <td colspan="4" style="text-align: center">Carregando...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Exercícios Tab -->
-      <div id="exerciciosTab" class="tab-content">
-        <div class="card">
-          <h2>Novo Exercício</h2>
-          <div id="exerciciosAlert"></div>
-
-          <div class="form-group">
-            <label>Nome *</label>
-            <input
-              type="text"
-              id="exercicioNome"
-              placeholder="Ex: Supino Reto"
-              required
-            />
+          <div class="sidebar-user">
+            <span id="userName"></span>
+            <button class="btn btn-secondary" onclick="logout()">Sair</button>
           </div>
 
-          <div class="form-group">
-            <label>Grupo Muscular</label>
-            <select id="exercicioGrupo">
-              <option value="">Selecione...</option>
-              <option value="Peito">Peito</option>
-              <option value="Costas">Costas</option>
-              <option value="Pernas">Pernas</option>
-              <option value="Ombros">Ombros</option>
-              <option value="Braços">Braços</option>
-              <option value="Bíceps">Bíceps</option>
-              <option value="Tríceps">Tríceps</option>
-              <option value="Abdômen">Abdômen</option>
-              <option value="Glúteos">Glúteos</option>
-              <option value="Panturrilha">Panturrilha</option>
-              <option value="Antebraço">Antebraço</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Equipamentos</label>
-            <input
-              type="text"
-              id="exercicioEquipamento"
-              placeholder="Ex: Barra, Halteres, Banco"
-            />
-            <small style="color: #6b7280; font-size: 12px"
-              >Separe múltiplos equipamentos com vírgula</small
+          <div class="tabs">
+            <button
+              id="alunosTabButton"
+              class="tab active"
+              onclick="switchTab('alunos')"
             >
-          </div>
-
-          <div class="form-group">
-            <label>Tags</label>
-            <input
-              type="text"
-              id="exercicioTags"
-              placeholder="Ex: composto, hipertrofia, força"
-            />
-            <small style="color: #6b7280; font-size: 12px"
-              >Separe múltiplas tags com vírgula</small
-            >
-          </div>
-
-          <div class="form-group">
-            <label>Descrição da Execução</label>
-            <textarea
-              id="exercicioDescricao"
-              rows="4"
-              placeholder="Descreva como executar o exercício..."
-            ></textarea>
-          </div>
-
-          <div style="display: flex; gap: 10px">
-            <button class="btn btn-primary" onclick="criarExercicio()">
-              Adicionar Exercício
+              Alunos
             </button>
             <button
-              class="btn btn-secondary"
-              onclick="limparFormularioExercicio()"
+              id="exerciciosTabButton"
+              class="tab"
+              onclick="switchTab('exercicios')"
             >
-              Limpar
-            </button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>Meus Exercícios</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Grupo Muscular</th>
-                <th>Equipamentos</th>
-                <th>Tags</th>
-                <th>Descrição</th>
-              </tr>
-            </thead>
-            <tbody id="exerciciosBody">
-              <tr>
-                <td colspan="5" style="text-align: center">Carregando...</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- Controles de Paginação -->
-          <div
-            id="exerciciosPaginacao"
-            style="
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-top: 20px;
-              padding: 15px;
-              background: #f9fafb;
-              border-radius: 8px;
-            "
-          >
-            <button
-              id="exerciciosPrevBtn"
-              class="btn btn-secondary"
-              onclick="carregarExerciciosPagina('prev')"
-              disabled
-            >
-              ← Anterior
-            </button>
-            <span
-              id="exerciciosPaginaInfo"
-              style="color: #6b7280; font-weight: 500"
-            >
-              Página 1 de 1
-            </span>
-            <button
-              id="exerciciosNextBtn"
-              class="btn btn-secondary"
-              onclick="carregarExerciciosPagina('next')"
-              disabled
-            >
-              Próxima →
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Treinos Tab -->
-      <div id="treinosTab" class="tab-content">
-        <div class="card">
-          <h2>Novo Treino</h2>
-          <div id="treinosAlert"></div>
-
-          <div class="form-group">
-            <label>Aluno *</label>
-            <select id="treinoAluno" required>
-              <option value="">Selecione um aluno</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Nome do Treino *</label>
-            <input
-              type="text"
-              id="treinoNome"
-              placeholder="Ex: Treino A - Peito e Tríceps"
-              required
-            />
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px">
-            <div class="form-group">
-              <label>Data de Início *</label>
-              <input type="date" id="treinoDataInicio" required />
-            </div>
-            <div class="form-group">
-              <label>Validade (opcional)</label>
-              <input type="date" id="treinoDataValidade" />
-            </div>
-          </div>
-
-          <h3 style="margin-top: 25px; margin-bottom: 15px; color: #374151">
-            Exercícios do Treino
-          </h3>
-
-          <div id="exerciciosContainer">
-            <!-- Exercícios serão adicionados aqui -->
-          </div>
-
-          <button
-            class="btn btn-secondary"
-            onclick="adicionarExercicioAoTreino()"
-            style="margin-bottom: 20px"
-          >
-            + Adicionar Exercício
-          </button>
-
-          <div style="display: flex; gap: 10px">
-            <button class="btn btn-primary" onclick="criarTreinoCompleto()">
-              Criar Treino
+              Exercícios
             </button>
             <button
-              class="btn btn-secondary"
-              onclick="limparFormularioTreino()"
+              id="treinosTabButton"
+              class="tab"
+              onclick="switchTab('treinos')"
             >
-              Limpar
-            </button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>Treinos Cadastrados</h2>
-          <p style="color: #6b7280; margin-bottom: 15px">
-            Selecione um aluno para ver seus treinos:
-          </p>
-          <select id="filtroAlunoTreinos" onchange="carregarTreinosAluno()">
-            <option value="">Selecione um aluno</option>
-          </select>
-          <div id="treinosLista" style="margin-top: 20px"></div>
-        </div>
-      </div>
-
-      <!-- WhatsApp Tab -->
-      <div id="whatsappTab" class="tab-content">
-        <div class="card">
-          <h2>Conexão WhatsApp</h2>
-          <div
-            id="whatsappStatus"
-            style="
-              margin-bottom: 20px;
-              padding: 15px;
-              background: #f9fafb;
-              border-radius: 8px;
-            "
-          >
-            <p style="font-size: 14px; margin-bottom: 8px">
-              <strong>Status da Conexão:</strong>
-            </p>
-            <div id="connectionStatus" style="font-size: 16px">
-              Verificando...
-            </div>
-            <p style="font-size: 12px; color: #6b7280; margin-top: 8px">
-              Atualização automática a cada 10 segundos
-            </p>
-          </div>
-          <div id="whatsappActions" style="display: flex; gap: 10px">
-            <button
-              id="connectBtn"
-              class="btn btn-primary"
-              onclick="gerarQRCode()"
-            >
-              Conectar WhatsApp
+              Treinos
             </button>
             <button
-              id="disconnectBtn"
-              class="btn btn-danger"
-              onclick="desconectarWhatsApp()"
-              style="display: none"
+              id="whatsappTabButton"
+              class="tab"
+              onclick="switchTab('whatsapp')"
             >
-              Desconectar
+              WhatsApp
+            </button>
+            <button
+              id="adminTabButton"
+              class="tab hidden"
+              onclick="switchTab('admin')"
+            >
+              Admin
             </button>
           </div>
-          <div id="qrCodeContainer" class="qr-container hidden"></div>
-        </div>
-      </div>
+        </aside>
 
-      <!-- Configurações Tab -->
-      <div id="configuracoesTab" class="tab-content">
-        <div class="card">
-          <h2>⚙️ Configurações</h2>
-
-          <!-- Informações do Personal -->
-          <div
-            style="
-              background: #f9fafb;
-              padding: 15px;
-              border-radius: 8px;
-              margin-bottom: 20px;
-            "
-          >
-            <h3 style="color: #374151; margin-bottom: 10px">
-              👤 Informações da Conta
-            </h3>
-            <p style="color: #6b7280; margin: 5px 0">
-              <strong>Nome:</strong> <span id="configNome">-</span>
-            </p>
-            <p style="color: #6b7280; margin: 5px 0">
-              <strong>Email:</strong> <span id="configEmail">-</span>
-            </p>
-          </div>
-
-          <!-- Configuração da API Gemini -->
-          <div
-            style="
-              background: #fff7ed;
-              padding: 20px;
-              border-radius: 8px;
-              border: 2px solid #fb923c;
-            "
-          >
-            <h3 style="color: #ea580c; margin-bottom: 10px">
-              🤖 Integração Google Gemini
-            </h3>
-            <p style="color: #6b7280; font-size: 14px; margin-bottom: 15px">
-              Configure sua chave API do Google Gemini para habilitar recursos
-              de IA na plataforma.
-              <a
-                href="https://aistudio.google.com/app/apikey"
-                target="_blank"
-                style="color: #667eea; text-decoration: underline"
+        <main class="content-area">
+          <div class="header">
+            <h1>Painel do Personal</h1>
+            <div class="user-info">
+              <div
+                id="headerWhatsAppStatus"
+                class="whatsapp-status-indicator checking"
               >
-                Obter chave API
-              </a>
-            </p>
+                <span class="status-dot checking"></span>
+                <span>WhatsApp: Verificando...</span>
+              </div>
+            </div>
+          </div>
 
-            <div class="form-group">
-              <label style="color: #374151; font-weight: 600"
-                >Chave API do Gemini</label
-              >
-              <div style="position: relative">
+          <!-- Alunos Tab -->
+          <div id="alunosTab" class="tab-content active">
+            <div class="card">
+              <h2>Novo Aluno</h2>
+              <div class="form-group">
+                <label>Nome</label>
+                <input type="text" id="alunoNome" />
+              </div>
+              <div class="form-group">
+                <label>WhatsApp (com DDD)</label>
                 <input
-                  type="password"
-                  id="geminiApiKey"
-                  placeholder="Digite sua chave API do Gemini"
-                  style="padding-right: 100px"
+                  type="text"
+                  id="alunoWhatsapp"
+                  placeholder="5521999999999"
                 />
-                <button
-                  id="toggleGeminiKey"
-                  onclick="toggleGeminiKeyVisibility()"
-                  class="btn btn-secondary"
-                  style="
-                    position: absolute;
-                    right: 5px;
-                    top: 5px;
-                    padding: 6px 12px;
-                    font-size: 12px;
-                  "
+              </div>
+              <button class="btn btn-primary" onclick="criarAluno()">
+                Adicionar Aluno
+              </button>
+            </div>
+
+            <div class="card">
+              <h2>Meus Alunos</h2>
+              <div id="alunosAlert"></div>
+              <table id="alunosTable">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>WhatsApp</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="alunosBody">
+                  <tr>
+                    <td colspan="4" style="text-align: center">
+                      Carregando...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Exercícios Tab -->
+          <div id="exerciciosTab" class="tab-content">
+            <div class="card">
+              <h2>Novo Exercício</h2>
+              <div id="exerciciosAlert"></div>
+
+              <div class="form-group">
+                <label>Nome *</label>
+                <input
+                  type="text"
+                  id="exercicioNome"
+                  placeholder="Ex: Supino Reto"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label>Grupo Muscular</label>
+                <select id="exercicioGrupo">
+                  <option value="">Selecione...</option>
+                  <option value="Peito">Peito</option>
+                  <option value="Costas">Costas</option>
+                  <option value="Pernas">Pernas</option>
+                  <option value="Ombros">Ombros</option>
+                  <option value="Braços">Braços</option>
+                  <option value="Bíceps">Bíceps</option>
+                  <option value="Tríceps">Tríceps</option>
+                  <option value="Abdômen">Abdômen</option>
+                  <option value="Glúteos">Glúteos</option>
+                  <option value="Panturrilha">Panturrilha</option>
+                  <option value="Antebraço">Antebraço</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Equipamentos</label>
+                <input
+                  type="text"
+                  id="exercicioEquipamento"
+                  placeholder="Ex: Barra, Halteres, Banco"
+                />
+                <small style="color: #6b7280; font-size: 12px"
+                  >Separe múltiplos equipamentos com vírgula</small
                 >
-                  👁️ Mostrar
+              </div>
+
+              <div class="form-group">
+                <label>Tags</label>
+                <input
+                  type="text"
+                  id="exercicioTags"
+                  placeholder="Ex: composto, hipertrofia, força"
+                />
+                <small style="color: #6b7280; font-size: 12px"
+                  >Separe múltiplas tags com vírgula</small
+                >
+              </div>
+
+              <div class="form-group">
+                <label>Descrição da Execução</label>
+                <textarea
+                  id="exercicioDescricao"
+                  rows="4"
+                  placeholder="Descreva como executar o exercício..."
+                ></textarea>
+              </div>
+
+              <div style="display: flex; gap: 10px">
+                <button class="btn btn-primary" onclick="criarExercicio()">
+                  Adicionar Exercício
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  onclick="limparFormularioExercicio()"
+                >
+                  Limpar
                 </button>
               </div>
-              <p style="font-size: 12px; color: #6b7280; margin-top: 5px">
-                ⚠️ Sua chave será armazenada de forma segura e criptografada
-              </p>
             </div>
 
-            <div style="display: flex; gap: 10px">
-              <button class="btn btn-primary" onclick="salvarGeminiApiKey()">
-                💾 Salvar Chave API
-              </button>
-              <button
-                class="btn btn-danger"
-                onclick="removerGeminiApiKey()"
-                id="removerGeminiBtn"
-                style="display: none"
+            <div class="card">
+              <h2>Meus Exercícios</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Grupo Muscular</th>
+                    <th>Equipamentos</th>
+                    <th>Tags</th>
+                    <th>Descrição</th>
+                  </tr>
+                </thead>
+                <tbody id="exerciciosBody">
+                  <tr>
+                    <td colspan="5" style="text-align: center">
+                      Carregando...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- Controles de Paginação -->
+              <div
+                id="exerciciosPaginacao"
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-top: 20px;
+                  padding: 15px;
+                  background: #f9fafb;
+                  border-radius: 8px;
+                "
               >
-                🗑️ Remover Chave
+                <button
+                  id="exerciciosPrevBtn"
+                  class="btn btn-secondary"
+                  onclick="carregarExerciciosPagina('prev')"
+                  disabled
+                >
+                  ← Anterior
+                </button>
+                <span
+                  id="exerciciosPaginaInfo"
+                  style="color: #6b7280; font-weight: 500"
+                >
+                  Página 1 de 1
+                </span>
+                <button
+                  id="exerciciosNextBtn"
+                  class="btn btn-secondary"
+                  onclick="carregarExerciciosPagina('next')"
+                  disabled
+                >
+                  Próxima →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Treinos Tab -->
+          <div id="treinosTab" class="tab-content">
+            <div class="card">
+              <h2>Novo Treino</h2>
+              <div id="treinosAlert"></div>
+
+              <div class="form-group">
+                <label>Aluno *</label>
+                <select id="treinoAluno" required>
+                  <option value="">Selecione um aluno</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Nome do Treino *</label>
+                <input
+                  type="text"
+                  id="treinoNome"
+                  placeholder="Ex: Treino A - Peito e Tríceps"
+                  required
+                />
+              </div>
+
+              <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px"
+              >
+                <div class="form-group">
+                  <label>Data de Início *</label>
+                  <input type="date" id="treinoDataInicio" required />
+                </div>
+                <div class="form-group">
+                  <label>Validade (opcional)</label>
+                  <input type="date" id="treinoDataValidade" />
+                </div>
+              </div>
+
+              <h3 style="margin-top: 25px; margin-bottom: 15px; color: #374151">
+                Exercícios do Treino
+              </h3>
+
+              <div id="exerciciosContainer">
+                <!-- Exercícios serão adicionados aqui -->
+              </div>
+
+              <button
+                class="btn btn-secondary"
+                onclick="adicionarExercicioAoTreino()"
+                style="margin-bottom: 20px"
+              >
+                + Adicionar Exercício
+              </button>
+
+              <div style="display: flex; gap: 10px">
+                <button class="btn btn-primary" onclick="criarTreinoCompleto()">
+                  Criar Treino
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  onclick="limparFormularioTreino()"
+                >
+                  Limpar
+                </button>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Treinos Cadastrados</h2>
+              <p style="color: #6b7280; margin-bottom: 15px">
+                Selecione um aluno para ver seus treinos:
+              </p>
+              <select id="filtroAlunoTreinos" onchange="carregarTreinosAluno()">
+                <option value="">Selecione um aluno</option>
+              </select>
+              <div id="treinosLista" style="margin-top: 20px"></div>
+            </div>
+          </div>
+
+          <!-- WhatsApp Tab -->
+          <div id="whatsappTab" class="tab-content">
+            <div class="card">
+              <h2>Conexão WhatsApp</h2>
+              <div
+                id="whatsappStatus"
+                style="
+                  margin-bottom: 20px;
+                  padding: 15px;
+                  background: #f9fafb;
+                  border-radius: 8px;
+                "
+              >
+                <p style="font-size: 14px; margin-bottom: 8px">
+                  <strong>Status da Conexão:</strong>
+                </p>
+                <div id="connectionStatus" style="font-size: 16px">
+                  Verificando...
+                </div>
+                <p style="font-size: 12px; color: #6b7280; margin-top: 8px">
+                  Atualização automática a cada 10 segundos
+                </p>
+              </div>
+              <div id="whatsappActions" style="display: flex; gap: 10px">
+                <button
+                  id="connectBtn"
+                  class="btn btn-primary"
+                  onclick="gerarQRCode()"
+                >
+                  Conectar WhatsApp
+                </button>
+                <button
+                  id="disconnectBtn"
+                  class="btn btn-danger"
+                  onclick="desconectarWhatsApp()"
+                  style="display: none"
+                >
+                  Desconectar
+                </button>
+              </div>
+              <div id="qrCodeContainer" class="qr-container hidden"></div>
+            </div>
+          </div>
+
+          <!-- Configurações Tab -->
+          <div id="configuracoesTab" class="tab-content">
+            <div class="card">
+              <h2>⚙️ Configurações</h2>
+
+              <!-- Informações do Personal -->
+              <div
+                style="
+                  background: #f9fafb;
+                  padding: 15px;
+                  border-radius: 8px;
+                  margin-bottom: 20px;
+                "
+              >
+                <h3 style="color: #374151; margin-bottom: 10px">
+                  👤 Informações da Conta
+                </h3>
+                <p style="color: #6b7280; margin: 5px 0">
+                  <strong>Nome:</strong> <span id="configNome">-</span>
+                </p>
+                <p style="color: #6b7280; margin: 5px 0">
+                  <strong>Email:</strong> <span id="configEmail">-</span>
+                </p>
+              </div>
+
+              <!-- Configuração da API Gemini -->
+              <div
+                style="
+                  background: #fff7ed;
+                  padding: 20px;
+                  border-radius: 8px;
+                  border: 2px solid #fb923c;
+                "
+              >
+                <h3 style="color: #ea580c; margin-bottom: 10px">
+                  🤖 Integração Google Gemini
+                </h3>
+                <p style="color: #6b7280; font-size: 14px; margin-bottom: 15px">
+                  Configure sua chave API do Google Gemini para habilitar
+                  recursos de IA na plataforma.
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    style="color: #667eea; text-decoration: underline"
+                  >
+                    Obter chave API
+                  </a>
+                </p>
+
+                <div class="form-group">
+                  <label style="color: #374151; font-weight: 600"
+                    >Chave API do Gemini</label
+                  >
+                  <div style="position: relative">
+                    <input
+                      type="password"
+                      id="geminiApiKey"
+                      placeholder="Digite sua chave API do Gemini"
+                      style="padding-right: 100px"
+                    />
+                    <button
+                      id="toggleGeminiKey"
+                      onclick="toggleGeminiKeyVisibility()"
+                      class="btn btn-secondary"
+                      style="
+                        position: absolute;
+                        right: 5px;
+                        top: 5px;
+                        padding: 6px 12px;
+                        font-size: 12px;
+                      "
+                    >
+                      👁️ Mostrar
+                    </button>
+                  </div>
+                  <p style="font-size: 12px; color: #6b7280; margin-top: 5px">
+                    ⚠️ Sua chave será armazenada de forma segura e criptografada
+                  </p>
+                </div>
+
+                <div style="display: flex; gap: 10px">
+                  <button
+                    class="btn btn-primary"
+                    onclick="salvarGeminiApiKey()"
+                  >
+                    💾 Salvar Chave API
+                  </button>
+                  <button
+                    class="btn btn-danger"
+                    onclick="removerGeminiApiKey()"
+                    id="removerGeminiBtn"
+                    style="display: none"
+                  >
+                    🗑️ Remover Chave
+                  </button>
+                </div>
+
+                <div id="geminiAlert" style="margin-top: 15px"></div>
+
+                <div
+                  id="geminiStatus"
+                  style="
+                    margin-top: 15px;
+                    padding: 12px;
+                    border-radius: 6px;
+                    display: none;
+                  "
+                >
+                  <p style="margin: 0; font-size: 14px">
+                    <span id="geminiStatusIcon"></span>
+                    <span id="geminiStatusText"></span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="adminTab" class="tab-content">
+            <div class="card">
+              <h2>Painel Admin</h2>
+              <div id="adminAlert"></div>
+
+              <h3 style="margin-bottom: 12px; color: #1f2937">
+                Cadastrar Novo Personal
+              </h3>
+              <div class="editor-grid">
+                <div class="form-group">
+                  <label>Nome</label>
+                  <input
+                    type="text"
+                    id="adminPersonalNome"
+                    placeholder="Nome do personal"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    id="adminPersonalEmail"
+                    placeholder="email@dominio.com"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Senha inicial</label>
+                  <input
+                    type="password"
+                    id="adminPersonalSenha"
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Evolution Instance</label>
+                  <input
+                    type="text"
+                    id="adminPersonalInstance"
+                    placeholder="ex: personal-joao"
+                  />
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="criarPersonalAdmin()">
+                Cadastrar Personal
               </button>
             </div>
 
-            <div id="geminiAlert" style="margin-top: 15px"></div>
-
-            <div
-              id="geminiStatus"
-              style="
-                margin-top: 15px;
-                padding: 12px;
-                border-radius: 6px;
-                display: none;
-              "
-            >
-              <p style="margin: 0; font-size: 14px">
-                <span id="geminiStatusIcon"></span>
-                <span id="geminiStatusText"></span>
-              </p>
+            <div class="card">
+              <h3 style="margin-bottom: 12px; color: #1f2937">
+                Personals Cadastrados
+              </h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Instance</th>
+                    <th>Criado em</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="adminPersonalsBody">
+                  <tr>
+                    <td colspan="5" style="text-align: center">
+                      Carregando...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div id="adminTab" class="tab-content">
-        <div class="card">
-          <h2>Painel Admin</h2>
-          <div id="adminAlert"></div>
-
-          <h3 style="margin-bottom: 12px; color: #1f2937">
-            Cadastrar Novo Personal
-          </h3>
-          <div class="editor-grid">
-            <div class="form-group">
-              <label>Nome</label>
-              <input
-                type="text"
-                id="adminPersonalNome"
-                placeholder="Nome do personal"
-              />
-            </div>
-            <div class="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                id="adminPersonalEmail"
-                placeholder="email@dominio.com"
-              />
-            </div>
-            <div class="form-group">
-              <label>Senha inicial</label>
-              <input
-                type="password"
-                id="adminPersonalSenha"
-                placeholder="Mínimo 6 caracteres"
-              />
-            </div>
-            <div class="form-group">
-              <label>Evolution Instance</label>
-              <input
-                type="text"
-                id="adminPersonalInstance"
-                placeholder="ex: personal-joao"
-              />
-            </div>
-          </div>
-          <button class="btn btn-primary" onclick="criarPersonalAdmin()">
-            Cadastrar Personal
-          </button>
-        </div>
-
-        <div class="card">
-          <h3 style="margin-bottom: 12px; color: #1f2937">
-            Personals Cadastrados
-          </h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Email</th>
-                <th>Instance</th>
-                <th>Criado em</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="adminPersonalsBody">
-              <tr>
-                <td colspan="5" style="text-align: center">Carregando...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        </main>
       </div>
     </div>
 
@@ -1757,11 +1861,14 @@
         if (!tbody) return;
 
         try {
-          const response = await fetch(`${getApiBaseUrl()}/api/admin/personals`, {
-            headers: {
-              Authorization: `Bearer ${adminToken}`,
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/personals`,
+            {
+              headers: {
+                Authorization: `Bearer ${adminToken}`,
+              },
             },
-          });
+          );
 
           if (response.status === 401) {
             handleUnauthorized();
@@ -1827,19 +1934,22 @@
         }
 
         try {
-          const response = await fetch(`${getApiBaseUrl()}/api/admin/personals`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${adminToken}`,
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/personals`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${adminToken}`,
+              },
+              body: JSON.stringify({
+                name,
+                email,
+                password,
+                evolution_instance_name: instance,
+              }),
             },
-            body: JSON.stringify({
-              name,
-              email,
-              password,
-              evolution_instance_name: instance,
-            }),
-          });
+          );
 
           const data = await response.json();
 
@@ -1865,7 +1975,9 @@
       async function salvarPersonalAdmin(personalId) {
         if (!adminToken) return;
 
-        const name = document.getElementById(`admin_p_name_${personalId}`).value.trim();
+        const name = document
+          .getElementById(`admin_p_name_${personalId}`)
+          .value.trim();
         const email = document
           .getElementById(`admin_p_email_${personalId}`)
           .value.trim()
@@ -1873,7 +1985,9 @@
         const evolutionInstance = document
           .getElementById(`admin_p_instance_${personalId}`)
           .value.trim();
-        const password = document.getElementById(`admin_p_password_${personalId}`).value;
+        const password = document.getElementById(
+          `admin_p_password_${personalId}`,
+        ).value;
 
         const payload = {
           name,
