@@ -4,6 +4,9 @@ import { z } from "zod";
 import { env } from "../../config/env.js";
 import { processIncomingMessage } from "../../services/bot-engine.js";
 
+// Emergency circuit breaker to stop bot loops quickly in production.
+const EMERGENCY_BOT_PAUSE = true;
+
 const EvolutionWebhookSchema = z.object({
   // Evolution API can send the event as "messages.upsert" or "MESSAGES_UPSERT"
   event: z.string(),
@@ -59,6 +62,11 @@ function extractInput(payload: EvolutionWebhook): {
 
 export async function registerEvolutionWebhookRoute(app: FastifyInstance) {
   app.post("/evolution", async (request, reply) => {
+    if (EMERGENCY_BOT_PAUSE) {
+      app.log.warn("Bot processing paused by emergency circuit breaker");
+      return reply.code(200).send({ ignored: true, paused: true });
+    }
+
     const signature = request.headers["x-webhook-secret"];
     if (signature !== env.EVOLUTION_WEBHOOK_SECRET) {
       app.log.warn("Invalid webhook secret");
