@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import { supabaseAdmin } from "../config/supabase.js";
-import { sendButtonsMessage, sendTextMessage } from "./evolution-service.js";
+import { sendTextMessage } from "./evolution-service.js";
 import {
   generateFallbackReply,
   generateBotResponse,
@@ -40,6 +40,23 @@ type WorkoutExercise = {
 };
 
 const NUMERIC_STATES = new Set(["COLLECTING_REPS", "COLLECTING_WEIGHT"]);
+
+function isConfirmIntent(msg: string): boolean {
+  const n = msg.toLowerCase().trim();
+  return /^(1|sim|bora|come[cç]|start|yes|ok|vamos|quero|s\b)/.test(n);
+}
+
+function isCancelIntent(msg: string): boolean {
+  const n = msg.toLowerCase().trim();
+  return /^(2|n[aã]o|cancel|agora n)/.test(n);
+}
+
+function isSetDoneIntent(msg: string): boolean {
+  const n = msg.toLowerCase().trim();
+  return /^(feito|terminei|pronto|ok|sim|s|1|done|acabei|fiz|✅|conclu)/.test(
+    n,
+  );
+}
 
 function normalizeWhatsapp(remoteJid: string): string {
   return remoteJid.replace(/@.*/, "");
@@ -368,14 +385,10 @@ export async function processIncomingMessage(input: IncomingMessage) {
       `Bora, ${student.name}! Pronto para começar o treino "${workout.name}"? 💪`,
     );
 
-    await sendButtonsMessage({
+    await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: welcomeMessage,
-      buttons: [
-        { id: "START_TRAINING", text: "💪 Bora começar!" },
-        { id: "CANCEL", text: "Agora não" },
-      ],
+      text: `${welcomeMessage}\n\nResponda:\n1️⃣ *Sim, bora!*\n2️⃣ Agora não`,
     });
 
     await updateState(whatsapp, {
@@ -398,7 +411,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
   // Estado: AWAITING_TRAINING_START
   if (state.current_state === "AWAITING_TRAINING_START") {
-    if (effectiveInput === "START_TRAINING") {
+    if (isConfirmIntent(effectiveInput)) {
       const workout = await getTodayWorkouts(student.id);
 
       if (!workout) {
@@ -439,14 +452,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: `🔥 Sessão iniciada!\n\n*${firstExercise.exercise_name}*\n📊 Meta: ${firstExercise.target_sets}x${firstExercise.target_reps}${targetWeight}\n\nVamos começar a primeira série!`,
-      });
-
-      await sendButtonsMessage({
-        instanceName: input.instance,
-        number: whatsapp,
-        text: "Avise quando terminar a série:",
-        buttons: [{ id: "SET_DONE", text: "✅ Terminei!" }],
+        text: `🔥 Sessão iniciada!\n\n*${firstExercise.exercise_name}*\n📊 Meta: ${firstExercise.target_sets}x${firstExercise.target_reps}${targetWeight}\n\nVamos começar a primeira série! Quando terminar, me manda *feito* ✅`,
       });
 
       await updateState(whatsapp, {
@@ -458,7 +464,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       return;
     }
 
-    if (effectiveInput === "CANCEL") {
+    if (isCancelIntent(effectiveInput)) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
@@ -471,7 +477,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
   // Estado: EXECUTING_SET
   if (state.current_state === "EXECUTING_SET") {
-    if (effectiveInput === "SET_DONE") {
+    if (isSetDoneIntent(effectiveInput)) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
@@ -538,17 +544,10 @@ export async function processIncomingMessage(input: IncomingMessage) {
     }
 
     // Pedir RPE
-    await sendButtonsMessage({
+    await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: "Perfeito! Agora me diz: qual foi a dificuldade? (RPE de 1 a 10)",
-      buttons: [
-        { id: "RPE_6", text: "6 - Fácil" },
-        { id: "RPE_7", text: "7 - Tranquilo" },
-        { id: "RPE_8", text: "8 - Moderado" },
-        { id: "RPE_9", text: "9 - Difícil" },
-        { id: "RPE_10", text: "10 - Máximo" },
-      ],
+      text: "Perfeito! Agora me diz: qual foi a dificuldade?\n\nResponda com um número de *6 a 10*:\n6 - Fácil\n7 - Tranquilo\n8 - Moderado\n9 - Difícil\n10 - Máximo 🔥",
     });
 
     await updateState(whatsapp, {
@@ -560,16 +559,13 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
   // Estado: COLLECTING_RPE
   if (state.current_state === "COLLECTING_RPE") {
-    const rpeMatch = effectiveInput.match(/^RPE_(\d+)$/);
-    const rpe = rpeMatch
-      ? parseInt(rpeMatch[1], 10)
-      : parseInt(effectiveInput, 10);
+    const rpe = parseInt(effectiveInput.trim(), 10);
 
     if (Number.isNaN(rpe) || rpe < 1 || rpe > 10) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Use os botões acima para escolher o RPE de 1 a 10! 😊",
+        text: "Me manda um número de 6 a 10 para registrar a dificuldade! 😊",
       });
       return;
     }
@@ -610,14 +606,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: `🔥 Série ${state.current_set_number}/${targetSets} concluída!\n\nDescanso e vamos para a próxima!`,
-        });
-
-        await sendButtonsMessage({
-          instanceName: input.instance,
-          number: whatsapp,
-          text: `Série ${nextSet}/${targetSets} - Avise quando terminar:`,
-          buttons: [{ id: "SET_DONE", text: "✅ Terminei!" }],
+          text: `🔥 Série ${state.current_set_number}/${targetSets} concluída!\n\nDescanso e vamos para a próxima! Quando terminar a série ${nextSet}, me manda *feito* ✅`,
         });
 
         await updateState(whatsapp, {
@@ -653,14 +642,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: `✅ ${exerciseName} concluído!\n\n🔸 Próximo: *${nextExercise.exercise_name}*\n📊 Meta: ${nextExercise.target_sets}x${nextExercise.target_reps}${targetWeight}`,
-        });
-
-        await sendButtonsMessage({
-          instanceName: input.instance,
-          number: whatsapp,
-          text: "Quando estiver pronto para começar:",
-          buttons: [{ id: "SET_DONE", text: "✅ Começar!" }],
+          text: `✅ ${exerciseName} concluído!\n\n🔸 Próximo: *${nextExercise.exercise_name}*\n📊 Meta: ${nextExercise.target_sets}x${nextExercise.target_reps}${targetWeight}\n\nQuando estiver pronto, me manda *feito* ✅`,
         });
 
         await updateState(whatsapp, {
