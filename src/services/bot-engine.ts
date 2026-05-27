@@ -527,6 +527,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
           current_workout_exercise_id: null,
           current_set_number: 1,
           last_input_attempt: null,
+          rest_end_at: null,
         });
       }
     }
@@ -778,6 +779,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         current_workout_exercise_id: firstExercise.id,
         current_set_number: 1,
         last_input_attempt: null,
+        rest_end_at: null,
       });
 
       await sendTextMessage({
@@ -830,11 +832,8 @@ export async function processIncomingMessage(input: IncomingMessage) {
         text: `⏱ Você está em descanso! Ainda restam ~${remaining}s. Vou te avisar quando acabar! 💪`,
       });
     } else {
-      await sendTextMessage({
-        instanceName: input.instance,
-        number: whatsapp,
-        text: `⏱ Seu descanso acabou agora! Aguarda um instante, já te envio a próxima série! 💪`,
-      });
+      // Timer vencido — transição inline, funciona mesmo sem pg_cron configurado
+      await fireExpiredRest(input.app, state, input.instance);
     }
     return;
   }
@@ -1088,6 +1087,109 @@ export async function processIncomingMessage(input: IncomingMessage) {
 }
 
 /**
+ * Processa a transição de RESTING para EXECUTING_SET para um único aluno.
+ * Chamado tanto inline (quando o aluno envia mensagem com timer vencido)
+ * quanto pelo pg_cron via processExpiredRestTimers.
+ */
+async function fireExpiredRest(
+  app: FastifyInstance,
+  state: BotStateRow,
+  instanceName: string,
+): Promise<void> {
+  const hint = state.last_input_attempt ?? "";
+
+  if (hint.startsWith("rest:next_set:")) {
+    const nextSet = parseInt(hint.replace("rest:next_set:", ""), 10);
+
+    const { data: exRow } = await supabaseAdmin
+      .from("workout_exercises")
+      .select("target_sets,exercises(name)")
+      .eq("id", state.current_workout_exercise_id!)
+      .single();
+
+    const exerciseName = Array.isArray((exRow as any)?.exercises)
+      ? (exRow as any).exercises[0]?.name
+      : ((exRow as any)?.exercises?.name ?? "Exercício");
+    const targetSets = (exRow as any)?.target_sets ?? nextSet;
+
+    await updateState(state.whatsapp_number, {
+      current_state: "EXECUTING_SET",
+      current_set_number: nextSet,
+      rest_end_at: null,
+      last_input_attempt: null,
+    });
+
+    await sendTextMessage({
+      instanceName,
+      number: state.whatsapp_number,
+      text: `✅ Fim do descanso! Vamos lá? 💪\n\n*${exerciseName}* — Série ${nextSet}/${targetSets}\nQuando terminar, me manda *feito* ✅`,
+    });
+  } else if (hint.startsWith("rest:next_exercise:")) {
+    const nextExerciseId = hint.replace("rest:next_exercise:", "");
+
+    const { data: exRow } = await supabaseAdmin
+      .from("workout_exercises")
+      .select(
+        "target_sets,target_reps,target_weight,order_index,exercise_id,exercises(name,muscle_group,equipment,description)",
+      )
+      .eq("id", nextExerciseId)
+      .single();
+
+    if (!exRow) {
+      app.log.warn(
+        { nextExerciseId },
+        "fireExpiredRest: next exercise not found",
+      );
+      return;
+    }
+
+    const ex = exRow as any;
+    const exercise = Array.isArray(ex.exercises)
+      ? ex.exercises[0]
+      : ex.exercises;
+
+    const nextExercise: WorkoutExercise = {
+      id: nextExerciseId,
+      exercise_id: ex.exercise_id,
+      exercise_name: exercise?.name ?? "Exercício",
+      muscle_group: exercise?.muscle_group ?? null,
+      equipment: exercise?.equipment ?? null,
+      description: exercise?.description ?? null,
+      target_sets: ex.target_sets,
+      target_reps: ex.target_reps,
+      target_weight: ex.target_weight ?? null,
+      order_index: ex.order_index,
+      rest_seconds: null,
+    };
+
+    await updateState(state.whatsapp_number, {
+      current_state: "EXECUTING_SET",
+      current_workout_exercise_id: nextExerciseId,
+      current_set_number: 1,
+      rest_end_at: null,
+      last_input_attempt: null,
+    });
+
+    await sendTextMessage({
+      instanceName,
+      number: state.whatsapp_number,
+      text: `✅ Fim do descanso! Próximo exercício:\n\n*${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}\n\nQuando estiver pronto para a 1ª série, me manda *feito* ✅`,
+    });
+  } else {
+    // hint desconhecido — limpa o estado para não ficar travado
+    app.log.warn(
+      { hint, whatsapp: state.whatsapp_number },
+      "fireExpiredRest: unknown hint, resetting to EXECUTING_SET",
+    );
+    await updateState(state.whatsapp_number, {
+      current_state: "EXECUTING_SET",
+      rest_end_at: null,
+      last_input_attempt: null,
+    });
+  }
+}
+
+/**
  * Dispara timers de descanso vencidos.
  * Chamado pelo pg_cron a cada minuto via pg_net.
  * Retorna a quantidade de timers processados.
@@ -1133,86 +1235,9 @@ export async function processExpiredRestTimers(
       if (!personalRow?.evolution_instance_name) continue;
 
       const instanceName = personalRow.evolution_instance_name as string;
-      const hint = state.last_input_attempt ?? "";
 
-      if (hint.startsWith("rest:next_set:")) {
-        const nextSet = parseInt(hint.replace("rest:next_set:", ""), 10);
-
-        const { data: exRow } = await supabaseAdmin
-          .from("workout_exercises")
-          .select("target_sets,exercises(name)")
-          .eq("id", state.current_workout_exercise_id!)
-          .single();
-
-        const exerciseName = Array.isArray((exRow as any)?.exercises)
-          ? (exRow as any).exercises[0]?.name
-          : ((exRow as any)?.exercises?.name ?? "Exercício");
-        const targetSets = (exRow as any)?.target_sets ?? nextSet;
-
-        // Atualizar estado ANTES de enviar a mensagem
-        await updateState(state.whatsapp_number, {
-          current_state: "EXECUTING_SET",
-          current_set_number: nextSet,
-          rest_end_at: null,
-          last_input_attempt: null,
-        });
-
-        await sendTextMessage({
-          instanceName,
-          number: state.whatsapp_number,
-          text: `✅ Fim do descanso! Vamos lá? 💪\n\n*${exerciseName}* — Série ${nextSet}/${targetSets}\nQuando terminar, me manda *feito* ✅`,
-        });
-
-        processed++;
-      } else if (hint.startsWith("rest:next_exercise:")) {
-        const nextExerciseId = hint.replace("rest:next_exercise:", "");
-
-        const { data: exRow } = await supabaseAdmin
-          .from("workout_exercises")
-          .select(
-            "target_sets,target_reps,target_weight,order_index,exercise_id,exercises(name,muscle_group,equipment,description)",
-          )
-          .eq("id", nextExerciseId)
-          .single();
-
-        if (!exRow) continue;
-
-        const ex = exRow as any;
-        const exercise = Array.isArray(ex.exercises)
-          ? ex.exercises[0]
-          : ex.exercises;
-
-        const nextExercise: WorkoutExercise = {
-          id: nextExerciseId,
-          exercise_id: ex.exercise_id,
-          exercise_name: exercise?.name ?? "Exercício",
-          muscle_group: exercise?.muscle_group ?? null,
-          equipment: exercise?.equipment ?? null,
-          description: exercise?.description ?? null,
-          target_sets: ex.target_sets,
-          target_reps: ex.target_reps,
-          target_weight: ex.target_weight ?? null,
-          order_index: ex.order_index,
-          rest_seconds: null,
-        };
-
-        // Atualizar estado ANTES de enviar a mensagem
-        await updateState(state.whatsapp_number, {
-          current_state: "EXECUTING_SET",
-          current_workout_exercise_id: nextExerciseId,
-          current_set_number: 1,
-          rest_end_at: null,
-          last_input_attempt: null,
-        });
-
-        await sendTextMessage({
-          instanceName,
-          number: state.whatsapp_number,
-          text: `✅ Fim do descanso! Próximo exercício:\n\n*${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}\n\nQuando estiver pronto para a 1ª série, me manda *feito* ✅`,
-        });
-
-        processed++;
-      }
+      await fireExpiredRest(app, state, instanceName);
+      processed++;
     } catch (err) {
       app.log.error(
         err,
