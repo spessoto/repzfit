@@ -651,7 +651,20 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
   // Estado: AWAITING_WORKOUT_SELECTION
   if (state.current_state === "AWAITING_WORKOUT_SELECTION") {
-    if (isCancelIntent(effectiveInput)) {
+    const optionsRaw = state.last_input_attempt?.startsWith("workout_options:")
+      ? state.last_input_attempt.replace("workout_options:", "")
+      : "";
+    const optionIds = optionsRaw
+      .split("|")
+      .map((id) => id.trim())
+      .filter(Boolean);
+
+    // Verifica seleção por número ANTES de isCancelIntent
+    // (isCancelIntent também captura "2", que é uma opção válida de treino)
+    const selectedNumber = parseInt(effectiveInput.trim(), 10);
+    if (!Number.isNaN(selectedNumber) && selectedNumber >= 1 && selectedNumber <= optionIds.length) {
+      // número válido — segue para seleção abaixo
+    } else if (isCancelIntent(effectiveInput)) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
@@ -662,22 +675,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         last_input_attempt: null,
       });
       return;
-    }
-
-    const optionsRaw = state.last_input_attempt?.startsWith("workout_options:")
-      ? state.last_input_attempt.replace("workout_options:", "")
-      : "";
-    const optionIds = optionsRaw
-      .split("|")
-      .map((id) => id.trim())
-      .filter(Boolean);
-
-    const selectedNumber = parseInt(effectiveInput.trim(), 10);
-    if (
-      Number.isNaN(selectedNumber) ||
-      selectedNumber < 1 ||
-      selectedNumber > optionIds.length
-    ) {
+    } else {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
