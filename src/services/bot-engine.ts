@@ -34,6 +34,9 @@ type WorkoutExercise = {
   id: string;
   exercise_id: string;
   exercise_name: string;
+  muscle_group: string | null;
+  equipment: string | null;
+  description: string | null;
   target_sets: number;
   target_reps: number;
   target_weight: number | null;
@@ -57,6 +60,16 @@ function isSetDoneIntent(msg: string): boolean {
   return /^(feito|terminei|pronto|ok|sim|s|1|done|acabei|fiz|✅|conclu)/.test(
     n,
   );
+}
+
+function formatExerciseDetails(ex: WorkoutExercise): string {
+  const lines: string[] = [];
+  if (ex.muscle_group) lines.push(`💪 Músculo: ${ex.muscle_group}`);
+  if (ex.equipment) lines.push(`🏋️ Equipamento: ${ex.equipment}`);
+  if (ex.description) lines.push(`📝 ${ex.description}`);
+  const weight = ex.target_weight ? ` com ${ex.target_weight}kg` : "";
+  lines.push(`📊 Meta: ${ex.target_sets}x${ex.target_reps}${weight}`);
+  return lines.join("\n");
 }
 
 function normalizeWhatsapp(remoteJid: string): string {
@@ -229,7 +242,10 @@ async function getWorkoutExercises(
       target_weight,
       order_index,
       exercises (
-        name
+        name,
+        muscle_group,
+        equipment,
+        description
       )
     `,
     )
@@ -244,6 +260,9 @@ async function getWorkoutExercises(
     id: item.id,
     exercise_id: item.exercise_id,
     exercise_name: item.exercises?.name ?? "Exercício",
+    muscle_group: item.exercises?.muscle_group ?? null,
+    equipment: item.exercises?.equipment ?? null,
+    description: item.exercises?.description ?? null,
     target_sets: item.target_sets,
     target_reps: item.target_reps,
     target_weight: item.target_weight,
@@ -299,12 +318,85 @@ async function saveSetLog(params: {
 }
 
 /**
- * Marca sessão como concluída
+ * Busca todos os sets de uma sessão e monta o extrato de treino
  */
-async function completeSession(sessionId: string) {
+async function buildWorkoutSummary(sessionId: string): Promise<string> {
+  const { data: logs, error } = await supabaseAdmin
+    .from("set_logs")
+    .select(
+      `
+      set_number,
+      reps_done,
+      weight_used,
+      rpe_score,
+      workout_exercise_id,
+      workout_exercises (
+        order_index,
+        exercises ( name )
+      )
+    `,
+    )
+    .eq("session_id", sessionId)
+    .order("set_number", { ascending: true });
+
+  if (error || !logs || logs.length === 0) return "";
+
+  // Agrupar sets por exercício
+  const exerciseMap = new Map<
+    string,
+    { name: string; order: number; sets: typeof logs }
+  >();
+  for (const log of logs) {
+    const we = log.workout_exercises as any;
+    const name = we?.exercises?.name ?? "Exercício";
+    const order = we?.order_index ?? 0;
+    if (!exerciseMap.has(log.workout_exercise_id)) {
+      exerciseMap.set(log.workout_exercise_id, { name, order, sets: [] });
+    }
+    exerciseMap.get(log.workout_exercise_id)!.sets.push(log);
+  }
+
+  const sorted = Array.from(exerciseMap.values()).sort(
+    (a, b) => a.order - b.order,
+  );
+
+  const today = new Date().toLocaleDateString("pt-BR");
+  const lines: string[] = [`📊 *EXTRATO DO TREINO — ${today}*`, ""];
+
+  sorted.forEach((ex, i) => {
+    lines.push(`*${i + 1}. ${ex.name}*`);
+    for (const s of ex.sets as any[]) {
+      lines.push(
+        `   Série ${s.set_number}: ${s.reps_done} reps × ${s.weight_used}kg | RPE ${s.rpe_score}`,
+      );
+    }
+    lines.push("");
+  });
+
+  const totalSets = logs.length;
+  const totalExercises = sorted.length;
+  lines.push(
+    `✅ ${totalExercises} exercício${
+      totalExercises !== 1 ? "s" : ""
+    } | ${totalSets} série${totalSets !== 1 ? "s" : ""} completadas`,
+  );
+
+  return lines.join("\n").trimEnd();
+}
+
+/**
+ * Marca sessão como concluída e salva o extrato
+ */
+async function completeSession(sessionId: string, summary?: string) {
+  const patch: Record<string, unknown> = {
+    status: "completed",
+    updated_at: new Date().toISOString(),
+  };
+  if (summary) patch.summary = summary;
+
   const { error } = await supabaseAdmin
     .from("daily_sessions")
-    .update({ status: "completed" })
+    .update(patch)
     .eq("id", sessionId);
 
   if (error) {
@@ -479,14 +571,11 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
       // Listar primeiro exercício
       const firstExercise = exercises[0];
-      const targetWeight = firstExercise.target_weight
-        ? ` com ${firstExercise.target_weight}kg`
-        : "";
 
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: `🔥 Sessão iniciada!\n\n*${firstExercise.exercise_name}*\n📊 Meta: ${firstExercise.target_sets}x${firstExercise.target_reps}${targetWeight}\n\nVamos começar a primeira série! Quando terminar, me manda *feito* ✅`,
+        text: `🔥 Sessão iniciada!\n\n*${firstExercise.exercise_name}*\n${formatExerciseDetails(firstExercise)}\n\nVamos começar a primeira série! Quando terminar, me manda *feito* ✅`,
       });
 
       await updateState(whatsapp, {
@@ -669,14 +758,10 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
       if (nextExercise) {
         // Próximo exercício
-        const targetWeight = nextExercise.target_weight
-          ? ` com ${nextExercise.target_weight}kg`
-          : "";
-
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: `✅ ${exerciseName} concluído!\n\n🔸 Próximo: *${nextExercise.exercise_name}*\n📊 Meta: ${nextExercise.target_sets}x${nextExercise.target_reps}${targetWeight}\n\nQuando estiver pronto, me manda *feito* ✅`,
+          text: `✅ ${exerciseName} concluído!\n\n🔸 Próximo: *${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}\n\nQuando estiver pronto, me manda *feito* ✅`,
         });
 
         await updateState(whatsapp, {
@@ -689,8 +774,17 @@ export async function processIncomingMessage(input: IncomingMessage) {
       }
 
       // Treino completo!
+      let workoutSummary = "";
       if (state.current_session_id) {
-        await completeSession(state.current_session_id);
+        try {
+          workoutSummary = await buildWorkoutSummary(state.current_session_id);
+        } catch (err) {
+          input.app.log.error(err, "Failed to build workout summary");
+        }
+        await completeSession(
+          state.current_session_id,
+          workoutSummary || undefined,
+        );
       }
 
       const congratsMessage = await safeCoachReply(
@@ -704,6 +798,14 @@ export async function processIncomingMessage(input: IncomingMessage) {
         number: whatsapp,
         text: `🎉 TREINO CONCLUÍDO!\n\n${congratsMessage}`,
       });
+
+      if (workoutSummary) {
+        await sendTextMessage({
+          instanceName: input.instance,
+          number: whatsapp,
+          text: workoutSummary,
+        });
+      }
 
       await updateState(whatsapp, {
         current_state: "IDLE",
