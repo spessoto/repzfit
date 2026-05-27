@@ -43,6 +43,11 @@ type WorkoutExercise = {
   order_index: number;
 };
 
+type AssignedWorkout = {
+  id: string;
+  name: string;
+};
+
 const NUMERIC_STATES = new Set(["COLLECTING_REPS", "COLLECTING_WEIGHT"]);
 
 function isConfirmIntent(msg: string): boolean {
@@ -179,50 +184,90 @@ async function updateState(whatsapp: string, patch: Partial<BotStateRow>) {
 }
 
 /**
- * Busca treinos ativos do aluno para hoje
+ * Busca todos os treinos atribuídos ao aluno (sem filtrar por data)
  */
-async function getTodayWorkouts(studentId: string) {
-  const today = new Date().getDay(); // 0 = domingo, 6 = sábado
-
+async function getStudentAssignedWorkouts(
+  studentId: string,
+): Promise<AssignedWorkout[]> {
   const { data, error } = await supabaseAdmin
-    .from("workouts")
-    .select("id,name,day_of_week,start_date,valid_until")
+    .from("student_workouts")
+    .select("workout_id,workouts(id,name)")
     .eq("student_id", studentId);
 
   if (error) {
     throw error;
   }
 
-  if (!data || data.length === 0) {
+  let workouts: AssignedWorkout[] = (data ?? [])
+    .map((row: any) => {
+      const workout = Array.isArray(row.workouts)
+        ? row.workouts[0]
+        : row.workouts;
+      if (!workout?.id) return null;
+      return {
+        id: workout.id,
+        name: workout.name ?? "Treino",
+      };
+    })
+    .filter(Boolean) as AssignedWorkout[];
+
+  // Fallback legado para bases antigas que ainda usam workouts.student_id
+  if (workouts.length === 0) {
+    const legacy = await supabaseAdmin
+      .from("workouts")
+      .select("id,name")
+      .eq("student_id", studentId);
+
+    if (legacy.error) {
+      throw legacy.error;
+    }
+
+    workouts = (legacy.data ?? []).map((w: any) => ({
+      id: w.id,
+      name: w.name ?? "Treino",
+    }));
+  }
+
+  // Dedupe por id para evitar duplicidade de vínculo
+  const unique = new Map<string, AssignedWorkout>();
+  for (const workout of workouts) {
+    unique.set(workout.id, workout);
+  }
+
+  return Array.from(unique.values());
+}
+
+async function getLastCompletedWorkout(studentId: string): Promise<{
+  workoutId: string;
+  workoutName: string;
+  date: string;
+} | null> {
+  const { data, error } = await supabaseAdmin
+    .from("daily_sessions")
+    .select("workout_id,date,workouts(name)")
+    .eq("student_id", studentId)
+    .eq("status", "completed")
+    .order("date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data?.workout_id) {
     return null;
   }
 
-  // Filtrar treinos válidos para hoje
-  const validWorkouts = data.filter((workout) => {
-    // Verificar data de validade
-    const now = new Date();
-    if (workout.start_date) {
-      const startDate = new Date(workout.start_date);
-      if (startDate > now) {
-        return false;
-      }
-    }
-    if (workout.valid_until) {
-      const validUntil = new Date(workout.valid_until);
-      if (validUntil < now) {
-        return false;
-      }
-    }
+  const workout = Array.isArray(data.workouts)
+    ? data.workouts[0]
+    : data.workouts;
 
-    // Verificar dia da semana
-    if (workout.day_of_week && workout.day_of_week.length > 0) {
-      return workout.day_of_week.includes(today);
-    }
-
-    return true;
-  });
-
-  return validWorkouts.length > 0 ? validWorkouts[0] : null;
+  return {
+    workoutId: data.workout_id,
+    workoutName: workout?.name ?? "Treino",
+    date: data.date,
+  };
 }
 
 /**
@@ -454,11 +499,9 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
   // 2. Verificar se é uma mensagem de início de treino — apenas no estado IDLE
   if (isTrainingStartIntent(effectiveInput)) {
-    // Verificar se o aluno está cadastrado
     const student = await getStudentByWhatsapp(whatsapp);
 
     if (!student) {
-      // Aluno não cadastrado - enviar mensagem amigável
       const response = await safeCoachReply(
         input.app,
         `O usuário tentou iniciar um treino mas não está cadastrado no sistema. Explique de forma amigável e breve (2 linhas) que ele precisa ser cadastrado pelo personal trainer antes de usar o sistema.`,
@@ -473,54 +516,81 @@ export async function processIncomingMessage(input: IncomingMessage) {
       return;
     }
 
-    // Verificar estado atual — só iniciar a partir do IDLE
     const currentState = await getOrCreateState(whatsapp, student.id);
     if (currentState.current_state !== "IDLE") {
-      // Já está em um fluxo ativo — lembrar o aluno do contexto atual
+      if (
+        currentState.current_state !== "AWAITING_TRAINING_START" &&
+        currentState.current_state !== "AWAITING_WORKOUT_SELECTION"
+      ) {
+        await sendTextMessage({
+          instanceName: input.instance,
+          number: whatsapp,
+          text: "Você já tem um treino em andamento! Responda a pergunta anterior ou envie *parar* para encerrar. 💪",
+        });
+        return;
+      }
+    } else {
+      const workouts = await getStudentAssignedWorkouts(student.id);
+
+      if (!workouts.length) {
+        const response = await safeCoachReply(
+          input.app,
+          `O aluno ${student.name} quer treinar mas não tem treino atribuído. Responda de forma motivadora mas explique que ele precisa falar com o personal para atribuir um treino.`,
+          "Não encontrei treino atribuído para você agora. Fala com seu personal que eu te ajudo assim que ele liberar! 🔥",
+        );
+
+        await sendTextMessage({
+          instanceName: input.instance,
+          number: whatsapp,
+          text: response,
+        });
+        return;
+      }
+
+      if (workouts.length === 1) {
+        const workout = workouts[0];
+        const welcomeMessage = await safeCoachReply(
+          input.app,
+          `Saude o aluno ${student.name} de forma animada (1 linha) e pergunte se ele está pronto para começar o treino "${workout.name}". Seja breve e motivador.`,
+          `Bora, ${student.name}! Pronto para começar o treino "${workout.name}"? 💪`,
+        );
+
+        await sendTextMessage({
+          instanceName: input.instance,
+          number: whatsapp,
+          text: `${welcomeMessage}\n\nResponda:\n1️⃣ *Sim, bora!*\n2️⃣ Agora não`,
+        });
+
+        await updateState(whatsapp, {
+          current_state: "AWAITING_TRAINING_START",
+          last_input_attempt: `selected_workout:${workout.id}`,
+        });
+        return;
+      }
+
+      const lastWorkout = await getLastCompletedWorkout(student.id);
+      const optionsText = workouts
+        .map((workout, index) => `${index + 1}️⃣ *${workout.name}*`)
+        .join("\n");
+
+      const lastText = lastWorkout
+        ? `\n\nÚltimo treino executado: *${lastWorkout.workoutName}* (${new Date(lastWorkout.date + "T00:00:00").toLocaleDateString("pt-BR")})`
+        : "\n\nAinda não encontrei treino executado anteriormente.";
+
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Você já tem um treino em andamento! Responda a pergunta anterior ou envie *parar* para encerrar. 💪",
+        text: `Você tem mais de um treino cadastrado. Qual você quer fazer hoje?\n\n${optionsText}${lastText}\n\nResponda com o *número* do treino.`,
+      });
+
+      await updateState(whatsapp, {
+        current_state: "AWAITING_WORKOUT_SELECTION",
+        last_input_attempt: `workout_options:${workouts
+          .map((workout) => workout.id)
+          .join("|")}`,
       });
       return;
     }
-
-    // Aluno cadastrado - buscar treino do dia
-    const workout = await getTodayWorkouts(student.id);
-
-    if (!workout) {
-      // Sem treino para hoje
-      const response = await safeCoachReply(
-        input.app,
-        `O aluno ${student.name} quer treinar mas não tem treino programado para hoje. Responda de forma motivadora mas explique que ele precisa falar com o personal para definir um treino.`,
-        "Hoje não encontrei treino programado para você. Fala com seu personal que eu te ajudo assim que ele liberar! 🔥",
-      );
-
-      await sendTextMessage({
-        instanceName: input.instance,
-        number: whatsapp,
-        text: response,
-      });
-      return;
-    }
-
-    // Tem treino! Iniciar fluxo (currentState já foi carregado acima)
-    const welcomeMessage = await safeCoachReply(
-      input.app,
-      `Saude o aluno ${student.name} de forma animada (1 linha) e pergunte se ele está pronto para começar o treino "${workout.name}". Seja breve e motivador.`,
-      `Bora, ${student.name}! Pronto para começar o treino "${workout.name}"? 💪`,
-    );
-
-    await sendTextMessage({
-      instanceName: input.instance,
-      number: whatsapp,
-      text: `${welcomeMessage}\n\nResponda:\n1️⃣ *Sim, bora!*\n2️⃣ Agora não`,
-    });
-
-    await updateState(whatsapp, {
-      current_state: "AWAITING_TRAINING_START",
-    });
-    return;
   }
 
   // 3. A partir daqui, precisa estar cadastrado
@@ -535,18 +605,105 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
   // === FLUXO DE ESTADOS ===
 
+  // Estado: AWAITING_WORKOUT_SELECTION
+  if (state.current_state === "AWAITING_WORKOUT_SELECTION") {
+    if (isCancelIntent(effectiveInput)) {
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: "Sem problemas! Quando quiser treinar, é só me chamar! 💪",
+      });
+      await updateState(whatsapp, {
+        current_state: "IDLE",
+        last_input_attempt: null,
+      });
+      return;
+    }
+
+    const optionsRaw = state.last_input_attempt?.startsWith("workout_options:")
+      ? state.last_input_attempt.replace("workout_options:", "")
+      : "";
+    const optionIds = optionsRaw
+      .split("|")
+      .map((id) => id.trim())
+      .filter(Boolean);
+
+    const selectedNumber = parseInt(effectiveInput.trim(), 10);
+    if (
+      Number.isNaN(selectedNumber) ||
+      selectedNumber < 1 ||
+      selectedNumber > optionIds.length
+    ) {
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: `Me responde com o número do treino (1 a ${optionIds.length}).`,
+      });
+      return;
+    }
+
+    const selectedWorkoutId = optionIds[selectedNumber - 1];
+    const workouts = await getStudentAssignedWorkouts(student.id);
+    const selectedWorkout = workouts.find(
+      (workout) => workout.id === selectedWorkoutId,
+    );
+
+    if (!selectedWorkout) {
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: "Esse treino não está mais disponível. Me manda *iniciar treino* para listar novamente.",
+      });
+      await updateState(whatsapp, {
+        current_state: "IDLE",
+        last_input_attempt: null,
+      });
+      return;
+    }
+
+    const welcomeMessage = await safeCoachReply(
+      input.app,
+      `Saude o aluno ${student.name} de forma animada (1 linha) e pergunte se ele está pronto para começar o treino "${selectedWorkout.name}". Seja breve e motivador.`,
+      `Bora, ${student.name}! Pronto para começar o treino "${selectedWorkout.name}"? 💪`,
+    );
+
+    await sendTextMessage({
+      instanceName: input.instance,
+      number: whatsapp,
+      text: `${welcomeMessage}\n\nResponda:\n1️⃣ *Sim, bora!*\n2️⃣ Agora não`,
+    });
+
+    await updateState(whatsapp, {
+      current_state: "AWAITING_TRAINING_START",
+      last_input_attempt: `selected_workout:${selectedWorkout.id}`,
+    });
+    return;
+  }
+
   // Estado: AWAITING_TRAINING_START
   if (state.current_state === "AWAITING_TRAINING_START") {
     if (isConfirmIntent(effectiveInput)) {
-      const workout = await getTodayWorkouts(student.id);
+      const selectedWorkoutId = state.last_input_attempt?.startsWith(
+        "selected_workout:",
+      )
+        ? state.last_input_attempt.replace("selected_workout:", "")
+        : null;
+
+      const workouts = await getStudentAssignedWorkouts(student.id);
+      const workout = selectedWorkoutId
+        ? (workouts.find((w) => w.id === selectedWorkoutId) ?? null)
+        : (workouts[0] ?? null);
 
       if (!workout) {
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: "Ops! Parece que o treino não está mais disponível. Fale com seu personal! 😅",
+          text: "Ops! Parece que não há treino disponível agora. Fale com seu personal! 😅",
         });
-        await updateState(whatsapp, { current_state: "IDLE" });
+        await updateState(whatsapp, {
+          current_state: "IDLE",
+          last_input_attempt: null,
+        });
         return;
       }
 
@@ -583,6 +740,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         current_session_id: sessionId,
         current_workout_exercise_id: firstExercise.id,
         current_set_number: 1,
+        last_input_attempt: null,
       });
       return;
     }
@@ -593,7 +751,10 @@ export async function processIncomingMessage(input: IncomingMessage) {
         number: whatsapp,
         text: "Sem problemas! Quando quiser treinar, é só me chamar! 💪",
       });
-      await updateState(whatsapp, { current_state: "IDLE" });
+      await updateState(whatsapp, {
+        current_state: "IDLE",
+        last_input_attempt: null,
+      });
       return;
     }
   }
