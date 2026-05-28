@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Repz Fit - Plataforma Personal Trainer</title>
+    <link rel="icon" type="image/png" href="/img/icon.png" />
     <style>
       * {
         margin: 0;
@@ -587,6 +588,27 @@
         color: #1f2937;
       }
 
+      .accordion-summary-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .accordion-chevron {
+        width: 10px;
+        height: 10px;
+        border-right: 2px solid #64748b;
+        border-bottom: 2px solid #64748b;
+        transform: rotate(45deg);
+        transition: transform 0.2s ease;
+        margin-right: 2px;
+      }
+
+      .workout-accordion[open] > summary .accordion-chevron,
+      .session-accordion[open] > summary .accordion-chevron {
+        transform: rotate(-135deg);
+      }
+
       .workout-summary-validity {
         font-size: 12px;
         color: #64748b;
@@ -599,6 +621,67 @@
 
       .workout-accordion-body {
         margin-top: 12px;
+      }
+
+      .session-accordion {
+        margin-bottom: 10px;
+      }
+
+      .session-accordion > summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .session-accordion > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .session-accordion-body {
+        margin-top: 10px;
+      }
+
+      .workout-search-shell {
+        position: relative;
+      }
+
+      .workout-search-results {
+        margin-top: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: #ffffff;
+        max-height: 260px;
+        overflow-y: auto;
+      }
+
+      .workout-search-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .workout-search-item:last-child {
+        border-bottom: none;
+      }
+
+      .workout-search-meta {
+        color: #6b7280;
+        font-size: 12px;
+        margin-top: 3px;
+      }
+
+      .selected-workout-box {
+        margin-top: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
       }
 
       @media (max-width: 768px) {
@@ -650,7 +733,7 @@
     <div id="loginScreen" class="login-container">
       <div class="card">
         <div class="login-brand">
-          <img src="/img/repzfit.png" alt="Repz Fit" />
+          <img src="/img/Logo-fundo-claro.png" alt="Repz Fit" />
         </div>
         <div class="form-group">
           <label>Email</label>
@@ -672,7 +755,7 @@
       <div class="app-shell">
         <aside class="sidebar">
           <div class="sidebar-brand">
-            <img src="/img/repzfit-sidebar.png" alt="Repz Fit" />
+            <img src="/img/Logo-fundo-escuro.png" alt="Repz Fit" />
           </div>
 
           <div class="tabs">
@@ -1382,6 +1465,10 @@
       let isAdminSession = false;
       let personalData = null;
       let currentEditingStudentId = null;
+      let currentStudentAssignedWorkoutIds = [];
+      let currentStudentAvailableWorkouts = [];
+      let selectedWorkoutForStudent = null;
+      let workoutSearchTimeout = null;
 
       // Função de escape HTML para prevenir XSS
       function escapeHtml(text) {
@@ -1868,6 +1955,9 @@
           document.getElementById("editAlunoAltura").value =
             student.height_cm ?? "";
 
+          currentStudentAssignedWorkoutIds = (data.workouts || [])
+            .map((w) => w?.id)
+            .filter((id) => typeof id === "string");
           renderStudentWorkoutsEditor(data.workouts || []);
           renderAvailableWorkoutsForStudent(data.available_workouts || []);
           renderStudentSessionsEditor(data.completed_sessions || []);
@@ -1958,7 +2048,10 @@
               <details class="workout-card workout-accordion">
                 <summary>
                   <span class="workout-summary-title">${escapeHtml(workout.name || "Treino")}</span>
-                  <span class="workout-summary-validity">Validade: ${escapeHtml(displayValidUntil)}</span>
+                  <span class="accordion-summary-right">
+                    <span class="workout-summary-validity">Validade: ${escapeHtml(displayValidUntil)}</span>
+                    <span class="accordion-chevron" aria-hidden="true"></span>
+                  </span>
                 </summary>
 
                 <div class="workout-accordion-body">
@@ -2037,31 +2130,130 @@
 
       function renderAvailableWorkoutsForStudent(workouts) {
         const root = document.getElementById("studentEditorAvailableWorkouts");
-        if (!workouts || workouts.length === 0) {
-          root.innerHTML =
-            '<p style="color:#6b7280;">Nenhum treino modelo disponível para atribuir.</p>';
+        currentStudentAvailableWorkouts = workouts || [];
+        selectedWorkoutForStudent = null;
+
+        root.innerHTML = `
+          <div class="workout-search-shell">
+            <div class="form-group" style="margin-bottom: 8px;">
+              <label>Buscar treino para atribuir</label>
+              <input
+                type="text"
+                id="studentWorkoutSearchInput"
+                placeholder="Digite pelo menos 2 letras do nome do treino"
+                autocomplete="off"
+                oninput="buscarTreinosParaAluno(this.value)"
+              />
+            </div>
+            <div id="studentWorkoutSearchResults">
+              <p style="color:#6b7280;font-size:12px;">Digite ao menos 2 caracteres para buscar.</p>
+            </div>
+            <div id="selectedWorkoutForStudent"></div>
+          </div>
+        `;
+      }
+
+      async function buscarTreinosParaAluno(termo) {
+        const resultsRoot = document.getElementById(
+          "studentWorkoutSearchResults",
+        );
+        if (!resultsRoot) return;
+
+        const query = (termo || "").trim();
+
+        if (workoutSearchTimeout) {
+          clearTimeout(workoutSearchTimeout);
+        }
+
+        if (query.length < 2) {
+          resultsRoot.innerHTML =
+            '<p style="color:#6b7280;font-size:12px;">Digite ao menos 2 caracteres para buscar.</p>';
           return;
         }
 
-        root.innerHTML = workouts
-          .map(
-            (workout) => `
-              <div class="workout-card" style="padding: 12px;">
-                <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                  <div>
-                    <strong>${escapeHtml(workout.name || "Treino")}</strong>
-                    <p style="color:#6b7280;font-size:12px;">Início: ${escapeHtml(workout.start_date || "-")}</p>
-                    <div style="margin-top:8px;">
-                      <label style="font-size:12px;color:#374151;">Validade para este aluno</label>
-                      <input type="date" id="aw_until_${workout.id}" style="margin-top:4px;" />
-                    </div>
-                  </div>
-                  <button class="btn btn-primary" onclick="atribuirTreinoAoAlunoAtual('${workout.id}')">Atribuir</button>
-                </div>
+        workoutSearchTimeout = setTimeout(async () => {
+          try {
+            const response = await fetch(`${getApiBaseUrl()}/api/workouts`, {
+              headers: { Authorization: `Bearer ${authToken}` },
+            });
+
+            if (response.status === 401 || response.status === 403) {
+              handleUnauthorized();
+              return;
+            }
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+
+            const workouts = await response.json();
+            const availableByAssignment = (workouts || []).filter(
+              (w) => !currentStudentAssignedWorkoutIds.includes(w.id),
+            );
+
+            const filtered = availableByAssignment.filter((w) =>
+              String(w.name || "")
+                .toLowerCase()
+                .includes(query.toLowerCase()),
+            );
+
+            currentStudentAvailableWorkouts = availableByAssignment;
+
+            if (filtered.length === 0) {
+              resultsRoot.innerHTML =
+                '<p style="color:#6b7280;font-size:12px;">Nenhum treino encontrado.</p>';
+              return;
+            }
+
+            resultsRoot.innerHTML = `
+              <div class="workout-search-results">
+                ${filtered
+                  .map(
+                    (w) => `
+                      <div class="workout-search-item">
+                        <div>
+                          <strong>${escapeHtml(w.name || "Treino")}</strong>
+                          <div class="workout-search-meta">Início: ${escapeHtml(w.start_date || "-")}</div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="selecionarTreinoParaAluno('${w.id}')">Selecionar</button>
+                      </div>
+                    `,
+                  )
+                  .join("")}
               </div>
-            `,
-          )
-          .join("");
+            `;
+          } catch (error) {
+            console.error("Erro ao buscar treinos para aluno:", error);
+            resultsRoot.innerHTML =
+              '<p style="color:#ef4444;font-size:12px;">Erro ao buscar treinos.</p>';
+          }
+        }, 300);
+      }
+
+      function selecionarTreinoParaAluno(workoutId) {
+        const workout = currentStudentAvailableWorkouts.find(
+          (w) => w.id === workoutId,
+        );
+        if (!workout) return;
+
+        selectedWorkoutForStudent = workout;
+
+        const selectedRoot = document.getElementById(
+          "selectedWorkoutForStudent",
+        );
+        if (!selectedRoot) return;
+
+        selectedRoot.innerHTML = `
+          <div class="selected-workout-box">
+            <p><strong>Treino selecionado:</strong> ${escapeHtml(workout.name || "Treino")}</p>
+            <p class="workout-search-meta">Início: ${escapeHtml(workout.start_date || "-")}</p>
+            <div class="form-group" style="margin-top: 8px;">
+              <label>Validade para este aluno</label>
+              <input type="date" id="selectedWorkoutValidUntil" />
+            </div>
+            <button class="btn btn-primary" onclick="atribuirTreinoAoAlunoAtual()">Atribuir</button>
+          </div>
+        `;
       }
 
       async function salvarTreinoAluno(workoutId) {
@@ -2166,11 +2358,16 @@
         if (!currentEditingStudentId) return;
 
         try {
-          const validUntilInput = document.getElementById(
-            `aw_until_${workoutId}`,
-          );
+          const finalWorkoutId = workoutId || selectedWorkoutForStudent?.id;
+          if (!finalWorkoutId) {
+            throw new Error("Selecione um treino para atribuir");
+          }
+
+          const validUntilInput = workoutId
+            ? document.getElementById(`aw_until_${workoutId}`)
+            : document.getElementById("selectedWorkoutValidUntil");
           const response = await fetch(
-            `${getApiBaseUrl()}/api/students/${currentEditingStudentId}/workouts/${workoutId}`,
+            `${getApiBaseUrl()}/api/students/${currentEditingStudentId}/workouts/${finalWorkoutId}`,
             {
               method: "POST",
               headers: {
@@ -2193,6 +2390,7 @@
             "Treino atribuído ao aluno",
             "success",
           );
+          selectedWorkoutForStudent = null;
           await carregarDetalhesAlunoEditor(currentEditingStudentId);
           carregarTreinosAluno();
         } catch (error) {
@@ -2314,13 +2512,18 @@
               ? new Date(session.date).toLocaleDateString("pt-BR")
               : "-";
             return `
-              <div class="session-card">
-                <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                  <p><strong>Treino:</strong> ${escapeHtml(session.workout_name || "-")}</p>
-                  <p><strong>Data:</strong> ${escapeHtml(date)}</p>
+              <details class="session-card session-accordion">
+                <summary>
+                  <span class="workout-summary-title">${escapeHtml(session.workout_name || "Treino")}</span>
+                  <span class="accordion-summary-right">
+                    <span class="workout-summary-validity">Data: ${escapeHtml(date)}</span>
+                    <span class="accordion-chevron" aria-hidden="true"></span>
+                  </span>
+                </summary>
+                <div class="session-accordion-body">
+                  <p style="color:#475569;white-space:pre-wrap;">${escapeHtml(session.summary || "Sem extrato salvo.")}</p>
                 </div>
-                <p style="margin-top:6px;color:#475569;white-space:pre-wrap;">${escapeHtml(session.summary || "Sem extrato salvo.")}</p>
-              </div>
+              </details>
             `;
           })
           .join("");
