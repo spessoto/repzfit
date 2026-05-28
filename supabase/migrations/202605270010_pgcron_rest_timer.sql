@@ -1,4 +1,4 @@
--- Habilita pg_cron e registra o job de polling do rest timer (a cada 10 segundos).
+-- Habilita pg_cron e registra o job de polling do rest timer (a cada 3 segundos).
 -- Requer plano Pro ou superior no Supabase.
 -- Se pg_cron nao estiver disponivel, o bloco falha silenciosamente sem
 -- bloquear migrations futuras.
@@ -27,10 +27,10 @@ begin
     when others then null; -- job nao existia, ok
   end;
 
-  -- Registra: chama /api/internal/rest-timer/poll a cada 10 segundos
+  -- Registra: chama /api/internal/rest-timer/poll a cada 3 segundos
   perform cron.schedule(
     'repzfit-rest-timer-poll',
-    '10 seconds',
+    '3 seconds',
     $$
       select net.http_post(
         url     := 'https://app.repz.fit/api/internal/rest-timer/poll',
@@ -40,6 +40,6 @@ begin
     $$
   );
 
-  raise notice 'Cron job repzfit-rest-timer-poll registrado com sucesso (polling a cada 10 segundos).';
+  raise notice 'Cron job repzfit-rest-timer-poll registrado com sucesso (polling a cada 3 segundos).';
 end;
 $job$;
