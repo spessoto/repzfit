@@ -6,7 +6,10 @@ let appPromise: ReturnType<typeof buildApp> | undefined;
 
 async function getApp() {
   if (!appPromise) {
-    appPromise = buildApp({ enableCleanupScheduler: false });
+    appPromise = buildApp({
+      enableCleanupScheduler: false,
+      enableRestTimerScheduler: false,
+    });
   }
 
   return appPromise;

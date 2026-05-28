@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { processExpiredRestTimers } from "../../services/bot-engine.js";
 
 export async function registerRestTimerPollRoute(app: FastifyInstance) {
-  // Chamado pelo pg_cron a cada minuto via pg_net.
+  // Chamado por scheduler interno (segundos) e/ou pg_cron via pg_net.
   // Não precisa de autenticação — rest_end_at <= NOW() é a guarda de segurança.
   app.post("/api/internal/rest-timer/poll", async (_request, reply) => {
     const processed = await processExpiredRestTimers(app);

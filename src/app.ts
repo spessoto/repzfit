@@ -17,9 +17,11 @@ import {
   runSessionCleanup,
   scheduleSessionCleanup,
 } from "./cron/session-cleanup.js";
+import { scheduleRestTimerPoll } from "./cron/rest-timer.js";
 
 type BuildAppOptions = {
   enableCleanupScheduler?: boolean;
+  enableRestTimerScheduler?: boolean;
 };
 
 function getAllowedOrigins(): string[] {
@@ -126,6 +128,12 @@ export async function buildApp(options: BuildAppOptions = {}) {
   if (options.enableCleanupScheduler ?? true) {
     app.addHook("onReady", async () => {
       scheduleSessionCleanup(app);
+    });
+  }
+
+  if (options.enableRestTimerScheduler ?? true) {
+    app.addHook("onReady", async () => {
+      scheduleRestTimerPoll(app);
     });
   }
 

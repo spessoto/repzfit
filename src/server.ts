@@ -1,7 +1,10 @@
 import { buildApp } from "./app.js";
 import { env } from "./config/env.js";
 
-const app = await buildApp({ enableCleanupScheduler: true });
+const app = await buildApp({
+  enableCleanupScheduler: true,
+  enableRestTimerScheduler: true,
+});
 
 const closeSignals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
 for (const signal of closeSignals) {

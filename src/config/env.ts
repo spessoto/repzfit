@@ -19,6 +19,7 @@ const EnvSchema = z.object({
   EVOLUTION_WEBHOOK_SECRET: z.string().min(1),
   FRONTEND_URL: z.url().optional(),
   CRON_SECRET: z.string().min(1).optional(),
+  REST_TIMER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
 
   OPENAI_API_KEY: z.string().min(1).optional(),
   GEMINI_API_KEY: z.string().min(1).optional(),

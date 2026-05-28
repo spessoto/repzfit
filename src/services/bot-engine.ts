@@ -1110,7 +1110,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
 /**
  * Processa a transição de RESTING para EXECUTING_SET para um único aluno.
  * Chamado tanto inline (quando o aluno envia mensagem com timer vencido)
- * quanto pelo pg_cron via processExpiredRestTimers.
+ * quanto por polling (scheduler interno e/ou pg_cron) via processExpiredRestTimers.
  */
 async function fireExpiredRest(
   app: FastifyInstance,
@@ -1223,7 +1223,7 @@ async function fireExpiredRest(
 
 /**
  * Dispara timers de descanso vencidos.
- * Chamado pelo pg_cron a cada minuto via pg_net.
+ * Chamado por polling em segundo plano (scheduler interno ou pg_cron).
  * Retorna a quantidade de timers processados.
  */
 export async function processExpiredRestTimers(
