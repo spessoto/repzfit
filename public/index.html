@@ -1442,12 +1442,13 @@
         </div>
 
         <div class="card" style="margin-bottom: 16px">
-          <h3 style="margin-bottom: 10px; color: #374151">Treinos do Aluno</h3>
-          <div id="studentEditorWorkouts"></div>
-          <h4 style="margin-top: 18px; margin-bottom: 10px; color: #374151">
+          <h4 style="margin-bottom: 10px; color: #374151">
             Atribuir treino modelo
           </h4>
           <div id="studentEditorAvailableWorkouts"></div>
+
+          <h3 style="margin-bottom: 10px; color: #374151">Treinos do Aluno</h3>
+          <div id="studentEditorWorkouts"></div>
         </div>
 
         <div class="card">
@@ -3176,67 +3177,77 @@
               const exercises = treino.exercises || [];
 
               return `
-                <div class="workout-card" style="margin-bottom: 12px;">
-                  <div class="workout-meta">
-                    <span>${assignedLabel}</span>
-                  </div>
-                  <div class="editor-grid">
-                    <div class="form-group full">
-                      <label>Nome do treino</label>
-                      <input type="text" id="tab_w_name_${treino.id}" value="${escapeHtml(treino.name || "")}" />
+                <details class="workout-card workout-accordion" style="margin-bottom: 12px;">
+                  <summary>
+                    <span class="workout-summary-title">${escapeHtml(treino.name || "Treino")}</span>
+                    <span class="accordion-summary-right">
+                      <span class="workout-summary-validity">${assignedLabel}</span>
+                      <span class="accordion-chevron" aria-hidden="true"></span>
+                    </span>
+                  </summary>
+
+                  <div class="workout-accordion-body">
+                    <div class="workout-meta">
+                      <span>${assignedLabel}</span>
                     </div>
-                    <div class="form-group">
-                      <label>Data de início</label>
-                      <input type="date" id="tab_w_start_${treino.id}" value="${escapeHtml(treino.start_date || "")}" />
+                    <div class="editor-grid">
+                      <div class="form-group full">
+                        <label>Nome do treino</label>
+                        <input type="text" id="tab_w_name_${treino.id}" value="${escapeHtml(treino.name || "")}" />
+                      </div>
+                      <div class="form-group">
+                        <label>Data de início</label>
+                        <input type="date" id="tab_w_start_${treino.id}" value="${escapeHtml(treino.start_date || "")}" />
+                      </div>
                     </div>
-                  </div>
-                  <div style="margin-top: 10px; margin-bottom: 10px;">
-                    <h4 class="workout-section-title">Exercícios do treino</h4>
-                    ${
-                      exercises.length > 0
-                        ? exercises
-                            .map(
-                              (ex) => `
-                          <div class="exercise-row" style="margin-bottom:8px;">
-                            <p class="exercise-title">🏋️ ${escapeHtml(ex.name || "Exercício")}</p>
-                            <div class="exercise-fields-grid">
-                              <div class="exercise-field">
-                                <label>Séries</label>
-                                <input type="number" min="1" id="tw_sets_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+                    <div style="margin-top: 10px; margin-bottom: 10px;">
+                      <h4 class="workout-section-title">Exercícios do treino</h4>
+                      ${
+                        exercises.length > 0
+                          ? exercises
+                              .map(
+                                (ex) => `
+                            <div class="exercise-row" style="margin-bottom:8px;">
+                              <p class="exercise-title">🏋️ ${escapeHtml(ex.name || "Exercício")}</p>
+                              <div class="exercise-fields-grid">
+                                <div class="exercise-field">
+                                  <label>Séries</label>
+                                  <input type="number" min="1" id="tw_sets_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+                                </div>
+                                <div class="exercise-field">
+                                  <label>Repetições</label>
+                                  <input type="number" min="1" id="tw_reps_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
+                                </div>
+                                <div class="exercise-field">
+                                  <label>Peso (kg)</label>
+                                  <input type="number" min="0" step="0.1" id="tw_weight_${ex.workout_exercise_id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
+                                </div>
+                                <div class="exercise-field">
+                                  <label>Ordem</label>
+                                  <input type="number" min="0" id="tw_order_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.order_index || 0))}" />
+                                </div>
+                                <div class="exercise-field">
+                                  <label>Descanso (s)</label>
+                                  <input type="number" min="0" max="3600" step="5" id="tw_rest_${ex.workout_exercise_id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" placeholder="Ex: 60" />
+                                </div>
                               </div>
-                              <div class="exercise-field">
-                                <label>Repetições</label>
-                                <input type="number" min="1" id="tw_reps_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
-                              </div>
-                              <div class="exercise-field">
-                                <label>Peso (kg)</label>
-                                <input type="number" min="0" step="0.1" id="tw_weight_${ex.workout_exercise_id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
-                              </div>
-                              <div class="exercise-field">
-                                <label>Ordem</label>
-                                <input type="number" min="0" id="tw_order_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.order_index || 0))}" />
-                              </div>
-                              <div class="exercise-field">
-                                <label>Descanso (s)</label>
-                                <input type="number" min="0" max="3600" step="5" id="tw_rest_${ex.workout_exercise_id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" placeholder="Ex: 60" />
+                              <div class="exercise-actions">
+                                <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Salvar exercício</button>
+                                <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Excluir exercício</button>
                               </div>
                             </div>
-                            <div class="exercise-actions">
-                              <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Salvar exercício</button>
-                              <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Excluir exercício</button>
-                            </div>
-                          </div>
-                        `,
-                            )
-                            .join("")
-                        : '<p style="color:#6b7280;">Sem exercícios neste treino.</p>'
-                    }
+                          `,
+                              )
+                              .join("")
+                          : '<p style="color:#6b7280;">Sem exercícios neste treino.</p>'
+                      }
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                      <button class="btn btn-primary" onclick="salvarTreinoNaAba('${treino.id}')">Salvar</button>
+                      <button class="btn btn-danger" onclick="excluirTreinoNaAba('${treino.id}')">Excluir</button>
+                    </div>
                   </div>
-                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button class="btn btn-primary" onclick="salvarTreinoNaAba('${treino.id}')">Salvar</button>
-                    <button class="btn btn-danger" onclick="excluirTreinoNaAba('${treino.id}')">Excluir</button>
-                  </div>
-                </div>
+                </details>
               `;
             })
             .join("");
