@@ -52,6 +52,16 @@ export async function buildApp(options: BuildAppOptions = {}) {
 
   const allowedOrigins = getAllowedOrigins();
 
+  if (
+    env.NODE_ENV === "production" &&
+    (env.ADMIN_PANEL_PASSWORD === "123456" ||
+      env.ADMIN_TOKEN_SECRET === "repzfit_admin_secret_change_me_2026")
+  ) {
+    app.log.warn(
+      "Security warning: default admin credentials are enabled in production. Configure ADMIN_PANEL_PASSWORD and ADMIN_TOKEN_SECRET.",
+    );
+  }
+
   await app.register(sensible);
 
   await app.register(fastifyStatic, {

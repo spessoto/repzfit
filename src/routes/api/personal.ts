@@ -297,37 +297,14 @@ function normalizePersonalRow(row: any) {
   };
 }
 
-function isWorkoutRlsError(error: any): boolean {
-  const msg = String(error?.message ?? "").toLowerCase();
-  const code = String(error?.code ?? "");
-  return code === "42501" || msg.includes("row-level security");
-}
-
-function isStudentIdNotNullError(error: any): boolean {
-  const msg = String(error?.message ?? "").toLowerCase();
-  const code = String(error?.code ?? "");
+function normalizeSearchTerm(input: string): string {
   return (
-    code === "23502" ||
-    (msg.includes("null value") && msg.includes("student_id"))
+    input
+      .trim()
+      // Evita quebrar expressão PostgREST no .or(...)
+      .replace(/[,%()'\"\\]/g, " ")
+      .replace(/\s+/g, " ")
   );
-}
-
-async function ensureWorkoutBelongsToPersonalLegacy(
-  workoutId: string,
-  personalId: string,
-): Promise<boolean> {
-  const { data, error } = await supabaseAdmin
-    .from("workouts")
-    .select("id,students!inner(personal_id)")
-    .eq("id", workoutId)
-    .eq("students.personal_id", personalId)
-    .maybeSingle();
-
-  if (error) {
-    return false;
-  }
-
-  return Boolean(data?.id);
 }
 
 function extractBearerToken(request: FastifyRequest): string {
@@ -844,11 +821,15 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       limit?: string;
       search?: string;
     };
-    const page = parseInt(queryParams.page || "1", 10);
-    const limit = parseInt(queryParams.limit || "15", 10);
+    const parsedPage = parseInt(queryParams.page || "1", 10);
+    const parsedLimit = parseInt(queryParams.limit || "15", 10);
+    const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const limit = Number.isFinite(parsedLimit)
+      ? Math.min(Math.max(parsedLimit, 1), 100)
+      : 15;
     const from = (page - 1) * limit;
     const to = from + limit - 1;
-    const search = queryParams.search || "";
+    const search = normalizeSearchTerm(queryParams.search || "");
 
     // Query base
     let query = client
@@ -859,7 +840,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       );
 
     // Filtro de busca (se fornecido)
-    if (search) {
+    if (search.length >= 2) {
       query = query.or(
         `name.ilike.%${search}%,muscle_group.ilike.%${search}%,equipment.ilike.%${search}%`,
       );
