@@ -98,8 +98,12 @@ export async function getEvolutionQrCode(instanceName: string): Promise<{
   )) as Record<string, unknown>;
 
   // Evolution API returns 'code' field with the base64 QR code image
-  const qrCodeBase64 = typeof payload.code === "string" ? payload.code : 
-                       typeof payload.base64 === "string" ? payload.base64 : undefined;
+  const qrCodeBase64 =
+    typeof payload.code === "string"
+      ? payload.code
+      : typeof payload.base64 === "string"
+        ? payload.base64
+        : undefined;
 
   return {
     qrcode: typeof payload.qrcode === "string" ? payload.qrcode : undefined,
