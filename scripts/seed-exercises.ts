@@ -4,20 +4,7 @@ async function seedExercises() {
   try {
     console.log("🌱 Populando banco com exercícios de exemplo...\n");
 
-    // Buscar o personal_id do primeiro personal
-    const { data: personals, error: personalError } = await supabaseAdmin
-      .from("personals")
-      .select("id")
-      .limit(1);
-
-    if (personalError || !personals || personals.length === 0) {
-      console.error("❌ Nenhum personal trainer encontrado no banco!");
-      console.log("   Crie um usuário primeiro antes de importar exercícios.");
-      return;
-    }
-
-    const personalId = personals[0].id;
-    console.log(`📝 Adicionando exercícios para personal_id: ${personalId}\n`);
+    console.log("📝 Adicionando exercícios na biblioteca compartilhada\n");
 
     const exercises = [
       // PEITO
@@ -313,10 +300,10 @@ async function seedExercises() {
       },
     ];
 
-    // Adicionar personal_id a todos os exercícios
+    // Inserir como exercícios compartilhados para todos os personals.
     const exercisesWithPersonal = exercises.map((ex) => ({
       ...ex,
-      personal_id: personalId,
+      personal_id: null,
     }));
 
     console.log(`🔄 Inserindo ${exercisesWithPersonal.length} exercícios...\n`);

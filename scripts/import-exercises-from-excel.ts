@@ -40,48 +40,9 @@ async function importExercises() {
       console.log(Object.keys(data[0]));
     }
 
-    // Agora vamos processar os dados
-    // Primeiro, vou buscar o ID do personal (assumindo que existe apenas 1)
-    const { data: personals, error: personalError } = await supabase
-      .from("personals")
-      .select("id");
-
-    if (personalError) {
-      console.error("❌ Erro ao buscar personal:", personalError);
-      throw new Error(`Erro ao buscar personal: ${personalError.message}`);
-    }
-
-    if (!personals || personals.length === 0) {
-      console.log(
-        "⚠️  Nenhum personal encontrado. Criando um personal padrão...",
-      );
-
-      const { data: newPersonal, error: createError } = await supabase
-        .from("personals")
-        .insert({
-          name: "Admin",
-          email: "admin@repzfit.com",
-        })
-        .select()
-        .single();
-
-      if (createError || !newPersonal) {
-        throw new Error("Não foi possível criar personal padrão");
-      }
-
-      const personalId = newPersonal.id;
-      console.log(`👤 Personal criado com ID: ${personalId}`);
-    } else {
-      const personalId = personals[0].id;
-      console.log(`👤 Personal ID: ${personalId}`);
-    }
-
-    const personalId =
-      personals && personals.length > 0 ? personals[0].id : null;
-
-    if (!personalId) {
-      throw new Error("Não foi possível obter ID do personal");
-    }
+    console.log(
+      "🧩 Importando para biblioteca compartilhada (personal_id = null)",
+    );
 
     // Mapear os dados do Excel para o formato esperado
     const exercises = (data as any[])
@@ -103,7 +64,7 @@ async function importExercises() {
         }
 
         return {
-          personal_id: personalId,
+          personal_id: null,
           name: name.toString().trim(),
           muscle_group: muscleGroup.toString().trim(),
           equipment: equipment.toString().trim(),
@@ -120,7 +81,7 @@ async function importExercises() {
     const { error: deleteError } = await supabase
       .from("exercises")
       .delete()
-      .eq("personal_id", personalId);
+      .is("personal_id", null);
 
     if (deleteError) {
       console.error("❌ Erro ao deletar exercícios antigos:", deleteError);

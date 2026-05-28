@@ -27,20 +27,7 @@ async function importExercises() {
 
     console.log(`✅ ${data.length} exercícios encontrados no Excel\n`);
 
-    // Buscar o personal_id do primeiro personal (para importação inicial)
-    const { data: personals, error: personalError } = await supabaseAdmin
-      .from("personals")
-      .select("id")
-      .limit(1);
-
-    if (personalError || !personals || personals.length === 0) {
-      console.error("❌ Nenhum personal trainer encontrado no banco!");
-      console.log("   Crie um usuário primeiro antes de importar exercícios.");
-      return;
-    }
-
-    const personalId = personals[0].id;
-    console.log(`📝 Importando exercícios para personal_id: ${personalId}\n`);
+    console.log("📝 Importando exercícios para biblioteca compartilhada\n");
 
     // Processar e inserir exercícios
     const exercises = data
@@ -70,7 +57,7 @@ async function importExercises() {
         }
 
         return {
-          personal_id: personalId,
+          personal_id: null,
           name: name || "Exercício sem nome",
           muscle_group: muscleGroup || null,
           equipment: equipment || null,
