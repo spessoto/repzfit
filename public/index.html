@@ -506,7 +506,7 @@
 
       .exercise-fields-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 10px;
       }
 
@@ -534,6 +534,11 @@
         margin-top: 10px;
         display: flex;
         justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .exercise-actions .btn {
+        min-width: 92px;
       }
 
       .workout-section-title {
@@ -558,6 +563,42 @@
         border: 1px solid #e0e7ff;
         border-radius: 999px;
         padding: 4px 10px;
+      }
+
+      .workout-accordion {
+        margin-bottom: 14px;
+      }
+
+      .workout-accordion > summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .workout-accordion > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .workout-summary-title {
+        font-weight: 700;
+        color: #1f2937;
+      }
+
+      .workout-summary-validity {
+        font-size: 12px;
+        color: #64748b;
+        background: #eef2ff;
+        border: 1px solid #e0e7ff;
+        border-radius: 999px;
+        padding: 4px 10px;
+        white-space: nowrap;
+      }
+
+      .workout-accordion-body {
+        margin-top: 12px;
       }
 
       @media (max-width: 768px) {
@@ -1908,71 +1949,87 @@
         root.innerHTML = workouts
           .map((workout) => {
             const exercises = workout.workout_exercises || [];
+            const displayValidUntil = workout.assignment_valid_until
+              ? new Date(workout.assignment_valid_until).toLocaleDateString(
+                  "pt-BR",
+                )
+              : "Sem validade";
             return `
-              <div class="workout-card">
-                <div class="workout-meta">
-                  <span>ID treino: ${escapeHtml(workout.id)}</span>
-                </div>
-                <div class="editor-grid">
-                  <div class="form-group full">
-                    <label>Nome do treino</label>
-                    <input type="text" id="w_name_${workout.id}" value="${escapeHtml(workout.name || "")}" />
-                  </div>
-                  <div class="form-group">
-                    <label>Data base do treino</label>
-                    <input type="date" id="w_start_${workout.id}" value="${escapeHtml(workout.start_date || "")}" />
-                  </div>
-                  <div class="form-group">
-                    <label>Validade para este aluno</label>
-                    <input type="date" id="w_until_${workout.id}" value="${escapeHtml(workout.assignment_valid_until || "")}" />
-                  </div>
-                </div>
-                <button class="btn btn-primary" onclick="salvarTreinoAluno('${workout.id}')">Salvar treino</button>
-                <button class="btn btn-secondary" style="margin-left:8px;" onclick="desvincularTreinoDoAluno('${workout.id}')">Desvincular do aluno</button>
+              <details class="workout-card workout-accordion">
+                <summary>
+                  <span class="workout-summary-title">${escapeHtml(workout.name || "Treino")}</span>
+                  <span class="workout-summary-validity">Validade: ${escapeHtml(displayValidUntil)}</span>
+                </summary>
 
-                <div style="margin-top: 10px;">
-                  <h4 class="workout-section-title">Exercícios</h4>
-                  ${
-                    exercises.length > 0
-                      ? exercises
-                          .sort((a, b) => a.order_index - b.order_index)
-                          .map((ex) => {
-                            const exData = Array.isArray(ex.exercises)
-                              ? ex.exercises[0]
-                              : ex.exercises;
-                            return `
-                            <div class="exercise-row">
-                              <p class="exercise-title">🏋️ ${escapeHtml(exData?.name || "Exercício")}</p>
-                              <div class="exercise-fields-grid">
-                                <div class="exercise-field">
-                                  <label for="we_sets_${ex.id}">Séries</label>
-                                  <input type="number" min="1" id="we_sets_${ex.id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+                <div class="workout-accordion-body">
+                  <div class="workout-meta">
+                    <span>ID treino: ${escapeHtml(workout.id)}</span>
+                  </div>
+                  <div class="editor-grid">
+                    <div class="form-group full">
+                      <label>Nome do treino</label>
+                      <input type="text" id="w_name_${workout.id}" value="${escapeHtml(workout.name || "")}" />
+                    </div>
+                    <div class="form-group">
+                      <label>Data base do treino</label>
+                      <input type="date" id="w_start_${workout.id}" value="${escapeHtml(workout.start_date || "")}" />
+                    </div>
+                    <div class="form-group">
+                      <label>Validade para este aluno</label>
+                      <input type="date" id="w_until_${workout.id}" value="${escapeHtml(workout.assignment_valid_until || "")}" />
+                    </div>
+                  </div>
+                  <button class="btn btn-primary" onclick="salvarTreinoAluno('${workout.id}')">Salvar treino</button>
+                  <button class="btn btn-secondary" style="margin-left:8px;" onclick="desvincularTreinoDoAluno('${workout.id}')">Desvincular do aluno</button>
+
+                  <div style="margin-top: 10px;">
+                    <h4 class="workout-section-title">Exercícios</h4>
+                    ${
+                      exercises.length > 0
+                        ? exercises
+                            .sort((a, b) => a.order_index - b.order_index)
+                            .map((ex) => {
+                              const exData = Array.isArray(ex.exercises)
+                                ? ex.exercises[0]
+                                : ex.exercises;
+                              return `
+                              <div class="exercise-row">
+                                <p class="exercise-title">🏋️ ${escapeHtml(exData?.name || "Exercício")}</p>
+                                <div class="exercise-fields-grid">
+                                  <div class="exercise-field">
+                                    <label for="we_sets_${ex.id}">Séries</label>
+                                    <input type="number" min="1" id="we_sets_${ex.id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+                                  </div>
+                                  <div class="exercise-field">
+                                    <label for="we_reps_${ex.id}">Repetições</label>
+                                    <input type="number" min="1" id="we_reps_${ex.id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
+                                  </div>
+                                  <div class="exercise-field">
+                                    <label for="we_weight_${ex.id}">Peso (kg)</label>
+                                    <input type="number" min="0" step="0.1" id="we_weight_${ex.id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
+                                  </div>
+                                  <div class="exercise-field">
+                                    <label for="we_rest_${ex.id}">Descanso (s)</label>
+                                    <input type="number" min="0" step="1" id="we_rest_${ex.id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" />
+                                  </div>
+                                  <div class="exercise-field">
+                                    <label for="we_order_${ex.id}">Ordem no treino</label>
+                                    <input type="number" min="0" id="we_order_${ex.id}" value="${escapeHtml(String(ex.order_index || 0))}" />
+                                  </div>
                                 </div>
-                                <div class="exercise-field">
-                                  <label for="we_reps_${ex.id}">Repetições</label>
-                                  <input type="number" min="1" id="we_reps_${ex.id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
-                                </div>
-                                <div class="exercise-field">
-                                  <label for="we_weight_${ex.id}">Peso (kg)</label>
-                                  <input type="number" min="0" step="0.1" id="we_weight_${ex.id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
-                                </div>
-                                <div class="exercise-field">
-                                  <label for="we_order_${ex.id}">Ordem no treino</label>
-                                  <input type="number" min="0" id="we_order_${ex.id}" value="${escapeHtml(String(ex.order_index || 0))}" />
+                                <div class="exercise-actions">
+                                  <button class="btn btn-primary" onclick="salvarExercicioTreino('${workout.id}','${ex.id}')">Salvar</button>
+                                  <button class="btn btn-danger" onclick="excluirExercicioTreino('${workout.id}','${ex.id}')">Excluir</button>
                                 </div>
                               </div>
-                              <div class="exercise-actions">
-                                <button class="btn btn-secondary" onclick="salvarExercicioTreino('${workout.id}','${ex.id}')">Salvar exercício</button>
-                                <button class="btn btn-danger" onclick="excluirExercicioTreino('${workout.id}','${ex.id}')">Excluir exercício</button>
-                              </div>
-                            </div>
-                          `;
-                          })
-                          .join("")
-                      : '<p style="color:#6b7280;">Sem exercícios neste treino.</p>'
-                  }
+                            `;
+                            })
+                            .join("")
+                        : '<p style="color:#6b7280;">Sem exercícios neste treino.</p>'
+                    }
+                  </div>
                 </div>
-              </div>
+              </details>
             `;
           })
           .join("");
@@ -2167,6 +2224,14 @@
             order_index: Number(
               document.getElementById(`we_order_${workoutExerciseId}`).value,
             ),
+            rest_seconds:
+              document.getElementById(`we_rest_${workoutExerciseId}`).value ===
+              ""
+                ? null
+                : Number(
+                    document.getElementById(`we_rest_${workoutExerciseId}`)
+                      .value,
+                  ),
           };
 
           const response = await fetch(
