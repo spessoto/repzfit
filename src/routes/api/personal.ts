@@ -174,6 +174,87 @@ const PERSONAL_SELECT_FULL =
   "id,name,email,evolution_instance_name,phone,crf_registration,created_at";
 const PERSONAL_SELECT_BASE = "id,name,email,evolution_instance_name,created_at";
 
+function buildCompletedSessionSummaryFromLogs(logs: any[]): string | null {
+  if (!Array.isArray(logs) || logs.length === 0) {
+    return null;
+  }
+
+  const byExercise = new Map<
+    string,
+    { name: string; order: number; sets: any[] }
+  >();
+
+  for (const log of logs) {
+    const workoutExerciseId = String(log?.workout_exercise_id ?? "");
+    if (!workoutExerciseId) {
+      continue;
+    }
+
+    const workoutExercise = Array.isArray(log?.workout_exercises)
+      ? log.workout_exercises[0]
+      : log?.workout_exercises;
+    const exerciseRow = Array.isArray(workoutExercise?.exercises)
+      ? workoutExercise.exercises[0]
+      : workoutExercise?.exercises;
+    const exerciseName = String(exerciseRow?.name ?? "Exercício");
+    const exerciseOrder = Number(workoutExercise?.order_index ?? 0);
+
+    if (!byExercise.has(workoutExerciseId)) {
+      byExercise.set(workoutExerciseId, {
+        name: exerciseName,
+        order: exerciseOrder,
+        sets: [],
+      });
+    }
+
+    byExercise.get(workoutExerciseId)!.sets.push(log);
+  }
+
+  const exercises = Array.from(byExercise.values())
+    .map((exercise) => ({
+      ...exercise,
+      sets: exercise.sets
+        .slice()
+        .sort(
+          (a, b) => Number(a?.set_number ?? 0) - Number(b?.set_number ?? 0),
+        ),
+    }))
+    .sort((a, b) => a.order - b.order);
+
+  if (exercises.length === 0) {
+    return null;
+  }
+
+  const today = new Date().toLocaleDateString("pt-BR");
+  const lines: string[] = [`📊 *EXTRATO DO TREINO — ${today}*`, ""];
+
+  exercises.forEach((exercise, index) => {
+    lines.push(`*${index + 1}. ${exercise.name}*`);
+    for (const setLog of exercise.sets) {
+      const repsDone = Number(setLog?.reps_done ?? 0);
+      const weightUsed = Number(setLog?.weight_used ?? 0);
+      const rpeScore = Number(setLog?.rpe_score ?? 0);
+      lines.push(
+        `   Série ${setLog?.set_number}: ${repsDone} reps × ${weightUsed}kg | RPE ${rpeScore}`,
+      );
+    }
+    lines.push("");
+  });
+
+  const totalSets = exercises.reduce(
+    (acc, exercise) => acc + exercise.sets.length,
+    0,
+  );
+  const totalExercises = exercises.length;
+  lines.push(
+    `✅ ${totalExercises} exercício${
+      totalExercises !== 1 ? "s" : ""
+    } | ${totalSets} série${totalSets !== 1 ? "s" : ""} completadas`,
+  );
+
+  return lines.join("\n").trimEnd();
+}
+
 function isMissingStudentFieldError(error: any): boolean {
   const msg = String(error?.message ?? "").toLowerCase();
   const code = String(error?.code ?? "");
@@ -650,7 +731,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     let sessionsResult: any = await client
       .from("daily_sessions")
       .select(
-        "id,date,status,created_at,updated_at,summary,workout_id,workouts(name)",
+        "id,date,status,created_at,updated_at,summary,workout_id,workouts(name),set_logs(set_number,reps_done,weight_used,rpe_score,workout_exercise_id,workout_exercises(order_index,exercises(name)))",
       )
       .eq("student_id", id)
       .eq("status", "completed")
@@ -684,18 +765,24 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       available_workouts: (availableWorkouts ?? []).filter(
         (workout: any) => !assignedWorkoutIds.includes(workout.id),
       ),
-      completed_sessions: (sessions ?? []).map((s: any) => ({
-        id: s.id,
-        date: s.date,
-        status: s.status,
-        created_at: s.created_at,
-        updated_at: s.updated_at,
-        summary: s.summary ?? null,
-        workout_id: s.workout_id,
-        workout_name: Array.isArray(s.workouts)
-          ? s.workouts[0]?.name
-          : s.workouts?.name,
-      })),
+      completed_sessions: (sessions ?? []).map((s: any) => {
+        const runtimeSummary = buildCompletedSessionSummaryFromLogs(
+          (s?.set_logs ?? []) as any[],
+        );
+
+        return {
+          id: s.id,
+          date: s.date,
+          status: s.status,
+          created_at: s.created_at,
+          updated_at: s.updated_at,
+          summary: runtimeSummary ?? s.summary ?? null,
+          workout_id: s.workout_id,
+          workout_name: Array.isArray(s.workouts)
+            ? s.workouts[0]?.name
+            : s.workouts?.name,
+        };
+      }),
     };
   });
 
