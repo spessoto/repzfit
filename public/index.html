@@ -741,7 +741,29 @@
         </div>
         <div class="form-group">
           <label>Senha</label>
-          <input type="password" id="loginPassword" placeholder="••••••••" />
+          <div style="position: relative">
+            <input
+              type="password"
+              id="loginPassword"
+              placeholder="••••••••"
+              style="padding-right: 95px"
+            />
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="toggleLoginPasswordBtn"
+              onclick="toggleLoginPasswordVisibility()"
+              style="
+                position: absolute;
+                right: 6px;
+                top: 6px;
+                padding: 6px 10px;
+                font-size: 12px;
+              "
+            >
+              👁️ Ver
+            </button>
+          </div>
         </div>
         <div id="loginError" class="alert alert-error hidden"></div>
         <button class="btn btn-primary" style="width: 100%" onclick="login()">
@@ -883,8 +905,10 @@
                   type="text"
                   id="exercicioNome"
                   placeholder="Ex: Supino Reto"
+                  oninput="buscarExerciciosSimilaresNome(this.value)"
                   required
                 />
+                <div id="exercicioSimilares" style="display: none"></div>
               </div>
 
               <div class="form-group">
@@ -953,6 +977,25 @@
 
             <div class="card">
               <h2>Meus Exercícios</h2>
+              <div class="form-group" style="margin-bottom: 12px">
+                <label>Buscar na biblioteca</label>
+                <div style="display: flex; gap: 8px; align-items: center">
+                  <span style="font-size: 18px" aria-hidden="true">🔍</span>
+                  <input
+                    type="text"
+                    id="exerciciosBusca"
+                    placeholder="Buscar por nome, grupo muscular ou equipamento"
+                    oninput="filtrarBibliotecaExercicios(this.value)"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onclick="limparBuscaExercicios()"
+                  >
+                    Limpar
+                  </button>
+                </div>
+              </div>
               <table>
                 <thead>
                   <tr>
@@ -1470,6 +1513,10 @@
       let currentStudentAvailableWorkouts = [];
       let selectedWorkoutForStudent = null;
       let workoutSearchTimeout = null;
+      let loginPasswordVisible = false;
+      let exerciciosBuscaAtual = "";
+      let exerciciosFiltroTimeout = null;
+      let exerciciosSimilaresCache = [];
 
       // Função de escape HTML para prevenir XSS
       function escapeHtml(text) {
@@ -1640,6 +1687,16 @@
             "Erro ao conectar com o servidor. Tente novamente.",
           );
         }
+      }
+
+      function toggleLoginPasswordVisibility() {
+        const input = document.getElementById("loginPassword");
+        const btn = document.getElementById("toggleLoginPasswordBtn");
+        if (!input || !btn) return;
+
+        loginPasswordVisible = !loginPasswordVisible;
+        input.type = loginPasswordVisible ? "text" : "password";
+        btn.textContent = loginPasswordVisible ? "🙈 Ocultar" : "👁️ Ver";
       }
 
       // Event listeners para login com Enter
@@ -1901,7 +1958,10 @@
                       <td>${escapeHtml(a.name)}</td>
                       <td>${escapeHtml(a.whatsapp_number)}</td>
                       <td><span class="status-badge ${a.is_active ? "status-connected" : "status-disconnected"}">${a.is_active ? "Ativo" : "Inativo"}</span></td>
-                      <td><button class="btn btn-secondary" onclick="openAlunoEditor('${a.id}')">Editar</button></td>
+                      <td style="display:flex; gap:8px;">
+                        <button class="btn btn-secondary" onclick="openAlunoEditor('${a.id}')">Editar</button>
+                        <button class="btn btn-danger" onclick="excluirAluno('${a.id}', '${escapeHtml(a.name).replace(/'/g, "\\'")}')">Excluir</button>
+                      </td>
                   </tr>
               `,
             )
@@ -1919,6 +1979,49 @@
         document.getElementById("studentEditorDrawer").classList.add("open");
         document.getElementById("studentEditorAlert").innerHTML = "";
         await carregarDetalhesAlunoEditor(studentId);
+      }
+
+      async function excluirAluno(studentId, studentName) {
+        const nome = studentName || "este aluno";
+        if (!confirm(`Deseja realmente excluir ${nome}?`)) {
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/students/${studentId}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${authToken}`,
+              },
+            },
+          );
+
+          if (response.status === 401 || response.status === 403) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || "Erro ao excluir aluno");
+          }
+
+          if (currentEditingStudentId === studentId) {
+            closeAlunoEditor();
+          }
+
+          showAlert("alunosAlert", "Aluno excluído com sucesso!", "success");
+          await carregarAlunos();
+          await carregarAlunosSelect();
+        } catch (error) {
+          showAlert(
+            "alunosAlert",
+            error.message || "Erro ao excluir aluno",
+            "error",
+          );
+        }
       }
 
       function closeAlunoEditor(event) {
@@ -2712,6 +2815,12 @@
         document.getElementById("exercicioEquipamento").value = "";
         document.getElementById("exercicioTags").value = "";
         document.getElementById("exerciciosAlert").innerHTML = "";
+        const similares = document.getElementById("exercicioSimilares");
+        if (similares) {
+          similares.innerHTML = "";
+          similares.style.display = "none";
+        }
+        exerciciosSimilaresCache = [];
       }
 
       async function criarExercicio() {
@@ -2730,6 +2839,23 @@
             "error",
           );
           return;
+        }
+
+        const nomeNormalizado = nome.trim().toLowerCase();
+        const duplicadoExato = exerciciosSimilaresCache.find(
+          (ex) =>
+            String(ex.name || "")
+              .trim()
+              .toLowerCase() === nomeNormalizado,
+        );
+
+        if (duplicadoExato) {
+          const confirmar = confirm(
+            `Já existe um exercício muito parecido: "${duplicadoExato.name}". Deseja criar mesmo assim?`,
+          );
+          if (!confirmar) {
+            return;
+          }
         }
 
         // Processar tags: converter string em array
@@ -2789,8 +2915,12 @@
               ? "http://localhost:3333"
               : window.location.origin;
 
+          const searchParam = exerciciosBuscaAtual
+            ? `&search=${encodeURIComponent(exerciciosBuscaAtual)}`
+            : "";
+
           const response = await fetch(
-            `${apiUrl}/api/exercises?page=${pagina}&limit=15`,
+            `${apiUrl}/api/exercises?page=${pagina}&limit=15${searchParam}`,
             {
               headers: { Authorization: `Bearer ${authToken}` },
             },
@@ -2862,6 +2992,84 @@
           carregarExercicios(exerciciosPaginaAtual + 1);
         } else if (direcao === "prev" && exerciciosPaginaAtual > 1) {
           carregarExercicios(exerciciosPaginaAtual - 1);
+        }
+      }
+
+      function filtrarBibliotecaExercicios(valor) {
+        exerciciosBuscaAtual = (valor || "").trim();
+
+        if (exerciciosFiltroTimeout) {
+          clearTimeout(exerciciosFiltroTimeout);
+        }
+
+        exerciciosFiltroTimeout = setTimeout(() => {
+          carregarExercicios(1);
+        }, 250);
+      }
+
+      function limparBuscaExercicios() {
+        const input = document.getElementById("exerciciosBusca");
+        if (input) {
+          input.value = "";
+        }
+        exerciciosBuscaAtual = "";
+        carregarExercicios(1);
+      }
+
+      async function buscarExerciciosSimilaresNome(nome) {
+        const container = document.getElementById("exercicioSimilares");
+        if (!container) return;
+
+        const termo = (nome || "").trim();
+        if (termo.length < 3) {
+          container.style.display = "none";
+          container.innerHTML = "";
+          exerciciosSimilaresCache = [];
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/exercises?search=${encodeURIComponent(termo)}&limit=6`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const result = await response.json();
+          const similares = (result.data || []).slice(0, 6);
+          exerciciosSimilaresCache = similares;
+
+          if (similares.length === 0) {
+            container.style.display = "none";
+            container.innerHTML = "";
+            return;
+          }
+
+          container.style.display = "block";
+          container.innerHTML = `
+            <div style="margin-top: 8px; padding: 10px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px;">
+              <p style="margin-bottom: 8px; color: #9a3412; font-size: 13px;"><strong>Exercícios similares já cadastrados</strong></p>
+              ${similares
+                .map(
+                  (ex) => `
+                    <div style="padding: 6px 0; border-bottom: 1px dashed #fdba74;">
+                      <strong>${escapeHtml(ex.name || "Exercício")}</strong>
+                      <span style="color:#9a3412; font-size:12px;">${ex.muscle_group ? ` • ${escapeHtml(ex.muscle_group)}` : ""}</span>
+                    </div>
+                  `,
+                )
+                .join("")}
+            </div>
+          `;
+        } catch (error) {
+          container.style.display = "none";
+          container.innerHTML = "";
+          exerciciosSimilaresCache = [];
         }
       }
 
@@ -3175,6 +3383,7 @@
                   : "Treino modelo (sem atribuicao)";
 
               const exercises = treino.exercises || [];
+              const nextOrderIndex = exercises.length;
 
               return `
                 <details class="workout-card workout-accordion" style="margin-bottom: 12px;">
@@ -3241,6 +3450,48 @@
                               .join("")
                           : '<p style="color:#6b7280;">Sem exercícios neste treino.</p>'
                       }
+
+                      <div style="margin-top: 12px; padding: 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">
+                        <h5 style="margin-bottom: 8px; color: #334155;">Adicionar exercício ao treino</h5>
+                        <div class="form-group" style="position: relative; margin-bottom: 8px;">
+                          <label>Buscar exercício</label>
+                          <input
+                            type="text"
+                            id="tab_add_search_${treino.id}"
+                            placeholder="Digite ao menos 2 letras"
+                            autocomplete="off"
+                            oninput="buscarExerciciosParaTreinoEdicao('${treino.id}', this.value)"
+                            onfocus="buscarExerciciosParaTreinoEdicao('${treino.id}', this.value)"
+                          />
+                          <input type="hidden" id="tab_add_exercise_id_${treino.id}" />
+                          <div id="tab_add_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 8px;">
+                          <div class="form-group">
+                            <label>Séries</label>
+                            <input type="number" min="1" id="tab_add_sets_${treino.id}" value="3" />
+                          </div>
+                          <div class="form-group">
+                            <label>Repetições</label>
+                            <input type="number" min="1" id="tab_add_reps_${treino.id}" value="12" />
+                          </div>
+                          <div class="form-group">
+                            <label>Peso (kg)</label>
+                            <input type="number" min="0" step="0.1" id="tab_add_weight_${treino.id}" />
+                          </div>
+                          <div class="form-group">
+                            <label>Descanso (s)</label>
+                            <input type="number" min="0" max="3600" step="5" id="tab_add_rest_${treino.id}" value="60" />
+                          </div>
+                          <div class="form-group">
+                            <label>Ordem</label>
+                            <input type="number" min="0" id="tab_add_order_${treino.id}" value="${nextOrderIndex}" />
+                          </div>
+                        </div>
+
+                        <button class="btn btn-secondary" onclick="adicionarExercicioTreinoNaAba('${treino.id}')">Adicionar exercício</button>
+                      </div>
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                       <button class="btn btn-primary" onclick="salvarTreinoNaAba('${treino.id}')">Salvar</button>
@@ -3430,6 +3681,182 @@
         }
       }
 
+      const buscaExercicioEdicaoTimeout = {};
+
+      async function buscarExerciciosParaTreinoEdicao(workoutId, termo) {
+        const dropdown = document.getElementById(
+          `tab_add_dropdown_${workoutId}`,
+        );
+        if (!dropdown) return;
+
+        if (buscaExercicioEdicaoTimeout[workoutId]) {
+          clearTimeout(buscaExercicioEdicaoTimeout[workoutId]);
+        }
+
+        const query = (termo || "").trim();
+        if (query.length < 2) {
+          dropdown.style.display = "none";
+          return;
+        }
+
+        buscaExercicioEdicaoTimeout[workoutId] = setTimeout(async () => {
+          try {
+            const response = await fetch(
+              `${getApiBaseUrl()}/api/exercises?search=${encodeURIComponent(query)}&limit=20`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            const exercicios = result.data || [];
+
+            if (exercicios.length === 0) {
+              dropdown.innerHTML =
+                '<div style="padding:10px;color:#6b7280;">Nenhum exercício encontrado.</div>';
+              dropdown.style.display = "block";
+              return;
+            }
+
+            dropdown.innerHTML = exercicios
+              .map(
+                (ex) => `
+                  <div
+                    class="autocomplete-item"
+                    onclick="selecionarExercicioParaTreinoEdicao('${workoutId}', '${escapeHtml(ex.id)}', '${escapeHtml(ex.name).replace(/'/g, "\\'")}')"
+                    style="padding:10px;cursor:pointer;border-bottom:1px solid #e5e7eb;"
+                    onmouseover="this.style.background='#f3f4f6'"
+                    onmouseout="this.style.background='white'"
+                  >
+                    <strong>${escapeHtml(ex.name)}</strong>
+                    ${ex.muscle_group ? `<br><small style="color:#6b7280;">${escapeHtml(ex.muscle_group)}</small>` : ""}
+                  </div>
+                `,
+              )
+              .join("");
+            dropdown.style.display = "block";
+          } catch (error) {
+            dropdown.style.display = "none";
+          }
+        }, 250);
+      }
+
+      function selecionarExercicioParaTreinoEdicao(
+        workoutId,
+        exerciseId,
+        exerciseName,
+      ) {
+        const hiddenInput = document.getElementById(
+          `tab_add_exercise_id_${workoutId}`,
+        );
+        const searchInput = document.getElementById(
+          `tab_add_search_${workoutId}`,
+        );
+        const dropdown = document.getElementById(
+          `tab_add_dropdown_${workoutId}`,
+        );
+        if (!hiddenInput || !searchInput || !dropdown) return;
+
+        hiddenInput.value = exerciseId;
+        searchInput.value = exerciseName;
+        dropdown.style.display = "none";
+      }
+
+      async function adicionarExercicioTreinoNaAba(workoutId) {
+        const exerciseId = document.getElementById(
+          `tab_add_exercise_id_${workoutId}`,
+        )?.value;
+        const targetSets = Number(
+          document.getElementById(`tab_add_sets_${workoutId}`)?.value || 0,
+        );
+        const targetReps = Number(
+          document.getElementById(`tab_add_reps_${workoutId}`)?.value || 0,
+        );
+        const orderIndex = Number(
+          document.getElementById(`tab_add_order_${workoutId}`)?.value || 0,
+        );
+
+        if (!exerciseId) {
+          showAlert(
+            "treinosAlert",
+            "Selecione um exercício para adicionar ao treino.",
+            "error",
+          );
+          return;
+        }
+
+        if (!targetSets || !targetReps || targetSets < 1 || targetReps < 1) {
+          showAlert(
+            "treinosAlert",
+            "Informe séries e repetições válidas.",
+            "error",
+          );
+          return;
+        }
+
+        const weightRaw = document.getElementById(
+          `tab_add_weight_${workoutId}`,
+        )?.value;
+        const restRaw = document.getElementById(
+          `tab_add_rest_${workoutId}`,
+        )?.value;
+
+        const payload = {
+          exercise_id: exerciseId,
+          target_sets: targetSets,
+          target_reps: targetReps,
+          target_weight: weightRaw === "" ? null : Number(weightRaw),
+          order_index: Number.isFinite(orderIndex) ? orderIndex : 0,
+          rest_seconds: restRaw === "" ? null : Number(restRaw),
+        };
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/workouts/${workoutId}/exercises`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify(payload),
+            },
+          );
+
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || "Erro ao adicionar exercício");
+          }
+
+          const searchInput = document.getElementById(
+            `tab_add_search_${workoutId}`,
+          );
+          const hiddenInput = document.getElementById(
+            `tab_add_exercise_id_${workoutId}`,
+          );
+          if (searchInput) searchInput.value = "";
+          if (hiddenInput) hiddenInput.value = "";
+
+          showAlert(
+            "treinosAlert",
+            "Exercício adicionado ao treino",
+            "success",
+          );
+          await carregarTreinosAluno();
+          if (currentEditingStudentId) {
+            await carregarDetalhesAlunoEditor(currentEditingStudentId);
+          }
+        } catch (error) {
+          showAlert(
+            "treinosAlert",
+            error.message || "Erro ao adicionar exercício",
+            "error",
+          );
+        }
+      }
+
       async function verificarStatusWhatsApp() {
         try {
           const apiUrl =
@@ -3543,11 +3970,27 @@
           const container = document.getElementById("qrCodeContainer");
           container.classList.remove("hidden");
 
-          if (data.base64) {
+          const normalizeQrImage = (value) => {
+            if (typeof value !== "string") return null;
+            const trimmed = value.trim();
+            if (!trimmed) return null;
+            if (trimmed.startsWith("data:image/")) return trimmed;
+            if (/^[A-Za-z0-9+/=\n\r]+$/.test(trimmed) && trimmed.length > 100) {
+              return `data:image/png;base64,${trimmed.replace(/\s+/g, "")}`;
+            }
+            return null;
+          };
+
+          const qrImage =
+            normalizeQrImage(data.base64) ||
+            normalizeQrImage(data.qrcode) ||
+            normalizeQrImage(data.code);
+
+          if (qrImage) {
             container.innerHTML = `
               <div style="margin-top: 20px;">
                 <h3>Escaneie o QR Code com seu WhatsApp</h3>
-                <img src="${data.base64}" alt="QR Code">
+                <img src="${qrImage}" alt="QR Code">
                 <p style="color: #6b7280;">Abra o WhatsApp > Aparelhos conectados > Conectar aparelho</p>
                 <p style="color: #6b7280; font-size: 12px; margin-top: 10px;">O QR Code expira em alguns segundos. Atualize se necessário.</p>
               </div>
@@ -3555,6 +3998,15 @@
 
             // Auto-refresh status after showing QR code
             setTimeout(() => verificarStatusWhatsApp(), 3000);
+          } else if (data.pairingCode || data.code) {
+            const pairingCode = data.pairingCode || data.code;
+            container.innerHTML = `
+              <div style="padding: 20px; background: #eff6ff; border-radius: 8px; margin-top: 15px;">
+                <h3 style="color: #1e40af; margin-bottom: 10px;">Use o Código de Pareamento</h3>
+                <p style="color: #1e3a8a; font-size: 28px; letter-spacing: 2px; font-weight: 700; margin: 8px 0;">${pairingCode}</p>
+                <p style="color: #1e40af;">No WhatsApp, vá em Aparelhos conectados e informe este código.</p>
+              </div>
+            `;
           } else {
             container.innerHTML =
               '<p style="color: #ef4444;">Erro ao gerar QR Code. Tente novamente.</p>';

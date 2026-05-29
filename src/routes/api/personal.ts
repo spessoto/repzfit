@@ -5,6 +5,7 @@ import { z } from "zod";
 import { env } from "../../config/env.js";
 import { supabaseAdmin } from "../../config/supabase.js";
 import {
+  ensureEvolutionWebhook,
   ensureEvolutionInstance,
   getEvolutionConnectionStatus,
   getEvolutionQrCode,
@@ -362,44 +363,163 @@ async function getAuthenticatedPersonal(
   return { token, personalId: user.id, personal };
 }
 
+function buildDefaultEvolutionInstanceName(
+  personalId: string,
+  name?: string | null,
+) {
+  const namePart = (name || "personal")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+
+  const idPart = personalId.replace(/-/g, "").slice(0, 8);
+  const safeName = namePart || "personal";
+
+  return `${safeName}-${idPart}`;
+}
+
+async function resolveEvolutionInstanceName(
+  app: FastifyInstance,
+  personalId: string,
+  personal: { name?: string | null; evolution_instance_name?: string | null },
+) {
+  const current =
+    typeof personal.evolution_instance_name === "string"
+      ? personal.evolution_instance_name.trim()
+      : "";
+
+  if (current) return current;
+
+  const generated = buildDefaultEvolutionInstanceName(
+    personalId,
+    personal.name,
+  );
+
+  const { error } = await supabaseAdmin
+    .from("personals")
+    .update({ evolution_instance_name: generated })
+    .eq("id", personalId);
+
+  if (error) {
+    throw app.httpErrors.internalServerError(
+      `Failed to set evolution instance name: ${error.message}`,
+    );
+  }
+
+  personal.evolution_instance_name = generated;
+  return generated;
+}
+
+function buildWebhookUrlFromRequest(request: FastifyRequest): string {
+  const protoHeader = request.headers["x-forwarded-proto"];
+  const hostHeader =
+    request.headers["x-forwarded-host"] || request.headers.host;
+
+  const protocol =
+    typeof protoHeader === "string" && protoHeader.trim()
+      ? protoHeader.split(",")[0].trim()
+      : "https";
+
+  const host =
+    typeof hostHeader === "string" && hostHeader.trim()
+      ? hostHeader.split(",")[0].trim()
+      : null;
+
+  if (host) {
+    return `${protocol}://${host}/webhooks/evolution`;
+  }
+
+  // Fallback safe default for production.
+  return "https://app.repz.fit/webhooks/evolution";
+}
+
+async function ensureEvolutionWebhookForRequest(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  instanceName: string,
+) {
+  const webhookUrl = buildWebhookUrlFromRequest(request);
+
+  try {
+    await ensureEvolutionWebhook(instanceName, webhookUrl);
+  } catch (error) {
+    app.log.warn(
+      { error, instanceName, webhookUrl },
+      "Failed to auto-configure Evolution webhook",
+    );
+  }
+}
+
 export async function registerPersonalApiRoutes(app: FastifyInstance) {
   app.get("/personal/connection/qrcode", async (request) => {
-    const { personal } = await getAuthenticatedPersonal(app, request);
+    const { personal, personalId } = await getAuthenticatedPersonal(
+      app,
+      request,
+    );
 
-    await ensureEvolutionInstance(personal.evolution_instance_name);
-    const qr = await getEvolutionQrCode(personal.evolution_instance_name);
+    const instanceName = await resolveEvolutionInstanceName(
+      app,
+      personalId,
+      personal,
+    );
+
+    await ensureEvolutionInstance(instanceName);
+    await ensureEvolutionWebhookForRequest(app, request, instanceName);
+    const qr = await getEvolutionQrCode(instanceName);
 
     return {
-      instance: personal.evolution_instance_name,
+      instance: instanceName,
       ...qr,
     };
   });
 
   app.get("/personal/connection/status", async (request) => {
-    const { personal } = await getAuthenticatedPersonal(app, request);
-
-    const status = await getEvolutionConnectionStatus(
-      personal.evolution_instance_name,
+    const { personal, personalId } = await getAuthenticatedPersonal(
+      app,
+      request,
     );
+
+    const instanceName = await resolveEvolutionInstanceName(
+      app,
+      personalId,
+      personal,
+    );
+
+    await ensureEvolutionInstance(instanceName);
+    await ensureEvolutionWebhookForRequest(app, request, instanceName);
+
+    const status = await getEvolutionConnectionStatus(instanceName);
 
     // Evolution API returns {instance: {state: "open", instanceName: "..."}}
     // Extract the nested instance object
     const instanceData = (status as any).instance || status;
 
     return {
-      instance: personal.evolution_instance_name,
+      instance: instanceName,
       state: instanceData.state || instanceData.status,
       ...instanceData,
     };
   });
 
   app.delete("/personal/connection/logout", async (request) => {
-    const { personal } = await getAuthenticatedPersonal(app, request);
+    const { personal, personalId } = await getAuthenticatedPersonal(
+      app,
+      request,
+    );
 
-    await logoutEvolutionInstance(personal.evolution_instance_name);
+    const instanceName = await resolveEvolutionInstanceName(
+      app,
+      personalId,
+      personal,
+    );
+
+    await logoutEvolutionInstance(instanceName);
 
     return {
-      instance: personal.evolution_instance_name,
+      instance: instanceName,
       message: "Instance logged out successfully",
     };
   });
