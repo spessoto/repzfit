@@ -364,6 +364,42 @@ async function getWorkoutExercises(
  * Cria uma nova sessão de treino
  */
 async function createDailySession(studentId: string, workoutId: string) {
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data: activeSession, error: activeError } = await supabaseAdmin
+    .from("daily_sessions")
+    .select("id,date,workout_id,status")
+    .eq("student_id", studentId)
+    .eq("status", "started")
+    .maybeSingle();
+
+  if (activeError) {
+    throw activeError;
+  }
+
+  if (activeSession) {
+    if (
+      activeSession.date === today &&
+      activeSession.workout_id === workoutId
+    ) {
+      return activeSession.id as string;
+    }
+
+    if (activeSession.date !== today) {
+      await supabaseAdmin
+        .from("daily_sessions")
+        .update({ status: "abandoned" })
+        .eq("id", activeSession.id)
+        .eq("status", "started");
+    } else {
+      const conflict = new Error("ACTIVE_SESSION_CONFLICT");
+      (conflict as any).code = "ACTIVE_SESSION_CONFLICT";
+      (conflict as any).activeSessionId = activeSession.id;
+      (conflict as any).activeWorkoutId = activeSession.workout_id;
+      throw conflict;
+    }
+  }
+
   const { data, error } = await supabaseAdmin
     .from("daily_sessions")
     .insert({
@@ -376,17 +412,48 @@ async function createDailySession(studentId: string, workoutId: string) {
     .single();
 
   if (error) {
-    // Unique constraint violation: an active session already exists for this student.
-    // Can happen on duplicate webhook delivery — reuse the existing session instead.
+    // Unique constraint violation: another concurrent request created a session.
     if (error.code === "23505") {
       const { data: existing, error: fetchError } = await supabaseAdmin
         .from("daily_sessions")
-        .select("id")
+        .select("id,date,workout_id,status")
         .eq("student_id", studentId)
         .eq("status", "started")
         .maybeSingle();
       if (fetchError) throw fetchError;
-      if (existing) return existing.id as string;
+      if (existing) {
+        if (existing.date === today && existing.workout_id === workoutId) {
+          return existing.id as string;
+        }
+
+        if (existing.date !== today) {
+          await supabaseAdmin
+            .from("daily_sessions")
+            .update({ status: "abandoned" })
+            .eq("id", existing.id)
+            .eq("status", "started");
+
+          const retry = await supabaseAdmin
+            .from("daily_sessions")
+            .insert({
+              student_id: studentId,
+              workout_id: workoutId,
+              status: "started",
+              date: today,
+            })
+            .select("id")
+            .single();
+
+          if (retry.error) throw retry.error;
+          return retry.data.id;
+        }
+
+        const conflict = new Error("ACTIVE_SESSION_CONFLICT");
+        (conflict as any).code = "ACTIVE_SESSION_CONFLICT";
+        (conflict as any).activeSessionId = existing.id;
+        (conflict as any).activeWorkoutId = existing.workout_id;
+        throw conflict;
+      }
     }
     throw error;
   }
@@ -425,6 +492,14 @@ async function saveSetLog(params: {
  * Busca todos os sets de uma sessão e monta o extrato de treino
  */
 async function buildWorkoutSummary(sessionId: string): Promise<string> {
+  const { data: sessionRow, error: sessionError } = await supabaseAdmin
+    .from("daily_sessions")
+    .select("date,workout_id,status")
+    .eq("id", sessionId)
+    .maybeSingle();
+
+  if (sessionError || !sessionRow) return "";
+
   const { data: logs, error } = await supabaseAdmin
     .from("set_logs")
     .select(
@@ -464,7 +539,9 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
     (a, b) => a.order - b.order,
   );
 
-  const today = new Date().toLocaleDateString("pt-BR");
+  const today = new Date(`${sessionRow.date}T00:00:00`).toLocaleDateString(
+    "pt-BR",
+  );
   const lines: string[] = [`📊 *EXTRATO DO TREINO — ${today}*`, ""];
 
   sorted.forEach((ex, i) => {
@@ -573,6 +650,7 @@ type SessionTrackingData = {
   type: "tracking";
   mode: "monitored_free" | "unmonitored" | null;
   tracking_mode: "per_rep" | "per_exercise" | "per_workout" | "none" | null;
+  session_date: string | null;
   all_ids: string[];
   remaining_ids: string[];
   done: Array<{ id: string; name: string; exec_order: number }>;
@@ -596,7 +674,9 @@ function buildPersonalReport(
   tracking: SessionTrackingData | null,
   monitoredSummary: string,
 ): string {
-  const today = new Date().toLocaleDateString("pt-BR");
+  const today = tracking?.session_date
+    ? new Date(`${tracking.session_date}T00:00:00`).toLocaleDateString("pt-BR")
+    : new Date().toLocaleDateString("pt-BR");
   const trackingMode = tracking?.tracking_mode ?? "per_rep";
 
   const modeLabel: Record<string, string> = {
@@ -974,7 +1054,29 @@ export async function processIncomingMessage(input: IncomingMessage) {
       }
 
       // Criar sessão de treino
-      const sessionId = await createDailySession(student.id, workout.id);
+      let sessionId: string;
+      try {
+        sessionId = await createDailySession(student.id, workout.id);
+      } catch (error) {
+        if ((error as any)?.code === "ACTIVE_SESSION_CONFLICT") {
+          await sendTextMessage({
+            instanceName: input.instance,
+            number: whatsapp,
+            text: "Você já tem um treino ativo para hoje. Finalize ou cancele a sessão atual antes de iniciar outro treino para evitar mistura de informações.",
+          });
+          await updateState(whatsapp, {
+            current_state: "IDLE",
+            current_session_id: null,
+            current_workout_exercise_id: null,
+            current_set_number: 1,
+            last_input_attempt: null,
+            rest_end_at: null,
+          });
+          return;
+        }
+        throw error;
+      }
+      const sessionDate = new Date().toISOString().split("T")[0];
 
       // Carregar modo de acompanhamento configurado pelo personal
       const trackingMode = await getStudentWorkoutTrackingMode(
@@ -990,6 +1092,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
             ? "monitored_free"
             : "unmonitored",
         tracking_mode: trackingMode,
+        session_date: sessionDate,
         all_ids: exercises.map((e) => e.id),
         remaining_ids: exercises.map((e) => e.id),
         done: [],
@@ -1384,6 +1487,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         type: "tracking",
         mode: "unmonitored",
         tracking_mode: "per_workout",
+        session_date: null,
         all_ids: [],
         remaining_ids: [],
         done: [],

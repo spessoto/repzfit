@@ -6,9 +6,47 @@ const CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
 const ABANDON_AFTER_HOURS = 4;
 
 export async function runSessionCleanup(app: FastifyInstance) {
+  const today = new Date().toISOString().split("T")[0];
   const threshold = new Date(
     Date.now() - ABANDON_AFTER_HOURS * 60 * 60 * 1000,
   ).toISOString();
+
+  const { data: oldSessions, error: oldSessionsError } = await supabaseAdmin
+    .from("daily_sessions")
+    .select("id,student_id")
+    .eq("status", "started")
+    .lt("date", today);
+
+  if (oldSessionsError) {
+    app.log.error(oldSessionsError, "Failed to query old active sessions");
+  }
+
+  for (const session of oldSessions ?? []) {
+    const { error: sessionError } = await supabaseAdmin
+      .from("daily_sessions")
+      .update({ status: "abandoned" })
+      .eq("id", session.id)
+      .eq("status", "started");
+
+    if (sessionError) {
+      app.log.error(
+        { sessionId: session.id, sessionError },
+        "Failed to abandon old session",
+      );
+      continue;
+    }
+
+    await supabaseAdmin
+      .from("bot_state")
+      .update({
+        current_state: "IDLE",
+        current_session_id: null,
+        current_workout_exercise_id: null,
+        current_set_number: 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("current_session_id", session.id);
+  }
 
   const { data: staleStates, error } = await supabaseAdmin
     .from("bot_state")
