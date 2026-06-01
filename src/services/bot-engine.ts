@@ -488,9 +488,91 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
   return lines.join("\n").trimEnd();
 }
 
+/**
+ * Lê o tracking_mode configurado pelo personal para o par aluno+treino.
+ * Retorna 'per_rep' como fallback (compatibilidade retroativa).
+ */
+async function getStudentWorkoutTrackingMode(
+  studentId: string,
+  workoutId: string,
+): Promise<"per_rep" | "per_exercise" | "per_workout" | "none"> {
+  const { data } = await supabaseAdmin
+    .from("student_workouts")
+    .select("tracking_mode")
+    .eq("student_id", studentId)
+    .eq("workout_id", workoutId)
+    .maybeSingle();
+
+  const mode = (data as any)?.tracking_mode;
+  if (
+    mode === "per_rep" ||
+    mode === "per_exercise" ||
+    mode === "per_workout" ||
+    mode === "none"
+  ) {
+    return mode;
+  }
+  return "per_rep";
+}
+
+/**
+ * Monta extrato simples com lista de exercícios concluídos (sem dados de série).
+ * Usado pelos modos per_workout e none.
+ */
+function buildSimpleExerciseList(
+  tracking: SessionTrackingData,
+  overallRpe?: number,
+): string {
+  const today = new Date().toLocaleDateString("pt-BR");
+  const sorted = [...(tracking.done ?? [])].sort(
+    (a, b) => a.exec_order - b.exec_order,
+  );
+
+  const lines: string[] = [`📋 *EXERCÍCIOS REALIZADOS — ${today}*`, ""];
+
+  if (sorted.length === 0) {
+    lines.push("Nenhum exercício registrado.");
+  } else {
+    for (const ex of sorted) {
+      lines.push(`✅ ${ex.exec_order}. ${ex.name}`);
+    }
+  }
+
+  lines.push("");
+  if (overallRpe !== undefined) {
+    lines.push(
+      `Total: ${sorted.length} exercício${sorted.length !== 1 ? "s" : ""} | Esforço geral: ${overallRpe}/10`,
+    );
+  } else {
+    lines.push(
+      `Total: ${sorted.length} exercício${sorted.length !== 1 ? "s" : ""} concluído${sorted.length !== 1 ? "s" : ""}`,
+    );
+  }
+
+  return lines.join("\n").trimEnd();
+}
+
+/**
+ * Monta o menu de seleção de exercícios, sempre com [0] Encerrar treino no final.
+ */
+function buildExerciseSelectionMenu(
+  tracking: SessionTrackingData,
+  headerText: string,
+): string {
+  const list = tracking.remaining_ids
+    .map((id, i) => {
+      const det = tracking.exercise_details[id];
+      return `${i + 1}️⃣ *${det.name}*${det.muscle ? ` (${det.muscle})` : ""} — ${det.sets}×${det.reps}`;
+    })
+    .join("\n");
+
+  return `${headerText}\n\n${list}\n0️⃣ *[Encerrar treino]*\n\nResponda com o *número*.`;
+}
+
 type SessionTrackingData = {
   type: "tracking";
   mode: "monitored_free" | "unmonitored" | null;
+  tracking_mode: "per_rep" | "per_exercise" | "per_workout" | "none" | null;
   all_ids: string[];
   remaining_ids: string[];
   done: Array<{ id: string; name: string; exec_order: number }>;
@@ -515,36 +597,46 @@ function buildPersonalReport(
   monitoredSummary: string,
 ): string {
   const today = new Date().toLocaleDateString("pt-BR");
-  const mode = tracking?.mode ?? "monitored_free";
+  const trackingMode = tracking?.tracking_mode ?? "per_rep";
+
+  const modeLabel: Record<string, string> = {
+    per_rep: "Série por série",
+    per_exercise: "A cada exercício",
+    per_workout: "A cada treino (RPE geral)",
+    none: "Sem acompanhamento",
+  };
+
   const lines: string[] = [
     `📊 *RELATÓRIO DE TREINO — ${studentName}*`,
     `📅 ${today}`,
-    `🎯 Modalidade: ${
-      mode === "unmonitored"
-        ? "Livre (não monitorado)"
-        : "Monitorado série por série"
-    }`,
+    `🎯 Modo: ${modeLabel[trackingMode] ?? "Monitorado"}`,
     "",
   ];
 
-  if (tracking?.done?.length) {
-    lines.push("*Ordem de execução escolhida pelo aluno:*");
-    const sorted = [...tracking.done].sort(
-      (a, b) => a.exec_order - b.exec_order,
-    );
-    for (const ex of sorted) {
-      lines.push(`  ${ex.exec_order}. ${ex.name}`);
+  if (trackingMode === "none" || trackingMode === "per_workout") {
+    if (tracking) {
+      lines.push(buildSimpleExerciseList(tracking));
     }
-  } else if (tracking?.all_ids?.length) {
-    lines.push("*Exercícios do treino (ordem padrão):*");
-    for (let i = 0; i < tracking.all_ids.length; i++) {
-      const det = tracking.exercise_details[tracking.all_ids[i]];
-      if (det) lines.push(`  ${i + 1}. ${det.name}`);
+  } else {
+    // per_rep ou per_exercise — mostrar exercícios e sets/detalhes
+    if (tracking?.done?.length) {
+      lines.push("*Ordem de execução:*");
+      const sorted = [...tracking.done].sort(
+        (a, b) => a.exec_order - b.exec_order,
+      );
+      for (const ex of sorted) {
+        lines.push(`  ${ex.exec_order}. ${ex.name}`);
+      }
+    } else if (tracking?.all_ids?.length) {
+      lines.push("*Exercícios do treino (ordem padrão):*");
+      for (let i = 0; i < tracking.all_ids.length; i++) {
+        const det = tracking.exercise_details[tracking.all_ids[i]];
+        if (det) lines.push(`  ${i + 1}. ${det.name}`);
+      }
     }
-  }
-
-  if (mode === "monitored_free" && monitoredSummary) {
-    lines.push("", monitoredSummary);
+    if (monitoredSummary) {
+      lines.push("", monitoredSummary);
+    }
   }
 
   return lines.join("\n");
@@ -884,18 +976,20 @@ export async function processIncomingMessage(input: IncomingMessage) {
       // Criar sessão de treino
       const sessionId = await createDailySession(student.id, workout.id);
 
-      // Montar lista de exercícios para exibir ao aluno
-      const exerciseListText = exercises
-        .map(
-          (ex, i) =>
-            `${i + 1}. *${ex.exercise_name}*${ex.muscle_group ? ` (${ex.muscle_group})` : ""} — ${ex.target_sets}×${ex.target_reps}${ex.target_weight ? ` com ${ex.target_weight}kg` : ""}`,
-        )
-        .join("\n");
+      // Carregar modo de acompanhamento configurado pelo personal
+      const trackingMode = await getStudentWorkoutTrackingMode(
+        student.id,
+        workout.id,
+      );
 
       // Inicializar tracking de ordem de execução na sessão
       const trackingData: SessionTrackingData = {
         type: "tracking",
-        mode: null,
+        mode:
+          trackingMode === "per_rep" || trackingMode === "per_exercise"
+            ? "monitored_free"
+            : "unmonitored",
+        tracking_mode: trackingMode,
         all_ids: exercises.map((e) => e.id),
         remaining_ids: exercises.map((e) => e.id),
         done: [],
@@ -922,16 +1016,21 @@ export async function processIncomingMessage(input: IncomingMessage) {
         .eq("id", sessionId);
 
       await updateState(whatsapp, {
-        current_state: "AWAITING_MONITORING_CHOICE",
+        current_state: "AWAITING_EXERCISE_ORDER_SELECTION",
         current_session_id: sessionId,
         last_input_attempt: null,
         rest_end_at: null,
       });
 
+      const menuText = buildExerciseSelectionMenu(
+        trackingData,
+        `🏋️ *${workout.name}*\n\n*Escolha por qual exercício quer começar:*`,
+      );
+
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: `🏋️ *${workout.name}*\n\n${exerciseListText}\n\n---\nGostaria de monitorar o treino em *tempo real* (série por série)?\n\n1️⃣ *Sim* — Acompanho cada série e registro tudo\n2️⃣ *Não* — Me avise quando finalizar`,
+        text: menuText,
       });
       return;
     }
@@ -1075,22 +1174,80 @@ export async function processIncomingMessage(input: IncomingMessage) {
     }
 
     const selectedNumber = parseInt(effectiveInput.trim(), 10);
+
+    // Opção 0 = Encerrar treino
+    if (selectedNumber === 0) {
+      const trackingMode = tracking.tracking_mode ?? "per_rep";
+      if (trackingMode === "per_workout") {
+        // Pedir RPE geral do treino
+        await updateState(whatsapp, {
+          current_state: "COLLECTING_SESSION_RPE",
+          last_input_attempt: null,
+        });
+        await sendTextMessage({
+          instanceName: input.instance,
+          number: whatsapp,
+          text: "Treino encerrado! Antes de finalizar, qual foi a dificuldade geral do treino?\n\nResponda com um número de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - Máximo 🔥",
+        });
+        return;
+      }
+
+      // per_rep, per_exercise ou none: finalizar com extrato imediato
+      const extrato = buildSimpleExerciseList(tracking);
+      const congratsMessage = await safeCoachReply(
+        input.app,
+        `O aluno ${student.name} encerrou o treino antecipadamente. Parabenize pelo esforço de forma breve (1-2 linhas).`,
+        `Treino encerrado! Ótimo esforço hoje, ${student.name}! Continue assim! 💪`,
+      );
+
+      const personalReport = buildPersonalReport(student.name, tracking, "");
+      await completeSession(sessionId, personalReport);
+
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: `🎉 ${congratsMessage}`,
+      });
+
+      if (trackingMode !== "none" || tracking.done.length > 0) {
+        await sendTextMessage({
+          instanceName: input.instance,
+          number: whatsapp,
+          text: extrato,
+        });
+      }
+
+      await sendReportToPersonal({
+        app: input.app,
+        instanceName: input.instance,
+        personalId: student.personal_id,
+        studentName: student.name,
+        tracking,
+        monitoredSummary: "",
+      });
+
+      await updateState(whatsapp, {
+        current_state: "IDLE",
+        current_session_id: null,
+        current_workout_exercise_id: null,
+        current_set_number: 1,
+        last_input_attempt: null,
+      });
+      return;
+    }
+
     if (
       Number.isNaN(selectedNumber) ||
       selectedNumber < 1 ||
       selectedNumber > tracking.remaining_ids.length
     ) {
-      const remainingList = tracking.remaining_ids
-        .map((id, i) => {
-          const det = tracking!.exercise_details[id];
-          return `${i + 1}️⃣ *${det.name}*${det.muscle ? ` (${det.muscle})` : ""} — ${det.sets}×${det.reps}`;
-        })
-        .join("\n");
-
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: `Responda com o número do exercício (1 a ${tracking.remaining_ids.length}):\n\n${remainingList}`,
+        text: buildExerciseSelectionMenu(
+          tracking,
+          `Responda com o número do exercício (1 a ${tracking.remaining_ids.length}) ou 0 para encerrar:`,
+        ),
       });
       return;
     }
@@ -1123,7 +1280,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: `🔥 *${det.name}*\n${formatExerciseDetails(selectedExercise)}\n\nVamos começar a primeira série! Quando terminar, me manda *feito* ✅`,
+      text: `🔥 *${det.name}*\n${formatExerciseDetails(selectedExercise)}\n\nVamos começar! Quando terminar a série, me manda *feito* ✅`,
     });
     return;
   }
@@ -1194,8 +1351,215 @@ export async function processIncomingMessage(input: IncomingMessage) {
   }
 
   // Estado: EXECUTING_SET
+  // Estado: COLLECTING_SESSION_RPE (modo per_workout — coleta RPE geral ao final)
+  if (state.current_state === "COLLECTING_SESSION_RPE") {
+    const rpe = parseInt(effectiveInput.trim(), 10);
+
+    if (Number.isNaN(rpe) || rpe < 1 || rpe > 10) {
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: "Me manda um número de 1 a 10 para registrar a dificuldade do treino! 😊",
+      });
+      return;
+    }
+
+    const sessionId = state.current_session_id;
+
+    let sessionTracking: SessionTrackingData | null = null;
+    if (sessionId) {
+      const { data: sr } = await supabaseAdmin
+        .from("daily_sessions")
+        .select("summary")
+        .eq("id", sessionId)
+        .maybeSingle();
+      try {
+        const parsed = JSON.parse((sr as any)?.summary ?? "null");
+        if (parsed?.type === "tracking") sessionTracking = parsed;
+      } catch {}
+    }
+
+    const extrato = buildSimpleExerciseList(
+      sessionTracking ?? {
+        type: "tracking",
+        mode: "unmonitored",
+        tracking_mode: "per_workout",
+        all_ids: [],
+        remaining_ids: [],
+        done: [],
+        exercise_details: {},
+      },
+      rpe,
+    );
+
+    const personalReport = buildPersonalReport(
+      student.name,
+      sessionTracking,
+      extrato,
+    );
+
+    if (sessionId) {
+      await completeSession(sessionId, personalReport);
+    }
+
+    const congratsMessage = await safeCoachReply(
+      input.app,
+      `O aluno ${student.name} acabou de completar o treino! Parabenize de forma entusiasmada e motivadora (2-3 linhas). Celebre a conquista!`,
+      "Parabéns! Treino concluído com sucesso. Você mandou muito bem hoje! 🔥💪",
+    );
+
+    await sendTextMessage({
+      instanceName: input.instance,
+      number: whatsapp,
+      text: `🎉 TREINO CONCLUÍDO!\n\n${congratsMessage}`,
+    });
+
+    await sendTextMessage({
+      instanceName: input.instance,
+      number: whatsapp,
+      text: extrato,
+    });
+
+    await sendReportToPersonal({
+      app: input.app,
+      instanceName: input.instance,
+      personalId: student.personal_id,
+      studentName: student.name,
+      tracking: sessionTracking,
+      monitoredSummary: extrato,
+    });
+
+    await updateState(whatsapp, {
+      current_state: "IDLE",
+      current_session_id: null,
+      current_workout_exercise_id: null,
+      current_set_number: 1,
+      last_input_attempt: null,
+    });
+    return;
+  }
+
+  // Estado: EXECUTING_SET
   if (state.current_state === "EXECUTING_SET") {
     if (isSetDoneIntent(effectiveInput)) {
+      const sessionId = state.current_session_id;
+
+      // Carregar tracking para saber o modo
+      let exerciseTracking: SessionTrackingData | null = null;
+      if (sessionId) {
+        const { data: sr } = await supabaseAdmin
+          .from("daily_sessions")
+          .select("summary")
+          .eq("id", sessionId)
+          .maybeSingle();
+        try {
+          const parsed = JSON.parse((sr as any)?.summary ?? "null");
+          if (parsed?.type === "tracking") exerciseTracking = parsed;
+        } catch {}
+      }
+
+      const trackingMode = exerciseTracking?.tracking_mode ?? "per_rep";
+
+      if (trackingMode === "none" || trackingMode === "per_workout") {
+        // Nesses modos não coletamos reps/peso/RPE por série
+        // Marcar exercício atual como concluído no tracking e voltar ao menu
+        const currentExId = state.current_workout_exercise_id;
+        if (exerciseTracking && currentExId) {
+          const exName =
+            exerciseTracking.exercise_details[currentExId]?.name ?? "Exercício";
+          const done = exerciseTracking.done ?? [];
+          done.push({
+            id: currentExId,
+            name: exName,
+            exec_order: done.length + 1,
+          });
+          exerciseTracking.done = done;
+          exerciseTracking.remaining_ids =
+            exerciseTracking.remaining_ids.filter((id) => id !== currentExId);
+
+          await supabaseAdmin
+            .from("daily_sessions")
+            .update({ summary: JSON.stringify(exerciseTracking) })
+            .eq("id", sessionId!);
+
+          if (exerciseTracking.remaining_ids.length === 0) {
+            // Todos os exercícios concluídos
+            if (trackingMode === "per_workout") {
+              await updateState(whatsapp, {
+                current_state: "COLLECTING_SESSION_RPE",
+                current_workout_exercise_id: null,
+                current_set_number: 1,
+                last_input_attempt: null,
+              });
+              await sendTextMessage({
+                instanceName: input.instance,
+                number: whatsapp,
+                text: "💪 Todos os exercícios concluídos!\n\nQual foi a dificuldade geral do treino?\n\nResponda com um número de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - Máximo 🔥",
+              });
+            } else {
+              // none mode: finalizar sem RPE
+              const extrato = buildSimpleExerciseList(exerciseTracking);
+              const congratsMessage = await safeCoachReply(
+                input.app,
+                `O aluno ${student.name} acabou de completar o treino! Parabenize de forma entusiasmada e motivadora (2-3 linhas). Celebre a conquista!`,
+                `Parabéns! Treino concluído com sucesso, ${student.name}! Você mandou muito bem hoje! 🔥💪`,
+              );
+
+              const personalReport = buildPersonalReport(
+                student.name,
+                exerciseTracking,
+                "",
+              );
+              await completeSession(sessionId!, personalReport);
+
+              await sendTextMessage({
+                instanceName: input.instance,
+                number: whatsapp,
+                text: `🎉 TREINO CONCLUÍDO!\n\n${congratsMessage}`,
+              });
+              await sendTextMessage({
+                instanceName: input.instance,
+                number: whatsapp,
+                text: extrato,
+              });
+              await sendReportToPersonal({
+                app: input.app,
+                instanceName: input.instance,
+                personalId: student.personal_id,
+                studentName: student.name,
+                tracking: exerciseTracking,
+                monitoredSummary: "",
+              });
+              await updateState(whatsapp, {
+                current_state: "IDLE",
+                current_session_id: null,
+                current_workout_exercise_id: null,
+                current_set_number: 1,
+                last_input_attempt: null,
+              });
+            }
+          } else {
+            // Ainda há exercícios restantes — mostrar menu
+            await updateState(whatsapp, {
+              current_state: "AWAITING_EXERCISE_ORDER_SELECTION",
+              current_workout_exercise_id: null,
+              current_set_number: 1,
+              last_input_attempt: null,
+            });
+            await sendTextMessage({
+              instanceName: input.instance,
+              number: whatsapp,
+              text: buildExerciseSelectionMenu(
+                exerciseTracking,
+                `✅ *${exName}* concluído! 💪\n\n*Qual exercício quer fazer agora?*`,
+              ),
+            });
+          }
+        }
+        return;
+      }
+
+      // per_rep ou per_exercise: coletar reps/peso/RPE
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
@@ -1323,6 +1687,121 @@ export async function processIncomingMessage(input: IncomingMessage) {
         weightUsed: weight,
         rpeScore: rpe,
       });
+    }
+
+    // Para per_exercise: após gravar a série, verificar se é hora de encerrar o exercício
+    // (no modo per_exercise coletamos reps/peso/RPE por exercício, não por série)
+    let collectingTracking: SessionTrackingData | null = null;
+    if (state.current_session_id) {
+      const { data: ctRow } = await supabaseAdmin
+        .from("daily_sessions")
+        .select("summary")
+        .eq("id", state.current_session_id)
+        .maybeSingle();
+      try {
+        const parsed = JSON.parse((ctRow as any)?.summary ?? "null");
+        if (parsed?.type === "tracking") collectingTracking = parsed;
+      } catch {}
+    }
+
+    if ((collectingTracking?.tracking_mode ?? "per_rep") === "per_exercise") {
+      // Registrar exercício como concluído e mostrar menu de seleção
+      const exerciseName = (() => {
+        const exId = state.current_workout_exercise_id;
+        if (!exId || !collectingTracking) return "Exercício";
+        return collectingTracking.exercise_details[exId]?.name ?? "Exercício";
+      })();
+
+      if (collectingTracking && state.current_workout_exercise_id) {
+        const done = collectingTracking.done ?? [];
+        done.push({
+          id: state.current_workout_exercise_id,
+          name: exerciseName,
+          exec_order: done.length + 1,
+        });
+        collectingTracking.done = done;
+        collectingTracking.remaining_ids =
+          collectingTracking.remaining_ids.filter(
+            (id) => id !== state.current_workout_exercise_id,
+          );
+
+        if (collectingTracking.remaining_ids.length === 0) {
+          // Todos concluídos — buildWorkoutSummary mostra dados por exercício
+          let workoutSummary = "";
+          try {
+            workoutSummary = await buildWorkoutSummary(
+              state.current_session_id!,
+            );
+          } catch (err) {
+            input.app.log.error(
+              err,
+              "Failed to build workout summary (per_exercise)",
+            );
+          }
+
+          const finalReport = buildPersonalReport(
+            student.name,
+            collectingTracking,
+            workoutSummary,
+          );
+          await completeSession(state.current_session_id!, finalReport);
+
+          const congratsMessage = await safeCoachReply(
+            input.app,
+            `O aluno ${student.name} acabou de completar o treino! Parabenize de forma entusiasmada e motivadora (2-3 linhas). Celebre a conquista!`,
+            "Parabéns! Treino concluído com sucesso. Você mandou muito bem hoje! 🔥💪",
+          );
+
+          await sendTextMessage({
+            instanceName: input.instance,
+            number: whatsapp,
+            text: `🎉 TREINO CONCLUÍDO!\n\n${congratsMessage}`,
+          });
+          if (workoutSummary) {
+            await sendTextMessage({
+              instanceName: input.instance,
+              number: whatsapp,
+              text: workoutSummary,
+            });
+          }
+          await sendReportToPersonal({
+            app: input.app,
+            instanceName: input.instance,
+            personalId: student.personal_id,
+            studentName: student.name,
+            tracking: collectingTracking,
+            monitoredSummary: workoutSummary,
+          });
+          await updateState(whatsapp, {
+            current_state: "IDLE",
+            current_session_id: null,
+            current_workout_exercise_id: null,
+            current_set_number: 1,
+            last_input_attempt: null,
+          });
+        } else {
+          await supabaseAdmin
+            .from("daily_sessions")
+            .update({ summary: JSON.stringify(collectingTracking) })
+            .eq("id", state.current_session_id!);
+
+          await updateState(whatsapp, {
+            current_state: "AWAITING_EXERCISE_ORDER_SELECTION",
+            current_workout_exercise_id: null,
+            current_set_number: 1,
+            last_input_attempt: null,
+          });
+          await sendTextMessage({
+            instanceName: input.instance,
+            number: whatsapp,
+            text: buildExerciseSelectionMenu(
+              collectingTracking,
+              `✅ *${exerciseName}* concluído! Boa! 💪\n\n*Qual exercício quer fazer agora?*`,
+            ),
+          });
+        }
+      }
+      return;
     }
 
     // Verificar se precisa fazer mais séries
@@ -1484,13 +1963,6 @@ export async function processIncomingMessage(input: IncomingMessage) {
           .update({ summary: JSON.stringify(exerciseTracking) })
           .eq("id", state.current_session_id!);
 
-        const remainingList = remaining
-          .map((id, i) => {
-            const det = exerciseTracking!.exercise_details[id];
-            return `${i + 1}️⃣ *${det.name}*${det.muscle ? ` (${det.muscle})` : ""} — ${det.sets}×${det.reps}`;
-          })
-          .join("\n");
-
         await updateState(whatsapp, {
           current_state: "AWAITING_EXERCISE_ORDER_SELECTION",
           current_workout_exercise_id: null,
@@ -1501,7 +1973,10 @@ export async function processIncomingMessage(input: IncomingMessage) {
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: `✅ *${exerciseName}* concluído! Boa! 💪\n\n*Qual exercício quer fazer agora?*\n\n${remainingList}\n\nResponda com o *número*.`,
+          text: buildExerciseSelectionMenu(
+            exerciseTracking,
+            `✅ *${exerciseName}* concluído! Boa! 💪\n\n*Qual exercício quer fazer agora?*`,
+          ),
         });
         return;
       }

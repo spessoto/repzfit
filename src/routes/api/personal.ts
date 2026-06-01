@@ -120,10 +120,19 @@ const WorkoutPatchSchema = z
     message: "At least one field must be provided",
   });
 
+const TRACKING_MODE_VALUES = [
+  "per_rep",
+  "per_exercise",
+  "per_workout",
+  "none",
+] as const;
+type TrackingMode = (typeof TRACKING_MODE_VALUES)[number];
+
 const StudentWorkoutAssignSchema = z.object({
   valid_until: z
     .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.null(), z.literal("")])
     .optional(),
+  tracking_mode: z.enum(TRACKING_MODE_VALUES).optional(),
 });
 
 const StudentWorkoutPatchSchema = z
@@ -131,6 +140,7 @@ const StudentWorkoutPatchSchema = z
     valid_until: z
       .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.null(), z.literal("")])
       .optional(),
+    tracking_mode: z.enum(TRACKING_MODE_VALUES).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided",
@@ -789,7 +799,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data: assignments, error: workoutsError } = await client
       .from("student_workouts")
       .select(
-        "id,workout_id,student_id,start_date,valid_until,created_at,workouts(id,name,day_of_week,start_date,created_at,workout_exercises(id,exercise_id,target_sets,target_reps,target_weight,order_index,rest_seconds,exercises(id,name,description,muscle_group,equipment)))",
+        "id,workout_id,student_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,start_date,created_at,workout_exercises(id,exercise_id,target_sets,target_reps,target_weight,order_index,rest_seconds,exercises(id,name,description,muscle_group,equipment)))",
       )
       .eq("student_id", id)
       .order("created_at", { ascending: false });
@@ -808,6 +818,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         assignment_id: assignment.id,
         assignment_start_date: assignment.start_date,
         assignment_valid_until: assignment.valid_until,
+        assignment_tracking_mode: assignment.tracking_mode ?? "per_rep",
       };
     });
 
@@ -1306,17 +1317,21 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const validUntil =
       parsed.data.valid_until === "" ? null : (parsed.data.valid_until ?? null);
 
+    const upsertPayload: Record<string, unknown> = {
+      student_id: studentId,
+      workout_id: workoutId,
+      valid_until: validUntil,
+    };
+    if (parsed.data.tracking_mode) {
+      upsertPayload.tracking_mode = parsed.data.tracking_mode;
+    }
+
     const { data, error } = await client
       .from("student_workouts")
-      .upsert(
-        {
-          student_id: studentId,
-          workout_id: workoutId,
-          valid_until: validUntil,
-        },
-        { onConflict: "workout_id,student_id" },
+      .upsert(upsertPayload, { onConflict: "workout_id,student_id" })
+      .select(
+        "id,student_id,workout_id,start_date,valid_until,tracking_mode,created_at",
       )
-      .select("id,student_id,workout_id,start_date,valid_until,created_at")
       .single();
 
     if (error) {
@@ -1352,7 +1367,9 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .update(payload)
       .eq("student_id", studentId)
       .eq("workout_id", workoutId)
-      .select("id,student_id,workout_id,start_date,valid_until,created_at")
+      .select(
+        "id,student_id,workout_id,start_date,valid_until,tracking_mode,created_at",
+      )
       .maybeSingle();
 
     if (error) {
@@ -1484,7 +1501,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("student_workouts")
       .select(
-        "id,student_id,workout_id,start_date,valid_until,created_at,workouts(id,name,day_of_week,start_date,created_at,workout_exercises(id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,created_at))",
+        "id,student_id,workout_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,start_date,created_at,workout_exercises(id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,created_at))",
       )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
@@ -1502,6 +1519,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         ...(workout ?? {}),
         assignment_start_date: assignment.start_date,
         assignment_valid_until: assignment.valid_until,
+        assignment_tracking_mode: assignment.tracking_mode ?? "per_rep",
       };
     });
   });

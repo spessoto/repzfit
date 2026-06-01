@@ -2148,6 +2148,7 @@
                   "pt-BR",
                 )
               : "Sem validade";
+            const trackingMode = workout.assignment_tracking_mode || "per_rep";
             return `
               <details class="workout-card workout-accordion">
                 <summary>
@@ -2174,6 +2175,15 @@
                     <div class="form-group">
                       <label>Validade para este aluno</label>
                       <input type="date" id="w_until_${workout.id}" value="${escapeHtml(workout.assignment_valid_until || "")}" />
+                    </div>
+                    <div class="form-group full">
+                      <label>Modo de acompanhamento</label>
+                      <select id="w_tracking_${workout.id}">
+                        <option value="per_rep" ${trackingMode === "per_rep" ? "selected" : ""}>A cada repetição (série por série)</option>
+                        <option value="per_exercise" ${trackingMode === "per_exercise" ? "selected" : ""}>A cada exercício</option>
+                        <option value="per_workout" ${trackingMode === "per_workout" ? "selected" : ""}>A cada treino (RPE geral ao encerrar)</option>
+                        <option value="none" ${trackingMode === "none" ? "selected" : ""}>Sem acompanhamento</option>
+                      </select>
                     </div>
                   </div>
                   <button class="btn btn-primary" onclick="salvarTreinoAluno('${workout.id}')">Salvar treino</button>
@@ -2370,6 +2380,9 @@
           const assignmentPayload = {
             valid_until:
               document.getElementById(`w_until_${workoutId}`).value || null,
+            tracking_mode:
+              document.getElementById(`w_tracking_${workoutId}`)?.value ||
+              "per_rep",
           };
 
           const workoutResp = await fetch(
