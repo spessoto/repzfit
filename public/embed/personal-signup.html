@@ -421,11 +421,24 @@
           }
 
           showAlert(
-            "Cadastro realizado com sucesso. Você já pode fazer login na plataforma.",
+            "Conta criada com sucesso! Redirecionando para a plataforma...",
             "success",
           );
           form.reset();
           updatePasswordChecklist("");
+
+          // Redireciona para a plataforma com o e-mail pré-preenchido
+          setTimeout(() => {
+            const dest =
+              window.location.origin +
+              "/?email=" +
+              encodeURIComponent(payload.email);
+            if (window.top && window.top !== window) {
+              window.top.location.href = dest;
+            } else {
+              window.location.href = dest;
+            }
+          }, 1800);
         } catch (error) {
           showAlert(error.message || "Erro ao cadastrar.", "error");
         } finally {

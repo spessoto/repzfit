@@ -1743,6 +1743,16 @@
         loadApp();
       } else {
         document.getElementById("loginScreen").classList.remove("hidden");
+        // Pré-preenche e-mail se vier de cadastro no formulario embed
+        const _initParams = new URLSearchParams(window.location.search);
+        const _preEmail = _initParams.get("email");
+        if (_preEmail) {
+          const _emailInput = document.getElementById("loginEmail");
+          _emailInput.value = _preEmail;
+          document.getElementById("loginPassword").focus();
+          // Limpa o param da URL sem recarregar
+          history.replaceState(null, "", window.location.pathname);
+        }
       }
 
       // Função login precisa estar no escopo global para ser chamada pelo onclick
