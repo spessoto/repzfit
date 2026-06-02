@@ -15,6 +15,12 @@ const AdminPersonalCreateSchema = z.object({
   name: z.string().min(1).max(255).trim(),
   email: z.string().email().max(255).trim(),
   password: z.string().min(6).max(128),
+  phone: z
+    .string()
+    .min(8)
+    .max(30)
+    .regex(/^[0-9+\s()-]+$/)
+    .optional(),
   evolution_instance_name: z.string().min(1).max(255).trim().optional(),
 });
 
@@ -23,11 +29,43 @@ const AdminPersonalPatchSchema = z
     name: z.string().min(1).max(255).trim().optional(),
     email: z.string().email().max(255).trim().optional(),
     password: z.string().min(6).max(128).optional(),
+    phone: z
+      .union([
+        z
+          .string()
+          .min(8)
+          .max(30)
+          .regex(/^[0-9+\s()-]+$/),
+        z.literal(""),
+        z.null(),
+      ])
+      .optional(),
     evolution_instance_name: z.string().min(1).max(255).trim().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided",
   });
+
+const PersonalPublicSignupSchema = z.object({
+  name: z.string().min(1).max(255).trim(),
+  email: z.string().email().max(255).trim(),
+  whatsapp: z
+    .string()
+    .min(8)
+    .max(30)
+    .regex(/^[0-9+\s()-]+$/),
+  password: z.string().min(8).max(128),
+  source: z.string().max(120).trim().optional(),
+});
+
+const PersonalPasswordRecoverySchema = z.object({
+  email: z.string().email().max(255).trim(),
+  redirect_to: z.string().url().optional(),
+});
+
+const AdminPersonalSourceReportQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(365).optional(),
+});
 
 type AdminTokenPayload = {
   email: string;
@@ -117,7 +155,100 @@ function ensureAdminAuth(request: FastifyRequest) {
   return payload;
 }
 
+function isStrongPassword(password: string): boolean {
+  return (
+    /[a-z]/.test(password) &&
+    /[A-Z]/.test(password) &&
+    /[0-9]/.test(password) &&
+    /[^A-Za-z0-9]/.test(password)
+  );
+}
+
 export async function registerAdminApiRoutes(app: FastifyInstance) {
+  app.post("/public/personals/signup", async (request) => {
+    const parsed = PersonalPublicSignupSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    const input = parsed.data;
+
+    if (!isStrongPassword(input.password)) {
+      throw app.httpErrors.badRequest(
+        "Senha fraca. Use pelo menos 8 caracteres com letra maiúscula, minúscula, número e símbolo.",
+      );
+    }
+
+    const { data: authUserData, error: authError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email: input.email,
+        password: input.password,
+        email_confirm: true,
+      });
+
+    if (authError || !authUserData.user) {
+      throw app.httpErrors.badRequest(
+        authError?.message || "Não foi possível criar o usuário",
+      );
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("personals")
+      .insert({
+        id: authUserData.user.id,
+        name: input.name,
+        email: input.email,
+        phone: input.whatsapp,
+        signup_source: input.source || null,
+      })
+      .select("id,name,email,phone,evolution_instance_name,created_at")
+      .single();
+
+    if (error) {
+      await supabaseAdmin.auth.admin.deleteUser(authUserData.user.id);
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    app.log.info(
+      {
+        personalId: data.id,
+        email: data.email,
+        source: input.source || "embed",
+      },
+      "Public personal signup completed",
+    );
+
+    return {
+      message: "Cadastro realizado com sucesso",
+      personal: data,
+    };
+  });
+
+  app.post("/public/personals/password-recovery", async (request) => {
+    const parsed = PersonalPasswordRecoverySchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    const { email, redirect_to: redirectTo } = parsed.data;
+    const finalRedirectTo = redirectTo || env.PASSWORD_RECOVERY_REDIRECT_URL;
+
+    const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+      ...(finalRedirectTo ? { redirectTo: finalRedirectTo } : {}),
+    });
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    return {
+      message:
+        "Se o e-mail existir, você receberá um link para redefinir a senha.",
+    };
+  });
+
   app.post("/admin/login", async (request) => {
     const parsed = AdminLoginSchema.safeParse(request.body);
 
@@ -147,7 +278,7 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
 
     const { data, error } = await supabaseAdmin
       .from("personals")
-      .select("id,name,email,evolution_instance_name,created_at")
+      .select("id,name,email,phone,evolution_instance_name,created_at")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -187,11 +318,12 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
         id: authUserData.user.id,
         name: input.name,
         email: input.email,
+        ...(input.phone ? { phone: input.phone } : {}),
         ...(input.evolution_instance_name
           ? { evolution_instance_name: input.evolution_instance_name }
           : {}),
       })
-      .select("id,name,email,evolution_instance_name,created_at")
+      .select("id,name,email,phone,evolution_instance_name,created_at")
       .single();
 
     if (error) {
@@ -232,6 +364,9 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
     const patch: Record<string, unknown> = {};
     if (parsed.data.name !== undefined) patch.name = parsed.data.name;
     if (parsed.data.email !== undefined) patch.email = parsed.data.email;
+    if (parsed.data.phone !== undefined) {
+      patch.phone = parsed.data.phone === "" ? null : parsed.data.phone;
+    }
     if (parsed.data.evolution_instance_name !== undefined) {
       patch.evolution_instance_name = parsed.data.evolution_instance_name;
     }
@@ -249,7 +384,7 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
 
     const { data, error } = await supabaseAdmin
       .from("personals")
-      .select("id,name,email,evolution_instance_name,created_at")
+      .select("id,name,email,phone,evolution_instance_name,created_at")
       .eq("id", id)
       .maybeSingle();
 
@@ -262,5 +397,56 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
     }
 
     return data;
+  });
+
+  app.get("/admin/personals/source-report", async (request) => {
+    ensureAdminAuth(request);
+
+    const parsedQuery = AdminPersonalSourceReportQuerySchema.safeParse(
+      request.query,
+    );
+
+    if (!parsedQuery.success) {
+      throw app.httpErrors.badRequest(parsedQuery.error.message);
+    }
+
+    const days = parsedQuery.data.days ?? 30;
+    const fromDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 19);
+
+    const { data, error } = await supabaseAdmin
+      .from("personals")
+      .select("signup_source,created_at")
+      .gte("created_at", fromDate);
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    const buckets = new Map<string, { source: string; count: number }>();
+
+    for (const row of data ?? []) {
+      const source =
+        typeof row.signup_source === "string" && row.signup_source.trim()
+          ? row.signup_source.trim()
+          : "sem-origem";
+      const prev = buckets.get(source);
+      if (prev) {
+        prev.count += 1;
+      } else {
+        buckets.set(source, { source, count: 1 });
+      }
+    }
+
+    const report = Array.from(buckets.values()).sort(
+      (a, b) => b.count - a.count,
+    );
+
+    return {
+      days,
+      total_signups: (data ?? []).length,
+      sources: report,
+    };
   });
 }

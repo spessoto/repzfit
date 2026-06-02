@@ -816,6 +816,13 @@
             >
               Admin
             </button>
+            <button
+              id="adminSettingsTabButton"
+              class="tab hidden"
+              onclick="switchTab('adminSettings')"
+            >
+              Configurações
+            </button>
           </div>
 
           <div class="sidebar-user">
@@ -1309,6 +1316,14 @@
                   />
                 </div>
                 <div class="form-group">
+                  <label>WhatsApp</label>
+                  <input
+                    type="text"
+                    id="adminPersonalWhatsapp"
+                    placeholder="(11) 99999-9999"
+                  />
+                </div>
+                <div class="form-group">
                   <label>Senha inicial</label>
                   <input
                     type="password"
@@ -1344,6 +1359,7 @@
                   <tr>
                     <th>Nome</th>
                     <th>Email</th>
+                    <th>WhatsApp</th>
                     <th>Instance</th>
                     <th>Criado em</th>
                     <th>Ações</th>
@@ -1351,7 +1367,141 @@
                 </thead>
                 <tbody id="adminPersonalsBody">
                   <tr>
-                    <td colspan="5" style="text-align: center">
+                    <td colspan="6" style="text-align: center">
+                      Carregando...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="adminSettingsTab" class="tab-content">
+            <div class="card">
+              <h2>Configurações de Embed</h2>
+              <p style="color: #6b7280; margin-bottom: 14px">
+                Gere o código para incorporar o formulário de cadastro de
+                personal trainer em landing pages externas.
+              </p>
+
+              <div id="adminSettingsAlert"></div>
+
+              <div class="form-group">
+                <label>Identificador da origem do formulário</label>
+                <input
+                  type="text"
+                  id="adminEmbedSource"
+                  placeholder="Ex: lp-google-junho"
+                  oninput="generateAdminEmbedCode()"
+                />
+                <small style="color: #6b7280; font-size: 12px"
+                  >Use um identificador único para descobrir de qual landing
+                  veio cada cadastro.</small
+                >
+              </div>
+
+              <div class="form-group">
+                <label>URL de redirecionamento da recuperação de senha</label>
+                <input
+                  type="url"
+                  id="adminRecoveryRedirectUrl"
+                  placeholder="https://sua-landing.com/recuperacao-concluida"
+                  oninput="generateAdminEmbedCode()"
+                />
+                <small style="color: #6b7280; font-size: 12px"
+                  >Essa URL precisa estar permitida no Supabase (Auth URL
+                  Configuration).</small
+                >
+              </div>
+
+              <div class="form-group">
+                <label>Código para embeddar</label>
+                <textarea
+                  id="adminEmbedCode"
+                  readonly
+                  rows="6"
+                  style="font-family: &quot;Consolas&quot;, monospace"
+                ></textarea>
+              </div>
+
+              <div style="display: flex; gap: 10px; margin-bottom: 16px">
+                <button
+                  class="btn btn-secondary"
+                  onclick="generateAdminEmbedCode()"
+                >
+                  Atualizar código
+                </button>
+                <button class="btn btn-primary" onclick="copyAdminEmbedCode()">
+                  Copiar código (1 clique)
+                </button>
+              </div>
+
+              <div
+                style="
+                  background: #f9fafb;
+                  border: 1px solid #e5e7eb;
+                  border-radius: 10px;
+                  padding: 14px;
+                "
+              >
+                <h3 style="margin-bottom: 8px; color: #1f2937">
+                  Onde será usado
+                </h3>
+                <p style="color: #6b7280; margin-bottom: 8px">
+                  URL atual sugerida para publicação:
+                </p>
+                <p style="font-weight: 600; color: #111827" id="adminEmbedHost">
+                  -
+                </p>
+                <p style="color: #6b7280; margin-top: 8px; font-size: 13px">
+                  O valor de origem informado acima é enviado no cadastro para
+                  identificar em qual landing page o formulário foi usado.
+                </p>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Relatório de Cadastros por Origem</h2>
+              <p style="color: #6b7280; margin-bottom: 12px">
+                Veja de onde os cadastros de personal vieram para medir
+                performance das landing pages.
+              </p>
+
+              <div id="adminSourceReportAlert"></div>
+
+              <div style="display: flex; gap: 10px; align-items: end">
+                <div class="form-group" style="margin: 0; max-width: 180px">
+                  <label>Período (dias)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    id="adminReportDays"
+                    value="30"
+                  />
+                </div>
+                <button
+                  class="btn btn-secondary"
+                  onclick="carregarRelatorioOrigensAdmin()"
+                >
+                  Atualizar relatório
+                </button>
+              </div>
+
+              <p style="margin-top: 12px; color: #111827; font-weight: 600">
+                Total no período: <span id="adminSourceTotalSignups">-</span>
+              </p>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Origem</th>
+                    <th>Cadastros</th>
+                  </tr>
+                </thead>
+                <tbody id="adminSourceReportBody">
+                  <tr>
+                    <td colspan="2" style="text-align: center">
                       Carregando...
                     </td>
                   </tr>
@@ -1565,6 +1715,14 @@
         if (adminButton) {
           adminButton.classList.toggle("hidden", !enabled);
           adminButton.style.display = enabled ? "inline-block" : "none";
+        }
+
+        const adminSettingsButton = document.getElementById(
+          "adminSettingsTabButton",
+        );
+        if (adminSettingsButton) {
+          adminSettingsButton.classList.toggle("hidden", !enabled);
+          adminSettingsButton.style.display = enabled ? "inline-block" : "none";
         }
 
         const whatsappStatus = document.getElementById("headerWhatsAppStatus");
@@ -1864,6 +2022,7 @@
         document.getElementById("loginScreen").classList.add("hidden");
         document.getElementById("appScreen").classList.remove("hidden");
         document.getElementById("userName").textContent = "Admin Stagesix";
+        generateAdminEmbedCode();
         switchTab("admin");
         await carregarAdminPersonals();
       }
@@ -1890,6 +2049,10 @@
         if (tab === "exercicios") carregarExercicios();
         if (tab === "treinos") carregarTreinosAluno();
         if (tab === "admin") carregarAdminPersonals();
+        if (tab === "adminSettings") {
+          generateAdminEmbedCode();
+          carregarRelatorioOrigensAdmin();
+        }
         if (tab === "whatsapp") {
           verificarStatusWhatsApp();
         }
@@ -2675,7 +2838,7 @@
 
           if (!personals || personals.length === 0) {
             tbody.innerHTML =
-              '<tr><td colspan="5" style="text-align:center;color:#6b7280;">Nenhum personal cadastrado</td></tr>';
+              '<tr><td colspan="6" style="text-align:center;color:#6b7280;">Nenhum personal cadastrado</td></tr>';
             return;
           }
 
@@ -2688,6 +2851,7 @@
                 <tr>
                   <td><input type="text" id="admin_p_name_${p.id}" value="${escapeHtml(p.name || "")}" /></td>
                   <td><input type="email" id="admin_p_email_${p.id}" value="${escapeHtml(p.email || "")}" /></td>
+                  <td><input type="text" id="admin_p_phone_${p.id}" value="${escapeHtml(p.phone || "")}" /></td>
                   <td><input type="text" id="admin_p_instance_${p.id}" value="${escapeHtml(p.evolution_instance_name || "")}" /></td>
                   <td>${escapeHtml(createdAt)}</td>
                   <td>
@@ -2703,7 +2867,7 @@
         } catch (error) {
           console.error("Erro ao carregar personals do admin:", error);
           tbody.innerHTML =
-            '<tr><td colspan="5" style="text-align:center;color:#ef4444;">Erro ao carregar personals</td></tr>';
+            '<tr><td colspan="6" style="text-align:center;color:#ef4444;">Erro ao carregar personals</td></tr>';
         }
       }
 
@@ -2715,6 +2879,9 @@
           .getElementById("adminPersonalEmail")
           .value.trim()
           .toLowerCase();
+        const phone = document
+          .getElementById("adminPersonalWhatsapp")
+          .value.trim();
         const password = document.getElementById("adminPersonalSenha").value;
         const instance = document
           .getElementById("adminPersonalInstance")
@@ -2738,6 +2905,7 @@
                 name,
                 email,
                 password,
+                ...(phone ? { phone } : {}),
                 ...(instance ? { evolution_instance_name: instance } : {}),
               }),
             },
@@ -2752,6 +2920,7 @@
           showAlert("adminAlert", "Personal cadastrado com sucesso", "success");
           document.getElementById("adminPersonalNome").value = "";
           document.getElementById("adminPersonalEmail").value = "";
+          document.getElementById("adminPersonalWhatsapp").value = "";
           document.getElementById("adminPersonalSenha").value = "";
           document.getElementById("adminPersonalInstance").value = "";
           await carregarAdminPersonals();
@@ -2774,6 +2943,9 @@
           .getElementById(`admin_p_email_${personalId}`)
           .value.trim()
           .toLowerCase();
+        const phone = document
+          .getElementById(`admin_p_phone_${personalId}`)
+          .value.trim();
         const evolutionInstance = document
           .getElementById(`admin_p_instance_${personalId}`)
           .value.trim();
@@ -2784,6 +2956,7 @@
         const payload = {
           name,
           email,
+          phone,
           evolution_instance_name: evolutionInstance,
         };
 
@@ -2816,6 +2989,124 @@
           showAlert(
             "adminAlert",
             error.message || "Erro ao atualizar personal",
+            "error",
+          );
+        }
+      }
+
+      function generateAdminEmbedCode() {
+        const sourceInput = document.getElementById("adminEmbedSource");
+        const codeArea = document.getElementById("adminEmbedCode");
+        const hostEl = document.getElementById("adminEmbedHost");
+        const recoveryInput = document.getElementById(
+          "adminRecoveryRedirectUrl",
+        );
+        if (!sourceInput || !codeArea || !hostEl || !recoveryInput) return;
+
+        const source = (sourceInput.value || "landing-principal")
+          .trim()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-zA-Z0-9_-]/g, "-")
+          .toLowerCase();
+        if (!recoveryInput.value.trim()) {
+          recoveryInput.value = `${window.location.origin}/?password-reset=1`;
+        }
+        const recoveryRedirect = (recoveryInput.value || "").trim();
+
+        const base = getApiBaseUrl();
+        hostEl.textContent = `${base}/embed/personal-signup.html`;
+
+        const recoveryAttr = recoveryRedirect
+          ? ` data-recovery-redirect="${recoveryRedirect.replace(/"/g, "&quot;")}"`
+          : "";
+
+        const embedCode = `<script src="${base}/embed/personal-signup-embed.js" data-source="${source}"${recoveryAttr}><\\/script>`;
+        codeArea.value = embedCode;
+      }
+
+      async function copyAdminEmbedCode() {
+        const codeArea = document.getElementById("adminEmbedCode");
+        if (!codeArea || !codeArea.value) {
+          showAlert(
+            "adminSettingsAlert",
+            "Gere o código antes de copiar.",
+            "error",
+          );
+          return;
+        }
+
+        try {
+          await navigator.clipboard.writeText(codeArea.value);
+          showAlert(
+            "adminSettingsAlert",
+            "Código copiado para a área de transferência.",
+            "success",
+          );
+        } catch (error) {
+          codeArea.select();
+          document.execCommand("copy");
+          showAlert(
+            "adminSettingsAlert",
+            "Código copiado com fallback do navegador.",
+            "success",
+          );
+        }
+      }
+
+      async function carregarRelatorioOrigensAdmin() {
+        if (!adminToken) return;
+
+        const daysInput = document.getElementById("adminReportDays");
+        const tbody = document.getElementById("adminSourceReportBody");
+        const totalEl = document.getElementById("adminSourceTotalSignups");
+        if (!daysInput || !tbody || !totalEl) return;
+
+        const days = Number(daysInput.value || 30);
+        tbody.innerHTML =
+          '<tr><td colspan="2" style="text-align:center">Carregando...</td></tr>';
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/personals/source-report?days=${encodeURIComponent(days)}`,
+            {
+              headers: {
+                Authorization: `Bearer ${adminToken}`,
+              },
+            },
+          );
+
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            throw new Error(data.message || "Erro ao carregar relatório");
+          }
+
+          totalEl.textContent = String(data.total_signups ?? 0);
+
+          const sources = Array.isArray(data.sources) ? data.sources : [];
+          if (sources.length === 0) {
+            tbody.innerHTML =
+              '<tr><td colspan="2" style="text-align:center;color:#6b7280;">Sem cadastros no período</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = sources
+            .map(
+              (row) => `
+                <tr>
+                  <td>${escapeHtml(row.source || "sem-origem")}</td>
+                  <td>${escapeHtml(String(row.count || 0))}</td>
+                </tr>
+              `,
+            )
+            .join("");
+        } catch (error) {
+          totalEl.textContent = "-";
+          tbody.innerHTML =
+            '<tr><td colspan="2" style="text-align:center;color:#ef4444;">Erro ao carregar relatório</td></tr>';
+          showAlert(
+            "adminSourceReportAlert",
+            error.message || "Erro ao carregar relatório",
             "error",
           );
         }
