@@ -399,6 +399,45 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
     return data;
   });
 
+  app.delete("/admin/personals/:id", async (request) => {
+    ensureAdminAuth(request);
+
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+
+    // First fetch the personal to get the auth user id (same as row id in Supabase)
+    const { data: personal, error: fetchError } = await supabaseAdmin
+      .from("personals")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (fetchError) {
+      throw app.httpErrors.badRequest(fetchError.message);
+    }
+
+    if (!personal) {
+      throw app.httpErrors.notFound("Personal not found");
+    }
+
+    // Delete the row from personals table first
+    const { error: deleteRowError } = await supabaseAdmin
+      .from("personals")
+      .delete()
+      .eq("id", id);
+
+    if (deleteRowError) {
+      throw app.httpErrors.badRequest(deleteRowError.message);
+    }
+
+    // Delete the auth user (best-effort — ignore if already gone)
+    await supabaseAdmin.auth.admin.deleteUser(id);
+
+    return { success: true };
+  });
+
   app.get("/admin/personals/source-report", async (request) => {
     ensureAdminAuth(request);
 

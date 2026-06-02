@@ -814,7 +814,7 @@
               class="tab hidden"
               onclick="switchTab('admin')"
             >
-              Admin
+              Usuários
             </button>
             <button
               id="adminSettingsTabButton"
@@ -2858,6 +2858,7 @@
                     <div style="display:flex;gap:8px;">
                       <input type="password" id="admin_p_password_${p.id}" placeholder="Nova senha (opcional)" />
                       <button class="btn btn-secondary" onclick="salvarPersonalAdmin('${p.id}')">Salvar</button>
+                      <button class="btn" style="background:#fee2e2;color:#dc2626;white-space:nowrap;" onclick="excluirPersonalAdmin('${p.id}', '${escapeHtml(p.name || "")}')">Excluir</button>
                     </div>
                   </td>
                 </tr>
@@ -2989,6 +2990,50 @@
           showAlert(
             "adminAlert",
             error.message || "Erro ao atualizar personal",
+            "error",
+          );
+        }
+      }
+
+      async function excluirPersonalAdmin(personalId, personalName) {
+        if (!adminToken) return;
+
+        const confirmado = confirm(
+          `Tem certeza que deseja excluir o personal "${personalName}"?\nEssa ação não pode ser desfeita.`,
+        );
+        if (!confirmado) return;
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/personals/${personalId}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${adminToken}`,
+              },
+            },
+          );
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.message || `HTTP ${response.status}`);
+          }
+
+          showAlert(
+            "adminAlert",
+            `Personal "${personalName}" excluído com sucesso`,
+            "success",
+          );
+          await carregarAdminPersonals();
+        } catch (error) {
+          showAlert(
+            "adminAlert",
+            error.message || "Erro ao excluir personal",
             "error",
           );
         }
