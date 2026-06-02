@@ -7,17 +7,22 @@
     <style>
       :root {
         color-scheme: light;
-        --bg: #f3f5f8;
+        --bg: #f4f5f8;
         --card: #ffffff;
         --text: #1f2937;
         --muted: #6b7280;
-        --accent: #0f766e;
-        --accent-2: #065f46;
+        --brand-primary: #a656f7;
+        --brand-secondary: #764ba2;
+        --accent: #31cb6b;
+        --accent-2: #088764;
+        --focus: #667eea;
         --danger: #b91c1c;
         --danger-bg: #fee2e2;
         --ok: #166534;
         --ok-bg: #dcfce7;
         --border: #d1d5db;
+        --card-border: #ebedf2;
+        --card-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
       }
 
       * {
@@ -26,13 +31,12 @@
 
       body {
         margin: 0;
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: radial-gradient(
-          circle at 0% 0%,
-          #dbeafe 0%,
-          #f8fafc 45%,
-          #e2e8f0 100%
-        );
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          Cantarell, sans-serif;
+        background:
+          linear-gradient(140deg, rgba(166, 86, 247, 0.07) 0%, transparent 42%),
+          var(--bg);
         color: var(--text);
         min-height: 100vh;
       }
@@ -42,49 +46,70 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 18px;
+        padding: 22px;
       }
 
       .card {
         width: 100%;
-        max-width: 520px;
+        max-width: 560px;
         background: var(--card);
-        border: 1px solid #e5e7eb;
-        border-radius: 18px;
-        box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
-        padding: 22px;
+        border: 1px solid var(--card-border);
+        border-radius: 14px;
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+      }
+
+      .card-header {
+        background: linear-gradient(
+          135deg,
+          var(--brand-primary) 0%,
+          var(--brand-secondary) 100%
+        );
+        color: #ffffff;
+        padding: 20px 24px;
+      }
+
+      .card-body {
+        padding: 24px;
       }
 
       h1 {
-        margin: 0 0 8px;
+        margin: 0 0 6px;
         font-size: 24px;
+        line-height: 1.15;
       }
 
       .subtitle {
-        margin: 0 0 18px;
-        color: var(--muted);
+        margin: 0;
+        color: rgba(255, 255, 255, 0.9);
         font-size: 14px;
+      }
+
+      .form-group {
+        margin-bottom: 15px;
       }
 
       label {
         display: block;
-        margin: 12px 0 6px;
-        font-weight: 600;
+        margin-bottom: 5px;
+        color: #374151;
+        font-weight: 500;
         font-size: 14px;
       }
 
       input {
         width: 100%;
-        height: 42px;
+        height: 40px;
         padding: 10px 12px;
         border: 1px solid var(--border);
-        border-radius: 10px;
+        border-radius: 5px;
         font-size: 14px;
+        transition: border-color 0.2s ease;
       }
 
       input:focus {
-        outline: 2px solid #99f6e4;
-        border-color: var(--accent);
+        outline: none;
+        border-color: var(--focus);
       }
 
       .hint {
@@ -98,6 +123,11 @@
         padding-left: 18px;
         color: var(--muted);
         font-size: 12px;
+        background: #f9fafb;
+        border: 1px solid #eef0f4;
+        border-radius: 8px;
+        padding-top: 8px;
+        padding-bottom: 8px;
       }
 
       .password-list li {
@@ -116,12 +146,13 @@
 
       .btn {
         border: none;
-        border-radius: 10px;
+        border-radius: 5px;
         height: 42px;
-        padding: 0 14px;
+        padding: 0 16px;
         cursor: pointer;
-        font-weight: 700;
+        font-weight: 600;
         font-size: 14px;
+        transition: all 0.25s ease;
       }
 
       .btn-primary {
@@ -130,15 +161,30 @@
         flex: 1;
       }
 
+      .btn-primary:hover {
+        filter: brightness(1.04);
+        transform: translateY(-2px);
+      }
+
       .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+      }
+
+      .btn-secondary:hover {
         background: #e5e7eb;
-        color: #111827;
+      }
+
+      .btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.75;
+        transform: none;
       }
 
       .alert {
         margin-top: 12px;
-        border-radius: 10px;
-        padding: 10px 12px;
+        border-radius: 5px;
+        padding: 12px 14px;
         font-size: 13px;
         display: none;
       }
@@ -166,9 +212,12 @@
       }
 
       @media (max-width: 560px) {
-        .card {
+        .card-header {
+          padding: 18px;
+        }
+
+        .card-body {
           padding: 16px;
-          border-radius: 14px;
         }
 
         h1 {
@@ -184,74 +233,86 @@
   <body>
     <div class="wrapper">
       <div class="card">
-        <h1>Cadastre-se como Personal</h1>
-        <p class="subtitle">
-          Crie sua conta na plataforma Repz Fit para começar a gerenciar seus
-          alunos.
-        </p>
+        <div class="card-header">
+          <h1>Cadastre-se como Personal</h1>
+          <p class="subtitle">
+            Crie sua conta na plataforma Repz Fit para começar a gerenciar seus
+            alunos.
+          </p>
+        </div>
 
-        <form id="signupForm">
-          <label for="name">Nome</label>
-          <input
-            id="name"
-            type="text"
-            placeholder="Seu nome completo"
-            required
-          />
+        <div class="card-body">
+          <form id="signupForm">
+            <div class="form-group">
+              <label for="name">Nome</label>
+              <input
+                id="name"
+                type="text"
+                placeholder="Seu nome completo"
+                required
+              />
+            </div>
 
-          <label for="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            placeholder="voce@dominio.com"
-            required
-          />
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                placeholder="voce@dominio.com"
+                required
+              />
+            </div>
 
-          <label for="whatsapp">WhatsApp</label>
-          <input
-            id="whatsapp"
-            type="text"
-            placeholder="(11) 99999-9999"
-            required
-          />
-          <div class="hint">Use DDD. Você pode incluir +55.</div>
+            <div class="form-group">
+              <label for="whatsapp">WhatsApp</label>
+              <input
+                id="whatsapp"
+                type="text"
+                placeholder="(11) 99999-9999"
+                required
+              />
+              <div class="hint">Use DDD. Você pode incluir +55.</div>
+            </div>
 
-          <label for="password">Senha</label>
-          <input
-            id="password"
-            type="password"
-            placeholder="Crie uma senha forte"
-            required
-          />
-          <ul class="password-list" id="passwordChecklist">
-            <li id="ruleLength">Mínimo de 8 caracteres</li>
-            <li id="ruleUpper">Pelo menos 1 letra maiúscula</li>
-            <li id="ruleLower">Pelo menos 1 letra minúscula</li>
-            <li id="ruleNumber">Pelo menos 1 número</li>
-            <li id="ruleSymbol">Pelo menos 1 símbolo</li>
-          </ul>
+            <div class="form-group">
+              <label for="password">Senha</label>
+              <input
+                id="password"
+                type="password"
+                placeholder="Crie uma senha forte"
+                required
+              />
+              <ul class="password-list" id="passwordChecklist">
+                <li id="ruleLength">Mínimo de 8 caracteres</li>
+                <li id="ruleUpper">Pelo menos 1 letra maiúscula</li>
+                <li id="ruleLower">Pelo menos 1 letra minúscula</li>
+                <li id="ruleNumber">Pelo menos 1 número</li>
+                <li id="ruleSymbol">Pelo menos 1 símbolo</li>
+              </ul>
+            </div>
 
-          <div class="row">
-            <button type="submit" class="btn btn-primary" id="submitBtn">
-              Criar conta
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              id="recoverBtn"
-              title="Enviar link de recuperação de senha para o e-mail informado"
-            >
-              Recuperar senha
-            </button>
-          </div>
-        </form>
+            <div class="row">
+              <button type="submit" class="btn btn-primary" id="submitBtn">
+                Criar conta
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary"
+                id="recoverBtn"
+                title="Enviar link de recuperação de senha para o e-mail informado"
+              >
+                Recuperar senha
+              </button>
+            </div>
+          </form>
 
-        <div id="formAlert" class="alert"></div>
+          <div id="formAlert" class="alert"></div>
 
-        <p class="footer">
-          Já possui conta?
-          <a href="/" target="_blank" rel="noopener">Acesse a plataforma</a>.
-        </p>
+          <p class="footer">
+            Já possui conta?
+            <a href="/" target="_blank" rel="noopener">Acesse a plataforma</a>.
+          </p>
+        </div>
       </div>
     </div>
 
