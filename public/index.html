@@ -284,6 +284,9 @@
         width: calc(100% + 32px);
         margin-left: -16px;
         position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
         text-align: left;
         padding: 13px 18px;
         background: transparent;
@@ -294,6 +297,21 @@
         letter-spacing: 0.2px;
         color: rgba(255, 255, 255, 0.95);
         transition: all 0.25s ease;
+      }
+
+      .tab-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        font-size: 12px;
+        line-height: 1;
+        color: currentColor;
+        opacity: 0.95;
+      }
+
+      .tab-label {
+        line-height: 1.1;
       }
 
       .tab::after {
@@ -994,42 +1012,48 @@
               class="tab active"
               onclick="switchTab('alunos')"
             >
-              Alunos
+              <span class="tab-icon" aria-hidden="true">●</span>
+              <span class="tab-label">Alunos</span>
             </button>
             <button
               id="exerciciosTabButton"
               class="tab"
               onclick="switchTab('exercicios')"
             >
-              Exercícios
+              <span class="tab-icon" aria-hidden="true">■</span>
+              <span class="tab-label">Exercícios</span>
             </button>
             <button
               id="treinosTabButton"
               class="tab"
               onclick="switchTab('treinos')"
             >
-              Treinos
+              <span class="tab-icon" aria-hidden="true">▲</span>
+              <span class="tab-label">Treinos</span>
             </button>
             <button
               id="whatsappTabButton"
               class="tab"
               onclick="switchTab('whatsapp')"
             >
-              WhatsApp
+              <span class="tab-icon" aria-hidden="true">◆</span>
+              <span class="tab-label">WhatsApp</span>
             </button>
             <button
               id="adminTabButton"
               class="tab hidden"
               onclick="switchTab('admin')"
             >
-              Usuários
+              <span class="tab-icon" aria-hidden="true">◉</span>
+              <span class="tab-label">Usuários</span>
             </button>
             <button
               id="adminSettingsTabButton"
               class="tab hidden"
               onclick="switchTab('adminSettings')"
             >
-              Configurações
+              <span class="tab-icon" aria-hidden="true">⚙</span>
+              <span class="tab-label">Configurações</span>
             </button>
           </div>
 
