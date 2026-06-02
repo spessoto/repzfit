@@ -45,6 +45,24 @@
         top: 0;
         height: 100vh;
         overflow: hidden;
+        border-right: 1px solid rgba(255, 255, 255, 0.12);
+        isolation: isolate;
+      }
+
+      .sidebar::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 14% 10%, rgba(255, 255, 255, 0.18), transparent 34%),
+          radial-gradient(circle at 88% 86%, rgba(255, 255, 255, 0.1), transparent 38%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .sidebar > * {
+        position: relative;
+        z-index: 1;
       }
 
       .sidebar-brand {
@@ -74,10 +92,12 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
-        padding: 10px;
+        padding: 12px;
         border: 1px solid rgba(255, 255, 255, 0.28);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.11);
+        backdrop-filter: blur(4px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
         margin-top: auto;
       }
 
@@ -100,10 +120,12 @@
         align-items: center;
         justify-content: center;
         font-size: 14px;
+        transition: transform 0.2s ease, background 0.2s ease;
       }
 
       .btn-icon-ghost:hover {
         background: rgba(255, 255, 255, 0.22);
+        transform: translateY(-1px);
       }
 
       .sidebar-user span {
@@ -231,11 +253,27 @@
         overflow-y: auto;
         overflow-x: hidden;
         flex: 1;
+        padding-right: 3px;
+      }
+
+      .tabs::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      .tabs::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.28);
+        border-radius: 999px;
+      }
+
+      .tabs::-webkit-scrollbar-track {
+        background: transparent;
       }
 
       .tab {
         width: calc(100% + 32px);
         margin-left: -16px;
+        position: relative;
         text-align: left;
         padding: 13px 18px;
         background: transparent;
@@ -243,22 +281,48 @@
         border-radius: 0;
         cursor: pointer;
         font-weight: 700;
+        letter-spacing: 0.2px;
         color: rgba(255, 255, 255, 0.95);
         transition: all 0.25s ease;
+      }
+
+      .tab::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 9px;
+        bottom: 9px;
+        width: 3px;
+        border-radius: 999px;
+        background: #ffffff;
+        opacity: 0;
+        transform: scaleY(0.45);
+        transform-origin: center;
+        transition: opacity 0.2s ease, transform 0.2s ease;
       }
 
       .tab.active {
         background: rgba(255, 255, 255, 0.24);
         color: #ffffff;
-        box-shadow: none;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+      }
+
+      .tab.active::after {
+        opacity: 0.95;
+        transform: scaleY(1);
       }
 
       .tab:hover {
-        background: rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.16);
       }
 
       .tab.active:hover {
         background: rgba(255, 255, 255, 0.24);
+      }
+
+      .tab:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.75);
+        outline-offset: -2px;
       }
 
       .tab-content {
@@ -709,6 +773,7 @@
           padding: 16px;
           gap: 12px;
           box-shadow: none;
+          border-right: none;
         }
 
         .tabs {
@@ -727,6 +792,21 @@
           margin-left: 0;
           padding: 10px 14px;
           border-radius: 10px;
+        }
+
+        .tab::after {
+          left: 10px;
+          right: 10px;
+          top: auto;
+          bottom: 4px;
+          width: auto;
+          height: 2px;
+          transform: scaleX(0.5);
+          transform-origin: center;
+        }
+
+        .tab.active::after {
+          transform: scaleX(1);
         }
 
         .sidebar-user {
