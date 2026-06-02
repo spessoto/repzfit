@@ -34,9 +34,7 @@
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
           Cantarell, sans-serif;
-        background:
-          linear-gradient(140deg, rgba(166, 86, 247, 0.07) 0%, transparent 42%),
-          var(--bg);
+        background: transparent;
         color: var(--text);
         min-height: 100vh;
       }
@@ -46,7 +44,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 22px;
+        padding: 0;
       }
 
       .card {
@@ -147,18 +145,23 @@
       .btn {
         border: none;
         border-radius: 5px;
-        height: 42px;
+        height: 48px;
         padding: 0 16px;
         cursor: pointer;
         font-weight: 600;
         font-size: 14px;
         transition: all 0.25s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .btn-primary {
         background: linear-gradient(135deg, var(--accent), var(--accent-2));
         color: #ffffff;
         flex: 1;
+        font-weight: 700;
+        letter-spacing: 0.2px;
       }
 
       .btn-primary:hover {
@@ -205,6 +208,7 @@
         margin-top: 14px;
         font-size: 12px;
         color: var(--muted);
+        display: none;
       }
 
       .footer a {
@@ -235,10 +239,6 @@
       <div class="card">
         <div class="card-header">
           <h1>Cadastre-se como Personal</h1>
-          <p class="subtitle">
-            Crie sua conta na plataforma Repz Fit para começar a gerenciar seus
-            alunos.
-          </p>
         </div>
 
         <div class="card-body">
