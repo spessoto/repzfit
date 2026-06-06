@@ -111,8 +111,7 @@ const WorkoutPatchSchema = z
   .object({
     name: z.string().min(1).max(255).trim().optional(),
     start_date: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.null(), z.literal("")])
       .optional(),
     day_of_week: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   })
@@ -461,6 +460,89 @@ async function ensureEvolutionWebhookForRequest(
       "Failed to auto-configure Evolution webhook",
     );
   }
+}
+
+async function assertWorkoutOwnership(
+  app: FastifyInstance,
+  personalId: string,
+  workoutId: string,
+) {
+  const { data: workout, error: workoutError } = await supabaseAdmin
+    .from("workouts")
+    .select("id,personal_id,student_id")
+    .eq("id", workoutId)
+    .maybeSingle();
+
+  if (workoutError) {
+    throw app.httpErrors.badRequest(workoutError.message);
+  }
+
+  if (!workout) {
+    throw app.httpErrors.notFound("Workout not found");
+  }
+
+  if (workout.personal_id === personalId) {
+    return workout;
+  }
+
+  if (workout.personal_id && workout.personal_id !== personalId) {
+    throw app.httpErrors.notFound("Workout not found");
+  }
+
+  // Compatibilidade com treinos legados sem personal_id.
+  let isOwned = false;
+
+  if (workout.student_id) {
+    const { data: legacyStudent, error: legacyStudentError } =
+      await supabaseAdmin
+        .from("students")
+        .select("id")
+        .eq("id", workout.student_id)
+        .eq("personal_id", personalId)
+        .maybeSingle();
+
+    if (legacyStudentError) {
+      throw app.httpErrors.badRequest(legacyStudentError.message);
+    }
+
+    isOwned = Boolean(legacyStudent);
+  }
+
+  if (!isOwned) {
+    const { data: linkedAssignment, error: linkedAssignmentError } =
+      await supabaseAdmin
+        .from("student_workouts")
+        .select("id,students!inner(id,personal_id)")
+        .eq("workout_id", workoutId)
+        .eq("students.personal_id", personalId)
+        .limit(1)
+        .maybeSingle();
+
+    if (linkedAssignmentError) {
+      throw app.httpErrors.badRequest(linkedAssignmentError.message);
+    }
+
+    isOwned = Boolean(linkedAssignment);
+  }
+
+  if (!isOwned) {
+    throw app.httpErrors.notFound("Workout not found");
+  }
+
+  const { error: claimError } = await supabaseAdmin
+    .from("workouts")
+    .update({ personal_id: personalId })
+    .eq("id", workoutId)
+    .is("personal_id", null);
+
+  if (claimError) {
+    app.log.warn(
+      { workoutId, personalId, error: claimError },
+      "Failed to backfill personal_id for legacy workout",
+    );
+  }
+
+  return workout;
 }
 
 export async function registerPersonalApiRoutes(app: FastifyInstance) {
@@ -1151,7 +1233,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
   });
 
   app.post("/workouts/:id/exercises", async (request) => {
-    const { token } = await getAuthenticatedPersonal(app, request);
+    const { token, personalId } = await getAuthenticatedPersonal(app, request);
     const parsed = WorkoutExerciseCreateSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -1164,19 +1246,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .parse((request.params as { id?: string }).id);
     const client = getRlsClient(token);
 
-    const { data: workout, error: workoutError } = await client
-      .from("workouts")
-      .select("id")
-      .eq("id", workoutId)
-      .maybeSingle();
-
-    if (workoutError) {
-      throw app.httpErrors.badRequest(workoutError.message);
-    }
-
-    if (!workout) {
-      throw app.httpErrors.notFound("Workout not found");
-    }
+    await assertWorkoutOwnership(app, personalId, workoutId);
 
     const { data: exercise, error: exerciseError } = await client
       .from("exercises")
@@ -1189,10 +1259,27 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     }
 
     if (!exercise) {
-      throw app.httpErrors.notFound("Exercise not found");
+      const { data: exerciseFallback, error: exerciseFallbackError } =
+        await supabaseAdmin
+          .from("exercises")
+          .select("id,personal_id")
+          .eq("id", parsed.data.exercise_id)
+          .maybeSingle();
+
+      if (exerciseFallbackError) {
+        throw app.httpErrors.badRequest(exerciseFallbackError.message);
+      }
+
+      if (
+        !exerciseFallback ||
+        (exerciseFallback.personal_id &&
+          exerciseFallback.personal_id !== personalId)
+      ) {
+        throw app.httpErrors.notFound("Exercise not found");
+      }
     }
 
-    const { data, error } = await client
+    const { data, error } = await supabaseAdmin
       .from("workout_exercises")
       .insert({
         workout_id: workoutId,
@@ -1216,7 +1303,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
   });
 
   app.patch("/workouts/:id", async (request) => {
-    const { token } = await getAuthenticatedPersonal(app, request);
+    const { token, personalId } = await getAuthenticatedPersonal(app, request);
     const parsed = WorkoutPatchSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -1229,7 +1316,10 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .parse((request.params as { id?: string }).id);
     const client = getRlsClient(token);
 
+    await assertWorkoutOwnership(app, personalId, workoutId);
+
     const payload: Record<string, unknown> = { ...parsed.data };
+    if (payload.start_date === "") payload.start_date = null;
     const { data, error } = await client
       .from("workouts")
       .update(payload)
@@ -1238,7 +1328,23 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .maybeSingle();
 
     if (error) {
-      throw app.httpErrors.badRequest(error.message);
+      // Fallback para treinos legados que ainda não passam pelo RLS esperado.
+      const fallback = await supabaseAdmin
+        .from("workouts")
+        .update(payload)
+        .eq("id", workoutId)
+        .select("id,name,day_of_week,start_date,created_at")
+        .maybeSingle();
+
+      if (fallback.error) {
+        throw app.httpErrors.badRequest(fallback.error.message);
+      }
+
+      if (!fallback.data) {
+        throw app.httpErrors.notFound("Workout not found");
+      }
+
+      return fallback.data;
     }
 
     if (!data) {
