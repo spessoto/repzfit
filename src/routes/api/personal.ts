@@ -243,9 +243,10 @@ function buildCompletedSessionSummaryFromLogs(logs: any[]): string | null {
     for (const setLog of exercise.sets) {
       const repsDone = Number(setLog?.reps_done ?? 0);
       const weightUsed = Number(setLog?.weight_used ?? 0);
-      const rpeScore = Number(setLog?.rpe_score ?? 0);
+      const pseScore =
+        setLog?.rpe_score == null ? "-" : Number(setLog.rpe_score);
       lines.push(
-        `   Série ${setLog?.set_number}: ${repsDone} reps × ${weightUsed}kg | RPE ${rpeScore}`,
+        `   Série ${setLog?.set_number}: ${repsDone} reps × ${weightUsed}kg | PSE ${pseScore}`,
       );
     }
     lines.push("");
