@@ -99,6 +99,48 @@ function isStrictTrainingStartRequest(msg: string): boolean {
   return allowed.has(normalized);
 }
 
+async function isTrainingStartIntent(
+  app: FastifyInstance,
+  msg: string,
+): Promise<boolean> {
+  if (isStrictTrainingStartRequest(msg)) return true;
+
+  const normalized = msg
+    .toLowerCase()
+    .trim()
+    .replace(/[!?.;,]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  // Heurística rápida para frases naturais comuns.
+  if (
+    /\b(vamos treinar|bora treinar|quero treinar|partiu treino|vamos malhar|bora malhar|treinar hoje)\b/.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+
+  if (!/\b(trein|malh|academia|workout|exerc)\b/.test(normalized)) {
+    return false;
+  }
+
+  try {
+    const verdict = await generateBotResponse({
+      systemPrompt:
+        "Você é um classificador de intenção para um bot de treino. Responda APENAS com START ou OTHER.",
+      userMessage: `Mensagem do aluno: "${msg}"\n\nRetorne START se a intenção principal for iniciar treino agora. Caso contrário, OTHER.`,
+    });
+
+    return verdict.trim().toUpperCase().startsWith("START");
+  } catch (error) {
+    app.log.warn(
+      error,
+      "AI start-intent classifier unavailable; using fallback",
+    );
+    return false;
+  }
+}
+
 function formatExerciseDetails(ex: WorkoutExercise): string {
   const lines: string[] = [];
   if (ex.muscle_group) lines.push(`💪 Músculo: ${ex.muscle_group}`);
@@ -776,6 +818,25 @@ async function completeSession(sessionId: string, summary?: string) {
   }
 }
 
+async function getSessionTrackingData(
+  sessionId: string | null,
+): Promise<SessionTrackingData | null> {
+  if (!sessionId) return null;
+
+  const { data: sessionRow } = await supabaseAdmin
+    .from("daily_sessions")
+    .select("summary")
+    .eq("id", sessionId)
+    .maybeSingle();
+
+  try {
+    const parsed = JSON.parse((sessionRow as any)?.summary ?? "null");
+    if (parsed?.type === "tracking") return parsed as SessionTrackingData;
+  } catch {}
+
+  return null;
+}
+
 async function advanceAfterSetLog(params: {
   app: FastifyInstance;
   instanceName: string;
@@ -896,19 +957,32 @@ async function advanceAfterSetLog(params: {
     } catch {}
   }
 
-  if (exerciseTracking?.mode === "monitored_free") {
-    // Modo livre: atualizar tracking e voltar para seleção de exercício
-    const done = exerciseTracking.done ?? [];
-    done.push({
-      id: state.current_workout_exercise_id!,
-      name: exerciseName,
-      exec_order: done.length + 1,
-    });
-    const remaining = exerciseTracking.remaining_ids.filter(
-      (id) => id !== state.current_workout_exercise_id,
+  if (exerciseTracking && state.current_workout_exercise_id) {
+    const alreadyDone = (exerciseTracking.done ?? []).some(
+      (d) => d.id === state.current_workout_exercise_id,
     );
-    exerciseTracking.done = done;
-    exerciseTracking.remaining_ids = remaining;
+    if (!alreadyDone) {
+      const done = exerciseTracking.done ?? [];
+      done.push({
+        id: state.current_workout_exercise_id,
+        name: exerciseName,
+        exec_order: done.length + 1,
+      });
+      exerciseTracking.done = done;
+    }
+
+    exerciseTracking.remaining_ids = (
+      exerciseTracking.remaining_ids ?? []
+    ).filter((id) => id !== state.current_workout_exercise_id);
+
+    await supabaseAdmin
+      .from("daily_sessions")
+      .update({ summary: JSON.stringify(exerciseTracking) })
+      .eq("id", state.current_session_id!);
+  }
+
+  if (exerciseTracking?.mode === "monitored_free") {
+    const remaining = exerciseTracking.remaining_ids ?? [];
 
     if (remaining.length === 0) {
       // Todos os exercícios concluídos!
@@ -967,11 +1041,6 @@ async function advanceAfterSetLog(params: {
     }
 
     // Ainda há exercícios restantes
-    await supabaseAdmin
-      .from("daily_sessions")
-      .update({ summary: JSON.stringify(exerciseTracking) })
-      .eq("id", state.current_session_id!);
-
     await updateState(whatsapp, {
       current_state: "AWAITING_EXERCISE_ORDER_SELECTION",
       current_workout_exercise_id: null,
@@ -1053,6 +1122,51 @@ async function advanceAfterSetLog(params: {
       instanceName,
       number: whatsapp,
       text: "💪 Todos os exercícios concluídos!\n\nQual foi o PSE geral do treino?\n\nResponda com um número de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - Máximo 🔥",
+    });
+    return;
+  }
+
+  if (exerciseTracking?.tracking_mode === "none") {
+    const simpleSummary = buildSimpleExerciseList(exerciseTracking);
+    await completeSession(
+      state.current_session_id!,
+      simpleSummary || undefined,
+    );
+
+    const congratsMessage = await safeCoachReply(
+      app,
+      `O aluno ${student.name} acabou de completar o treino! Parabenize de forma entusiasmada e motivadora (2-3 linhas). Celebre a conquista!`,
+      "Parabéns! Treino concluído com sucesso. Você mandou muito bem hoje! 🔥💪",
+    );
+
+    await sendTextMessage({
+      instanceName,
+      number: whatsapp,
+      text: `🎉 TREINO CONCLUÍDO!\n\n${congratsMessage}`,
+    });
+
+    await sendTextMessage({
+      instanceName,
+      number: whatsapp,
+      text: simpleSummary,
+    });
+
+    await sendReportToPersonal({
+      app,
+      instanceName,
+      personalId: student.personal_id,
+      studentName: student.name,
+      tracking: exerciseTracking,
+      monitoredSummary: simpleSummary,
+    });
+
+    await updateState(whatsapp, {
+      current_state: "IDLE",
+      current_session_id: null,
+      current_workout_exercise_id: null,
+      current_set_number: 1,
+      last_input_attempt: null,
+      rest_end_at: null,
     });
     return;
   }
@@ -1159,8 +1273,13 @@ export async function processIncomingMessage(input: IncomingMessage) {
     return;
   }
 
-  // 2. Verificar se é uma mensagem de início de treino — apenas no estado IDLE
-  if (isStrictTrainingStartRequest(effectiveInput)) {
+  // 2. Verificar se é uma mensagem de início de treino — interpretação híbrida (regex + IA)
+  const wantsToStartTraining = await isTrainingStartIntent(
+    input.app,
+    effectiveInput,
+  );
+
+  if (wantsToStartTraining) {
     const student = await getStudentByWhatsapp(whatsapp);
 
     if (!student) {
@@ -1629,8 +1748,21 @@ export async function processIncomingMessage(input: IncomingMessage) {
         return;
       }
 
-      // per_rep, per_exercise ou none: finalizar com extrato imediato
-      const extrato = buildSimpleExerciseList(tracking);
+      // Extrato dinâmico por modo ao encerrar antecipadamente.
+      let extrato = "";
+      if (trackingMode === "per_rep" || trackingMode === "per_exercise") {
+        try {
+          extrato = await buildWorkoutSummary(sessionId);
+        } catch (err) {
+          input.app.log.warn(
+            err,
+            "Failed to build monitored summary on early finish",
+          );
+        }
+      }
+      if (!extrato) {
+        extrato = buildSimpleExerciseList(tracking);
+      }
       const congratsMessage = await safeCoachReply(
         input.app,
         `O aluno ${student.name} encerrou o treino antecipadamente. Parabenize pelo esforço de forma breve (1-2 linhas).`,
@@ -1660,7 +1792,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         personalId: student.personal_id,
         studentName: student.name,
         tracking,
-        monitoredSummary: "",
+        monitoredSummary: extrato,
       });
 
       await updateState(whatsapp, {
@@ -1787,7 +1919,6 @@ export async function processIncomingMessage(input: IncomingMessage) {
     return;
   }
 
-  // Estado: EXECUTING_SET
   // Estado: COLLECTING_SESSION_RPE (modo per_workout — coleta PSE geral ao final)
   if (state.current_state === "COLLECTING_SESSION_RPE") {
     const pse = parseInt(effectiveInput.trim(), 10);
@@ -1880,8 +2011,59 @@ export async function processIncomingMessage(input: IncomingMessage) {
   // Estado: EXECUTING_SET
   if (state.current_state === "EXECUTING_SET") {
     if (isSetDoneIntent(effectiveInput)) {
-      let restStartNotice = "";
+      const tracking = await getSessionTrackingData(state.current_session_id);
+      const trackingMode = tracking?.tracking_mode ?? "per_rep";
 
+      if (trackingMode === "per_workout" || trackingMode === "none") {
+        // Sem coleta de reps/carga por série: só progressão e descanso.
+        await advanceAfterSetLog({
+          app: input.app,
+          instanceName: input.instance,
+          whatsapp,
+          student,
+          state,
+        });
+        return;
+      }
+
+      if (
+        trackingMode === "per_exercise" &&
+        state.current_workout_exercise_id
+      ) {
+        const { data: exRow } = await supabaseAdmin
+          .from("workout_exercises")
+          .select("target_sets")
+          .eq("id", state.current_workout_exercise_id)
+          .maybeSingle();
+        const targetSets = Number((exRow as any)?.target_sets ?? 1);
+
+        if (state.current_set_number < targetSets) {
+          // Ainda há séries: segue sem perguntar reps/carga agora.
+          await advanceAfterSetLog({
+            app: input.app,
+            instanceName: input.instance,
+            whatsapp,
+            student,
+            state,
+          });
+          return;
+        }
+
+        // Última série do exercício: coleta batch de reps e carga no final do exercício.
+        await sendTextMessage({
+          instanceName: input.instance,
+          number: whatsapp,
+          text: `✅ Exercício concluído!\n\nAgora me diga as *repetições de cada série* (foram ${targetSets} séries).\nExemplo: *12 11 10*`,
+        });
+        await updateState(whatsapp, {
+          current_state: "COLLECTING_REPS",
+          last_input_attempt: `exercise_reps_batch:${targetSets}`,
+        });
+        return;
+      }
+
+      // per_rep: pergunta reps e carga por série.
+      let restStartNotice = "";
       if (state.current_workout_exercise_id) {
         const { data: exRow } = await supabaseAdmin
           .from("workout_exercises")
@@ -1940,6 +2122,43 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
   // Estado: COLLECTING_REPS
   if (state.current_state === "COLLECTING_REPS") {
+    if (state.last_input_attempt?.startsWith("exercise_reps_batch:")) {
+      const targetSets = Number(
+        state.last_input_attempt.replace("exercise_reps_batch:", ""),
+      );
+      const repsList = effectiveInput
+        .trim()
+        .replace(/[,;]+/g, " ")
+        .split(/\s+/)
+        .map((v) => parseInt(v, 10));
+
+      if (
+        !Number.isFinite(targetSets) ||
+        targetSets < 1 ||
+        repsList.length !== targetSets ||
+        repsList.some((r) => Number.isNaN(r) || r <= 0 || r > 1000)
+      ) {
+        await sendTextMessage({
+          instanceName: input.instance,
+          number: whatsapp,
+          text: `Me passe exatamente ${targetSets} números de repetições, um por série.\nExemplo: *12 11 10*`,
+        });
+        return;
+      }
+
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: "Perfeito! Agora me diz qual foi a carga usada no exercício (kg).",
+      });
+
+      await updateState(whatsapp, {
+        current_state: "COLLECTING_WEIGHT",
+        last_input_attempt: `exercise_reps_values:${repsList.join(",")}`,
+      });
+      return;
+    }
+
     const reps = parseInt(effectiveInput, 10);
 
     if (Number.isNaN(reps) || reps <= 0 || reps > 1000) {
@@ -1988,6 +2207,19 @@ export async function processIncomingMessage(input: IncomingMessage) {
         instanceName: input.instance,
         number: whatsapp,
         text: fallback,
+      });
+      return;
+    }
+
+    if (state.last_input_attempt?.startsWith("exercise_reps_values:")) {
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: "Ótimo! E qual foi o PSE desse exercício?\n\nResponda com um número de *1 a 10*.",
+      });
+      await updateState(whatsapp, {
+        current_state: "COLLECTING_RPE",
+        last_input_attempt: `${state.last_input_attempt}|${weight}`,
       });
       return;
     }
@@ -2069,6 +2301,41 @@ export async function processIncomingMessage(input: IncomingMessage) {
         instanceName: input.instance,
         number: whatsapp,
         text: "Me manda um número de 1 a 10 para registrar o PSE! 😊",
+      });
+      return;
+    }
+
+    if (state.last_input_attempt?.startsWith("exercise_reps_values:")) {
+      const packed = state.last_input_attempt.replace(
+        "exercise_reps_values:",
+        "",
+      );
+      const [csvReps, weightStr] = packed.split("|");
+      const repsList = csvReps
+        .split(",")
+        .map((v) => parseInt(v, 10))
+        .filter((v) => Number.isFinite(v));
+      const weight = parseFloat(weightStr);
+
+      if (state.current_session_id && state.current_workout_exercise_id) {
+        for (let i = 0; i < repsList.length; i++) {
+          await saveSetLog({
+            sessionId: state.current_session_id,
+            workoutExerciseId: state.current_workout_exercise_id,
+            setNumber: i + 1,
+            repsDone: repsList[i],
+            weightUsed: weight,
+            pseScore: pse,
+          });
+        }
+      }
+
+      await advanceAfterSetLog({
+        app: input.app,
+        instanceName: input.instance,
+        whatsapp,
+        student,
+        state,
       });
       return;
     }
