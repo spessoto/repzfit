@@ -77,6 +77,8 @@ function isTrainingDoneIntent(msg: string): boolean {
 
 function isStrictTrainingStartRequest(msg: string): boolean {
   const normalized = msg
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim()
     .replace(/[!?.;,]+/g, "")
@@ -91,7 +93,18 @@ function isStrictTrainingStartRequest(msg: string): boolean {
     "iniciar sessao",
     "iniciar sessão",
     "quero treinar",
+    "treinar",
+    "treina",
+    "vamo treina",
+    "vamo treinar",
+    "vamos treina",
+    "vamos treinar",
+    "bora treina",
     "bora treinar",
+    "partiu treina",
+    "partiu treinar",
+    "partiu treino",
+    "start",
     "start treino",
     "start workout",
   ]);
@@ -103,24 +116,56 @@ async function isTrainingStartIntent(
   app: FastifyInstance,
   msg: string,
 ): Promise<boolean> {
-  if (isStrictTrainingStartRequest(msg)) return true;
-
   const normalized = msg
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim()
     .replace(/[!?.;,]+/g, " ")
     .replace(/\s+/g, " ");
+  const auditMessage = normalized.slice(0, 120);
 
-  // Heurística rápida para frases naturais comuns.
-  if (
-    /\b(vamos treinar|bora treinar|quero treinar|partiu treino|vamos malhar|bora malhar|treinar hoje)\b/.test(
-      normalized,
-    )
-  ) {
+  if (isStrictTrainingStartRequest(msg)) {
+    app.log.info(
+      { source: "strict", decision: true, message: auditMessage },
+      "training start intent classified",
+    );
     return true;
   }
 
-  if (!/\b(trein|malh|academia|workout|exerc)\b/.test(normalized)) {
+  const hasNegation = /\b(nao|não|n|agora nao|agora não|depois)\b/.test(
+    normalized,
+  );
+  const hasTrainingVerb =
+    /\b(treina|treinar|treino|malhar|workout|academia|exercicio|exercitar)\b/.test(
+      normalized,
+    ) || /\b(start)\b/.test(normalized);
+  const hasStartCue =
+    /\b(vamo|vamos|bora|partiu|quero|iniciar|inicia|comecar|comecar|start|hoje)\b/.test(
+      normalized,
+    ) || /^(treinar|treina|start)$/.test(normalized);
+
+  const heuristicStart = hasTrainingVerb && hasStartCue && !hasNegation;
+  if (heuristicStart) {
+    app.log.info(
+      {
+        source: "heuristic",
+        decision: true,
+        message: auditMessage,
+        hasTrainingVerb,
+        hasStartCue,
+        hasNegation,
+      },
+      "training start intent classified",
+    );
+    return true;
+  }
+
+  if (!hasTrainingVerb) {
+    app.log.info(
+      { source: "no-training-signal", decision: false, message: auditMessage },
+      "training start intent classified",
+    );
     return false;
   }
 
@@ -131,13 +176,35 @@ async function isTrainingStartIntent(
       userMessage: `Mensagem do aluno: "${msg}"\n\nRetorne START se a intenção principal for iniciar treino agora. Caso contrário, OTHER.`,
     });
 
-    return verdict.trim().toUpperCase().startsWith("START");
+    const parsed = verdict.trim().toUpperCase();
+    const aiDecision = parsed.startsWith("START") || parsed.startsWith("SIM");
+    app.log.info(
+      {
+        source: "ai",
+        decision: aiDecision,
+        message: auditMessage,
+        aiVerdict: parsed.slice(0, 24),
+      },
+      "training start intent classified",
+    );
+    return aiDecision;
   } catch (error) {
     app.log.warn(
       error,
       "AI start-intent classifier unavailable; using fallback",
     );
-    return false;
+    app.log.info(
+      {
+        source: "fallback",
+        decision: heuristicStart,
+        message: auditMessage,
+        hasTrainingVerb,
+        hasStartCue,
+        hasNegation,
+      },
+      "training start intent classified",
+    );
+    return heuristicStart;
   }
 }
 
