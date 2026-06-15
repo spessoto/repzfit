@@ -16,9 +16,9 @@
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
           Cantarell, sans-serif;
-        background: #f4f5f8;
+        background: #0d1b26;
         min-height: 100vh;
-        color: #1f2937;
+        color: #dbe5ee;
         overflow-x: hidden;
       }
 
@@ -34,7 +34,7 @@
       }
 
       .sidebar {
-        background: linear-gradient(135deg, #a656f7 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #73d537 0%, #024d3a 100%);
         color: #ffffff;
         padding: 24px 16px;
         display: flex;
@@ -148,22 +148,33 @@
         padding: 24px;
         overflow-x: hidden;
         min-width: 0;
+        background:
+          radial-gradient(
+            circle at 8% 8%,
+            rgba(115, 213, 55, 0.08),
+            transparent 28%
+          ),
+          radial-gradient(
+            circle at 92% 92%,
+            rgba(2, 77, 58, 0.2),
+            transparent 36%
+          );
       }
 
       .header {
-        background: white;
+        background: #132635;
         padding: 18px 22px;
         border-radius: 14px;
         margin-bottom: 18px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border: 1px solid #ebedf2;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        border: 1px solid #2a4354;
+        box-shadow: 0 8px 24px rgba(2, 7, 14, 0.45);
       }
 
       .header h1 {
-        color: #5a2f83;
+        color: #dff4e8;
         font-size: 22px;
       }
 
@@ -185,7 +196,7 @@
       }
 
       .btn-primary {
-        background: linear-gradient(135deg, #31cb6b 0%, #088764 100%);
+        background: linear-gradient(135deg, #73d537 0%, #024d3a 100%);
         color: white;
       }
 
@@ -195,12 +206,13 @@
       }
 
       .btn-secondary {
-        background: #f3f4f6;
-        color: #374151;
+        background: #203647;
+        color: #dbe6ef;
+        border: 1px solid #2f495b;
       }
 
       .btn-secondary:hover {
-        background: #e5e7eb;
+        background: #29465b;
       }
 
       .btn-danger {
@@ -209,17 +221,17 @@
       }
 
       .card {
-        background: white;
+        background: #132635;
         padding: 25px;
         border-radius: 14px;
         margin-bottom: 20px;
-        border: 1px solid #ebedf2;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        border: 1px solid #2a4354;
+        box-shadow: 0 10px 30px rgba(2, 7, 14, 0.45);
       }
 
       .card h2 {
         margin-bottom: 20px;
-        color: #1f2937;
+        color: #e6eef5;
         font-size: 20px;
       }
 
@@ -230,7 +242,7 @@
       .form-group label {
         display: block;
         margin-bottom: 5px;
-        color: #374151;
+        color: #b6c6d3;
         font-weight: 500;
       }
 
@@ -239,15 +251,18 @@
       .form-group select {
         width: 100%;
         padding: 10px;
-        border: 1px solid #d1d5db;
+        border: 1px solid #355062;
         border-radius: 5px;
         font-size: 14px;
+        background: #0f202d;
+        color: #e4edf4;
       }
 
       .form-group input:focus,
       .form-group textarea:focus {
         outline: none;
-        border-color: #667eea;
+        border-color: #73d537;
+        box-shadow: 0 0 0 3px rgba(115, 213, 55, 0.15);
       }
 
       .login-container {
@@ -372,17 +387,17 @@
       table td {
         padding: 12px;
         text-align: left;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid #2d4353;
       }
 
       table th {
-        background: #f9fafb;
+        background: #0f202d;
         font-weight: 600;
-        color: #374151;
+        color: #c5d3de;
       }
 
       table tr:hover {
-        background: #f9fafb;
+        background: #1a3041;
       }
 
       .actions {
@@ -402,8 +417,8 @@
       }
 
       .alert-success {
-        background: #d1fae5;
-        color: #065f46;
+        background: rgba(115, 213, 55, 0.2);
+        color: #024d3a;
       }
 
       .alert-error {
@@ -427,10 +442,10 @@
         top: 100%;
         left: 0;
         right: 0;
-        background: white;
-        border: 1px solid #d1d5db;
+        background: #132635;
+        border: 1px solid #355062;
         border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 14px 34px rgba(2, 7, 14, 0.45);
         max-height: 300px;
         overflow-y: auto;
         z-index: 1000;
@@ -440,8 +455,9 @@
       .autocomplete-item {
         padding: 10px;
         cursor: pointer;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid #2d4353;
         transition: background 0.2s;
+        color: #dde6ee;
       }
 
       .autocomplete-item:last-child {
@@ -449,7 +465,7 @@
       }
 
       .autocomplete-item:hover {
-        background: #f3f4f6;
+        background: #1a3041;
       }
 
       .status-badge {
@@ -461,8 +477,8 @@
       }
 
       .status-connected {
-        background: #d1fae5;
-        color: #065f46;
+        background: rgba(115, 213, 55, 0.2);
+        color: #024d3a;
       }
 
       .status-disconnected {
@@ -483,9 +499,9 @@
       }
 
       .whatsapp-status-indicator.connected {
-        background: #d1fae5;
-        color: #065f46;
-        border-color: #10b981;
+        background: rgba(115, 213, 55, 0.2);
+        color: #024d3a;
+        border-color: #73d537;
       }
 
       .whatsapp-status-indicator.disconnected {
@@ -508,8 +524,8 @@
       }
 
       .status-dot.connected {
-        background: #10b981;
-        box-shadow: 0 0 8px #10b981;
+        background: #73d537;
+        box-shadow: 0 0 8px #73d537;
       }
 
       .status-dot.disconnected {
@@ -548,10 +564,10 @@
 
       .modal-panel {
         width: min(560px, 100%);
-        background: #ffffff;
+        background: #132635;
         border-radius: 14px;
-        border: 1px solid #ebedf2;
-        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+        border: 1px solid #2a4354;
+        box-shadow: 0 20px 50px rgba(2, 7, 14, 0.6);
         padding: 20px;
       }
 
@@ -563,7 +579,7 @@
         width: min(980px, 100%);
         height: 100%;
         overflow-y: auto;
-        background: #ffffff;
+        background: #10222f;
         padding: 24px;
       }
 
@@ -578,32 +594,32 @@
       }
 
       .workout-card {
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
+        background: #0f202d;
+        border: 1px solid #2d4353;
         border-radius: 8px;
         padding: 12px;
         margin-bottom: 14px;
       }
 
       .session-card {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        background: #0f202d;
+        border: 1px solid #2d4353;
         border-radius: 8px;
         padding: 12px;
         margin-bottom: 10px;
       }
 
       .exercise-row {
-        border: 1px solid #e5e7eb;
+        border: 1px solid #2d4353;
         border-radius: 10px;
         padding: 12px;
         margin-top: 8px;
-        background: #fff;
+        background: #142a39;
       }
 
       .exercise-title {
         font-weight: 700;
-        color: #111827;
+        color: #e9f0f6;
         margin-bottom: 10px;
         display: flex;
         align-items: center;
@@ -625,15 +641,17 @@
       .exercise-field label {
         font-size: 12px;
         font-weight: 600;
-        color: #475569;
+        color: #9eb0be;
       }
 
       .exercise-field input {
         width: 100%;
         padding: 10px;
-        border: 1px solid #cbd5e1;
+        border: 1px solid #355062;
         border-radius: 8px;
         font-size: 14px;
+        background: #0f202d;
+        color: #e4edf4;
       }
 
       .exercise-actions {
@@ -648,7 +666,7 @@
       }
 
       .workout-section-title {
-        color: #1f2937;
+        color: #dce7ef;
         margin-bottom: 8px;
         font-size: 16px;
       }
@@ -665,8 +683,8 @@
       .workout-meta span {
         font-size: 12px;
         color: #64748b;
-        background: #eef2ff;
-        border: 1px solid #e0e7ff;
+        background: rgba(115, 213, 55, 0.15);
+        border: 1px solid rgba(2, 77, 58, 0.22);
         border-radius: 999px;
         padding: 4px 10px;
       }
@@ -690,7 +708,7 @@
 
       .workout-summary-title {
         font-weight: 700;
-        color: #1f2937;
+        color: #dce7ef;
       }
 
       .accordion-summary-right {
@@ -717,8 +735,8 @@
       .workout-summary-validity {
         font-size: 12px;
         color: #64748b;
-        background: #eef2ff;
-        border: 1px solid #e0e7ff;
+        background: rgba(115, 213, 55, 0.15);
+        border: 1px solid rgba(2, 77, 58, 0.22);
         border-radius: 999px;
         padding: 4px 10px;
         white-space: nowrap;
@@ -755,9 +773,9 @@
 
       .workout-search-results {
         margin-top: 8px;
-        border: 1px solid #d1d5db;
+        border: 1px solid #355062;
         border-radius: 8px;
-        background: #ffffff;
+        background: #132635;
         max-height: 260px;
         overflow-y: auto;
       }
@@ -768,7 +786,7 @@
         align-items: center;
         gap: 10px;
         padding: 10px;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid #2d4353;
       }
 
       .workout-search-item:last-child {
@@ -776,15 +794,15 @@
       }
 
       .workout-search-meta {
-        color: #6b7280;
+        color: #9eb1bf;
         font-size: 12px;
         margin-top: 3px;
       }
 
       .selected-workout-box {
         margin-top: 10px;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        background: #0f202d;
+        border: 1px solid #2d4353;
         border-radius: 8px;
         padding: 12px;
       }
@@ -1448,7 +1466,7 @@
                   <a
                     href="https://aistudio.google.com/app/apikey"
                     target="_blank"
-                    style="color: #667eea; text-decoration: underline"
+                    style="color: #024d3a; text-decoration: underline"
                   >
                     Obter chave API
                   </a>
@@ -4555,8 +4573,8 @@
             const container = document.getElementById("qrCodeContainer");
             container.classList.remove("hidden");
             container.innerHTML = `
-              <div style="padding: 20px; background: #d1fae5; border-radius: 8px; margin-top: 15px;">
-                <h3 style="color: #065f46; margin-bottom: 10px;">✓ WhatsApp Já Conectado</h3>
+              <div style="padding: 20px; background: rgba(115, 213, 55, 0.2); border-radius: 8px; margin-top: 15px;">
+                <h3 style="color: #024d3a; margin-bottom: 10px;">✓ WhatsApp Já Conectado</h3>
                 <p style="color: #047857;">Seu WhatsApp já está conectado e funcionando.</p>
                 <p style="color: #047857; margin-top: 8px; font-size: 14px;">Se quiser reconectar, clique em "Desconectar" primeiro.</p>
               </div>
@@ -4840,9 +4858,9 @@
         statusText.textContent = mensagem;
 
         if (tipo === "success") {
-          statusDiv.style.background = "#d1fae5";
-          statusDiv.style.color = "#065f46";
-          statusDiv.style.border = "1px solid #10b981";
+          statusDiv.style.background = "rgba(115, 213, 55, 0.2)";
+          statusDiv.style.color = "#024d3a";
+          statusDiv.style.border = "1px solid #73d537";
         } else if (tipo === "error") {
           statusDiv.style.background = "#fee2e2";
           statusDiv.style.color = "#991b1b";
