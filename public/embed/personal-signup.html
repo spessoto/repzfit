@@ -25,6 +25,16 @@
         --card-shadow: 0 10px 30px rgba(2, 7, 14, 0.5);
       }
 
+      body.embed-light {
+        --bg: #f4f5f8;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #64748b;
+        --border: #d1d5db;
+        --card-border: #e5e7eb;
+        --card-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+      }
+
       * {
         box-sizing: border-box;
       }
@@ -34,9 +44,13 @@
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
           Cantarell, sans-serif;
-        background: #0d1b26;
+        background: var(--bg);
         color: var(--text);
         min-height: 100vh;
+      }
+
+      body.embed-compact {
+        min-height: auto;
       }
 
       .wrapper {
@@ -47,6 +61,11 @@
         padding: 0;
       }
 
+      body.embed-compact .wrapper {
+        min-height: auto;
+        align-items: flex-start;
+      }
+
       .card {
         width: 100%;
         max-width: 560px;
@@ -55,6 +74,30 @@
         border-radius: 14px;
         box-shadow: var(--card-shadow);
         overflow: hidden;
+      }
+
+      body.embed-light label {
+        color: #334155;
+      }
+
+      body.embed-light input {
+        background: #ffffff;
+        color: #1f2937;
+      }
+
+      body.embed-light .password-list {
+        background: #f8fafc;
+        border: 1px solid #dbe3ea;
+      }
+
+      body.embed-light .btn-secondary {
+        background: #f8fafc;
+        color: #334155;
+        border: 1px solid #d1d5db;
+      }
+
+      body.embed-light .btn-secondary:hover {
+        background: #eef2f7;
       }
 
       .card-header {
@@ -327,7 +370,17 @@
       const params = new URLSearchParams(window.location.search);
       const source = params.get("source") || "landing";
       const recoverRedirect = params.get("recover_redirect") || "";
+      const embedTheme = params.get("embed_theme") || "";
+      const embedCompact = params.get("embed_compact") === "1";
       const apiBase = window.location.origin;
+
+      if (embedTheme === "light") {
+        document.body.classList.add("embed-light");
+      }
+
+      if (embedCompact) {
+        document.body.classList.add("embed-compact");
+      }
 
       const form = document.getElementById("signupForm");
       const alertBox = document.getElementById("formAlert");

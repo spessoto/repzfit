@@ -3,16 +3,26 @@
   if (!currentScript) return;
 
   const scriptUrl = new URL(currentScript.src);
+  const legacyHost = "app.repz.fit";
+  const canonicalOrigin = "https://app.ezpersonal.com.br";
+  const platformOrigin =
+    scriptUrl.hostname === legacyHost ? canonicalOrigin : scriptUrl.origin;
   const source = currentScript.getAttribute("data-source") || "landing";
   const recoveryRedirect =
     currentScript.getAttribute("data-recovery-redirect") || "";
+  const normalizedRecoveryRedirect = recoveryRedirect.replace(
+    "https://app.repz.fit",
+    canonicalOrigin,
+  );
   const width = currentScript.getAttribute("data-width") || "100%";
   const height = currentScript.getAttribute("data-height") || "860";
 
-  const iframeUrl = new URL(`${scriptUrl.origin}/embed/personal-signup.html`);
+  const iframeUrl = new URL(`${platformOrigin}/embed/personal-signup.html`);
   iframeUrl.searchParams.set("source", source);
-  if (recoveryRedirect) {
-    iframeUrl.searchParams.set("recover_redirect", recoveryRedirect);
+  iframeUrl.searchParams.set("embed_theme", "light");
+  iframeUrl.searchParams.set("embed_compact", "1");
+  if (normalizedRecoveryRedirect) {
+    iframeUrl.searchParams.set("recover_redirect", normalizedRecoveryRedirect);
   }
 
   const iframe = document.createElement("iframe");
