@@ -16,9 +16,9 @@
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
           Cantarell, sans-serif;
-        background: #0d1b26;
+        background: #f4f5f8;
         min-height: 100vh;
-        color: #dbe5ee;
+        color: #1f2937;
         overflow-x: hidden;
       }
 
@@ -148,33 +148,22 @@
         padding: 24px;
         overflow-x: hidden;
         min-width: 0;
-        background:
-          radial-gradient(
-            circle at 8% 8%,
-            rgba(115, 213, 55, 0.08),
-            transparent 28%
-          ),
-          radial-gradient(
-            circle at 92% 92%,
-            rgba(2, 77, 58, 0.2),
-            transparent 36%
-          );
       }
 
       .header {
-        background: #132635;
+        background: #ffffff;
         padding: 18px 22px;
         border-radius: 14px;
         margin-bottom: 18px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border: 1px solid #2a4354;
-        box-shadow: 0 8px 24px rgba(2, 7, 14, 0.45);
+        border: 1px solid #ebedf2;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
       }
 
       .header h1 {
-        color: #dff4e8;
+        color: #024d3a;
         font-size: 22px;
       }
 
@@ -206,13 +195,12 @@
       }
 
       .btn-secondary {
-        background: #203647;
-        color: #dbe6ef;
-        border: 1px solid #2f495b;
+        background: #f3f4f6;
+        color: #374151;
       }
 
       .btn-secondary:hover {
-        background: #29465b;
+        background: #e5e7eb;
       }
 
       .btn-danger {
@@ -221,17 +209,17 @@
       }
 
       .card {
-        background: #132635;
+        background: #ffffff;
         padding: 25px;
         border-radius: 14px;
         margin-bottom: 20px;
-        border: 1px solid #2a4354;
-        box-shadow: 0 10px 30px rgba(2, 7, 14, 0.45);
+        border: 1px solid #ebedf2;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
       }
 
       .card h2 {
         margin-bottom: 20px;
-        color: #e6eef5;
+        color: #1f2937;
         font-size: 20px;
       }
 
@@ -242,7 +230,7 @@
       .form-group label {
         display: block;
         margin-bottom: 5px;
-        color: #b6c6d3;
+        color: #374151;
         font-weight: 500;
       }
 
@@ -251,23 +239,28 @@
       .form-group select {
         width: 100%;
         padding: 10px;
-        border: 1px solid #355062;
+        border: 1px solid #d1d5db;
         border-radius: 5px;
         font-size: 14px;
-        background: #0f202d;
-        color: #e4edf4;
+        background: #ffffff;
+        color: #1f2937;
       }
 
       .form-group input:focus,
       .form-group textarea:focus {
         outline: none;
         border-color: #73d537;
-        box-shadow: 0 0 0 3px rgba(115, 213, 55, 0.15);
       }
 
       .login-container {
         max-width: 400px;
-        margin: 100px auto;
+        margin: 0 auto;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 12px;
+        background: #0d1b26;
       }
 
       .tabs {
@@ -387,17 +380,17 @@
       table td {
         padding: 12px;
         text-align: left;
-        border-bottom: 1px solid #2d4353;
+        border-bottom: 1px solid #e5e7eb;
       }
 
       table th {
-        background: #0f202d;
+        background: #f9fafb;
         font-weight: 600;
-        color: #c5d3de;
+        color: #374151;
       }
 
       table tr:hover {
-        background: #1a3041;
+        background: #f9fafb;
       }
 
       .actions {
@@ -442,10 +435,10 @@
         top: 100%;
         left: 0;
         right: 0;
-        background: #132635;
-        border: 1px solid #355062;
+        background: #ffffff;
+        border: 1px solid #d1d5db;
         border-radius: 8px;
-        box-shadow: 0 14px 34px rgba(2, 7, 14, 0.45);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         max-height: 300px;
         overflow-y: auto;
         z-index: 1000;
@@ -455,9 +448,9 @@
       .autocomplete-item {
         padding: 10px;
         cursor: pointer;
-        border-bottom: 1px solid #2d4353;
+        border-bottom: 1px solid #e5e7eb;
         transition: background 0.2s;
-        color: #dde6ee;
+        color: #1f2937;
       }
 
       .autocomplete-item:last-child {
@@ -465,7 +458,7 @@
       }
 
       .autocomplete-item:hover {
-        background: #1a3041;
+        background: #f3f4f6;
       }
 
       .status-badge {
@@ -564,10 +557,10 @@
 
       .modal-panel {
         width: min(560px, 100%);
-        background: #132635;
+        background: #ffffff;
         border-radius: 14px;
-        border: 1px solid #2a4354;
-        box-shadow: 0 20px 50px rgba(2, 7, 14, 0.6);
+        border: 1px solid #ebedf2;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
         padding: 20px;
       }
 
@@ -579,7 +572,7 @@
         width: min(980px, 100%);
         height: 100%;
         overflow-y: auto;
-        background: #10222f;
+        background: #ffffff;
         padding: 24px;
       }
 
@@ -594,32 +587,32 @@
       }
 
       .workout-card {
-        background: #0f202d;
-        border: 1px solid #2d4353;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
         border-radius: 8px;
         padding: 12px;
         margin-bottom: 14px;
       }
 
       .session-card {
-        background: #0f202d;
-        border: 1px solid #2d4353;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
         border-radius: 8px;
         padding: 12px;
         margin-bottom: 10px;
       }
 
       .exercise-row {
-        border: 1px solid #2d4353;
+        border: 1px solid #e5e7eb;
         border-radius: 10px;
         padding: 12px;
         margin-top: 8px;
-        background: #142a39;
+        background: #ffffff;
       }
 
       .exercise-title {
         font-weight: 700;
-        color: #e9f0f6;
+        color: #111827;
         margin-bottom: 10px;
         display: flex;
         align-items: center;
@@ -641,17 +634,17 @@
       .exercise-field label {
         font-size: 12px;
         font-weight: 600;
-        color: #9eb0be;
+        color: #475569;
       }
 
       .exercise-field input {
         width: 100%;
         padding: 10px;
-        border: 1px solid #355062;
+        border: 1px solid #cbd5e1;
         border-radius: 8px;
         font-size: 14px;
-        background: #0f202d;
-        color: #e4edf4;
+        background: #ffffff;
+        color: #1f2937;
       }
 
       .exercise-actions {
@@ -666,7 +659,7 @@
       }
 
       .workout-section-title {
-        color: #dce7ef;
+        color: #1f2937;
         margin-bottom: 8px;
         font-size: 16px;
       }
@@ -708,7 +701,7 @@
 
       .workout-summary-title {
         font-weight: 700;
-        color: #dce7ef;
+        color: #1f2937;
       }
 
       .accordion-summary-right {
@@ -773,9 +766,9 @@
 
       .workout-search-results {
         margin-top: 8px;
-        border: 1px solid #355062;
+        border: 1px solid #d1d5db;
         border-radius: 8px;
-        background: #132635;
+        background: #ffffff;
         max-height: 260px;
         overflow-y: auto;
       }
@@ -786,7 +779,7 @@
         align-items: center;
         gap: 10px;
         padding: 10px;
-        border-bottom: 1px solid #2d4353;
+        border-bottom: 1px solid #e5e7eb;
       }
 
       .workout-search-item:last-child {
@@ -794,15 +787,15 @@
       }
 
       .workout-search-meta {
-        color: #9eb1bf;
+        color: #6b7280;
         font-size: 12px;
         margin-top: 3px;
       }
 
       .selected-workout-box {
         margin-top: 10px;
-        background: #0f202d;
-        border: 1px solid #2d4353;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
         border-radius: 8px;
         padding: 12px;
       }
@@ -906,8 +899,9 @@
 
       @media (max-width: 768px) {
         .login-container {
-          margin: 28px auto;
-          padding: 0 12px;
+          margin: 0 auto;
+          min-height: 100vh;
+          padding: 16px 12px;
         }
 
         .header h1 {
