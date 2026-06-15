@@ -71,7 +71,7 @@ export async function sendTextMessage(input: SendTextInput) {
 export async function sendButtonsMessage(input: SendButtonsInput) {
   await evolutionRequest(`/message/sendButtons/${input.instanceName}`, {
     number: input.number,
-    title: "Repz Fit",
+    title: "EZ Personal",
     description: input.text,
     footer: "Selecione uma opcao",
     buttons: input.buttons.map((button) => ({

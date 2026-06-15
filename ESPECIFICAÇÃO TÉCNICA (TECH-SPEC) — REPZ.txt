@@ -1,8 +1,8 @@
 ﻿Python
-markdown_content = """# ESPECIFICAÇÃO TÉCNICA (TECH-SPEC) — REPZ.FIT (VERSÃO CONSOLIDADA V2)
+markdown_content = """# ESPECIFICAÇÃO TÉCNICA (TECH-SPEC) — EZ PERSONAL (VERSÃO CONSOLIDADA V2)
 
 
-Este documento estabelece as diretrizes definitivas de engenharia, modelação de dados, segurança e resiliência para o desenvolvimento do MVP do **repz.fit**. Esta versão funde todos os mecanismos de tratamento de erros, segurança multi-tenant (RLS), limpeza de sessões e ingestão de mídias diretamente nas suas secções nativas, servindo como contexto de alta fidelidade para o desenvolvimento via **Vibe Coding**.
+Este documento estabelece as diretrizes definitivas de engenharia, modelação de dados, segurança e resiliência para o desenvolvimento do MVP do **EZ Personal**. Esta versão funde todos os mecanismos de tratamento de erros, segurança multi-tenant (RLS), limpeza de sessões e ingestão de mídias diretamente nas suas secções nativas, servindo como contexto de alta fidelidade para o desenvolvimento via **Vibe Coding**.
 
 
 ---

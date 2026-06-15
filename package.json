@@ -1,7 +1,7 @@
 {
   "name": "repz-fit-backend",
   "version": "1.0.0",
-  "description": "Backend MVP do repz.fit",
+  "description": "Backend MVP do EZ Personal",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",

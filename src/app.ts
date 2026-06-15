@@ -38,7 +38,7 @@ function getAllowedOrigins(): string[] {
 
   // URL de produção
   origins.add("https://project-pxgam.vercel.app");
-  origins.add("https://app.repz.fit");
+  origins.add("https://app.ezpersonal.com.br");
 
   return Array.from(origins);
 }

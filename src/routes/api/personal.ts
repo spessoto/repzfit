@@ -443,7 +443,7 @@ function buildWebhookUrlFromRequest(request: FastifyRequest): string {
   }
 
   // Fallback safe default for production.
-  return "https://app.repz.fit/webhooks/evolution";
+  return "https://app.ezpersonal.com.br/webhooks/evolution";
 }
 
 async function ensureEvolutionWebhookForRequest(

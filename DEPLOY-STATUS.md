@@ -1,4 +1,4 @@
-# ✅ Deploy Completo - Repz.fit
+# ✅ Deploy Completo - EZ Personal
 
 **Data**: 26/05/2026  
 **Status**: 🟢 PRODUÇÃO

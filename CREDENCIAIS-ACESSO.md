@@ -1,4 +1,4 @@
-# 🔐 Credenciais de Acesso - Repz.fit
+# 🔐 Credenciais de Acesso - EZ Personal
 
 **Última atualização**: 26/05/2026
 

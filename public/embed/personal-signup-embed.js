@@ -25,7 +25,7 @@
   iframe.style.borderRadius = "16px";
   iframe.style.overflow = "hidden";
   iframe.setAttribute("loading", "lazy");
-  iframe.setAttribute("title", "Cadastro de Personal Repz Fit");
+  iframe.setAttribute("title", "Cadastro de Personal EZ Personal");
 
   const container = document.createElement("div");
   container.style.width = "100%";

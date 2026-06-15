@@ -33,7 +33,7 @@ begin
     '3 seconds',
     $$
       select net.http_post(
-        url     := 'https://app.repz.fit/api/internal/rest-timer/poll',
+        url     := 'https://app.ezpersonal.com.br/api/internal/rest-timer/poll',
         body    := '{}'::jsonb,
         headers := '{"Content-Type":"application/json"}'::jsonb
       );
