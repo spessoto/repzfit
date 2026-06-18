@@ -17,6 +17,7 @@ const EnvSchema = z.object({
   EVOLUTION_BASE_URL: z.url().default("https://evolution.pododesk.com.br"),
   EVOLUTION_GLOBAL_KEY: z.string().min(1),
   EVOLUTION_WEBHOOK_SECRET: z.string().min(1),
+  EVOLUTION_UNIFIED_INSTANCE_NAME: z.string().min(1),
   FRONTEND_URL: z.url().optional(),
   PASSWORD_RECOVERY_REDIRECT_URL: z.url().optional(),
   CRON_SECRET: z.string().min(1).optional(),

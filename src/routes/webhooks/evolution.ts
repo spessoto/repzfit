@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { env } from "../../config/env.js";
 import { supabaseAdmin } from "../../config/supabase.js";
+import { getUnifiedEvolutionInstanceName } from "../../services/evolution-service.js";
 import { processIncomingMessage } from "../../services/bot-engine.js";
 
 // Emergency circuit breaker — set to true to pause bot instantly in production.
@@ -164,6 +165,18 @@ export async function registerEvolutionWebhookRoute(app: FastifyInstance) {
     }
 
     const payload = parsed.data;
+    const unifiedInstance = getUnifiedEvolutionInstanceName();
+
+    if (payload.instance !== unifiedInstance) {
+      app.log.info(
+        {
+          receivedInstance: payload.instance,
+          expectedInstance: unifiedInstance,
+        },
+        "Webhook instance ignored",
+      );
+      return reply.code(200).send({ ignored: true });
+    }
 
     // Accept both "messages.upsert" and "MESSAGES_UPSERT" formats
     const eventNorm = payload.event.toLowerCase().replace(/_/g, ".");

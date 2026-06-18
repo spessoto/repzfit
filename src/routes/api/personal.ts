@@ -8,8 +8,7 @@ import {
   ensureEvolutionWebhook,
   ensureEvolutionInstance,
   getEvolutionConnectionStatus,
-  getEvolutionQrCode,
-  logoutEvolutionInstance,
+  getUnifiedEvolutionInstanceName,
 } from "../../services/evolution-service.js";
 
 const StudentCreateSchema = z.object({
@@ -279,6 +278,16 @@ function isMissingStudentFieldError(error: any): boolean {
   );
 }
 
+function isWhatsappUniqueViolation(error: any): boolean {
+  const code = String(error?.code ?? "");
+  const msg = String(error?.message ?? "").toLowerCase();
+  const details = String(error?.details ?? "").toLowerCase();
+  return (
+    code === "23505" &&
+    (msg.includes("whatsapp") || details.includes("whatsapp"))
+  );
+}
+
 function normalizeStudentRow(row: any) {
   return {
     ...row,
@@ -371,56 +380,6 @@ async function getAuthenticatedPersonal(
   }
 
   return { token, personalId: user.id, personal };
-}
-
-function buildDefaultEvolutionInstanceName(
-  personalId: string,
-  name?: string | null,
-) {
-  const namePart = (name || "personal")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
-
-  const idPart = personalId.replace(/-/g, "").slice(0, 8);
-  const safeName = namePart || "personal";
-
-  return `${safeName}-${idPart}`;
-}
-
-async function resolveEvolutionInstanceName(
-  app: FastifyInstance,
-  personalId: string,
-  personal: { name?: string | null; evolution_instance_name?: string | null },
-) {
-  const current =
-    typeof personal.evolution_instance_name === "string"
-      ? personal.evolution_instance_name.trim()
-      : "";
-
-  if (current) return current;
-
-  const generated = buildDefaultEvolutionInstanceName(
-    personalId,
-    personal.name,
-  );
-
-  const { error } = await supabaseAdmin
-    .from("personals")
-    .update({ evolution_instance_name: generated })
-    .eq("id", personalId);
-
-  if (error) {
-    throw app.httpErrors.internalServerError(
-      `Failed to set evolution instance name: ${error.message}`,
-    );
-  }
-
-  personal.evolution_instance_name = generated;
-  return generated;
 }
 
 function buildWebhookUrlFromRequest(request: FastifyRequest): string {
@@ -548,38 +507,15 @@ async function assertWorkoutOwnership(
 
 export async function registerPersonalApiRoutes(app: FastifyInstance) {
   app.get("/personal/connection/qrcode", async (request) => {
-    const { personal, personalId } = await getAuthenticatedPersonal(
-      app,
-      request,
+    await getAuthenticatedPersonal(app, request);
+    throw app.httpErrors.forbidden(
+      "Conexão do WhatsApp disponível apenas no painel admin.",
     );
-
-    const instanceName = await resolveEvolutionInstanceName(
-      app,
-      personalId,
-      personal,
-    );
-
-    await ensureEvolutionInstance(instanceName);
-    await ensureEvolutionWebhookForRequest(app, request, instanceName);
-    const qr = await getEvolutionQrCode(instanceName);
-
-    return {
-      instance: instanceName,
-      ...qr,
-    };
   });
 
   app.get("/personal/connection/status", async (request) => {
-    const { personal, personalId } = await getAuthenticatedPersonal(
-      app,
-      request,
-    );
-
-    const instanceName = await resolveEvolutionInstanceName(
-      app,
-      personalId,
-      personal,
-    );
+    await getAuthenticatedPersonal(app, request);
+    const instanceName = getUnifiedEvolutionInstanceName();
 
     await ensureEvolutionInstance(instanceName);
     await ensureEvolutionWebhookForRequest(app, request, instanceName);
@@ -598,23 +534,10 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
   });
 
   app.delete("/personal/connection/logout", async (request) => {
-    const { personal, personalId } = await getAuthenticatedPersonal(
-      app,
-      request,
+    await getAuthenticatedPersonal(app, request);
+    throw app.httpErrors.forbidden(
+      "Desconexão do WhatsApp disponível apenas no painel admin.",
     );
-
-    const instanceName = await resolveEvolutionInstanceName(
-      app,
-      personalId,
-      personal,
-    );
-
-    await logoutEvolutionInstance(instanceName);
-
-    return {
-      instance: instanceName,
-      message: "Instance logged out successfully",
-    };
   });
 
   app.get("/personal/profile", async (request) => {
@@ -745,6 +668,11 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .single();
 
     if (error) {
+      if (isWhatsappUniqueViolation(error)) {
+        throw app.httpErrors.conflict(
+          "Este WhatsApp já está vinculado a outro aluno. Confirme o número com o personal responsável.",
+        );
+      }
       throw app.httpErrors.badRequest(error.message);
     }
 
@@ -832,6 +760,11 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = patchResult;
 
     if (error) {
+      if (isWhatsappUniqueViolation(error)) {
+        throw app.httpErrors.conflict(
+          "Este WhatsApp já está vinculado a outro aluno. Confirme o número com o personal responsável.",
+        );
+      }
       throw app.httpErrors.badRequest(error.message);
     }
 

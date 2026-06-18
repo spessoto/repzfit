@@ -1,13 +1,14 @@
 import { env } from "../src/config/env.js";
 
-const EVOLUTION_BASE_URL = "https://evolution.pododesk.com.br";
+const EVOLUTION_BASE_URL = env.EVOLUTION_BASE_URL;
+const INSTANCE_NAME = env.EVOLUTION_UNIFIED_INSTANCE_NAME;
 
 async function checkInstance() {
   try {
-    console.log("🔍 Verificando instância personal-teste...\n");
+    console.log(`🔍 Verificando instância unificada ${INSTANCE_NAME}...\n`);
 
     const response = await fetch(
-      `${EVOLUTION_BASE_URL}/instance/fetchInstances?instanceName=personal-teste`,
+      `${EVOLUTION_BASE_URL}/instance/fetchInstances?instanceName=${encodeURIComponent(INSTANCE_NAME)}`,
       {
         headers: {
           apikey: env.EVOLUTION_GLOBAL_KEY,
@@ -51,7 +52,7 @@ async function checkInstance() {
       // Verificar webhook
       console.log("\n🔧 Verificando webhook...");
       const webhookResponse = await fetch(
-        `${EVOLUTION_BASE_URL}/webhook/find/personal-teste`,
+        `${EVOLUTION_BASE_URL}/webhook/find/${encodeURIComponent(INSTANCE_NAME)}`,
         {
           headers: {
             apikey: env.EVOLUTION_GLOBAL_KEY,

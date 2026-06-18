@@ -5,6 +5,14 @@ import { z } from "zod";
 
 import { env } from "../../config/env.js";
 import { supabaseAdmin } from "../../config/supabase.js";
+import {
+  ensureEvolutionWebhook,
+  ensureEvolutionInstance,
+  getEvolutionConnectionStatus,
+  getEvolutionQrCode,
+  getUnifiedEvolutionInstanceName,
+  logoutEvolutionInstance,
+} from "../../services/evolution-service.js";
 
 const AdminLoginSchema = z.object({
   email: z.string().email(),
@@ -164,6 +172,45 @@ function isStrongPassword(password: string): boolean {
   );
 }
 
+function buildWebhookUrlFromRequest(request: FastifyRequest): string {
+  const protoHeader = request.headers["x-forwarded-proto"];
+  const hostHeader =
+    request.headers["x-forwarded-host"] || request.headers.host;
+
+  const protocol =
+    typeof protoHeader === "string" && protoHeader.trim()
+      ? protoHeader.split(",")[0].trim()
+      : "https";
+
+  const host =
+    typeof hostHeader === "string" && hostHeader.trim()
+      ? hostHeader.split(",")[0].trim()
+      : null;
+
+  if (host) {
+    return `${protocol}://${host}/webhooks/evolution`;
+  }
+
+  return "https://app.ezpersonal.com.br/webhooks/evolution";
+}
+
+async function ensureEvolutionWebhookForRequest(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  instanceName: string,
+) {
+  const webhookUrl = buildWebhookUrlFromRequest(request);
+
+  try {
+    await ensureEvolutionWebhook(instanceName, webhookUrl);
+  } catch (error) {
+    app.log.warn(
+      { error, instanceName, webhookUrl },
+      "Failed to auto-configure Evolution webhook",
+    );
+  }
+}
+
 export async function registerAdminApiRoutes(app: FastifyInstance) {
   app.post("/public/personals/signup", async (request) => {
     const parsed = PersonalPublicSignupSchema.safeParse(request.body);
@@ -270,6 +317,51 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       token: createAdminToken(email),
       admin_email: env.ADMIN_PANEL_EMAIL,
       expires_in_seconds: 60 * 60 * 12,
+    };
+  });
+
+  app.get("/admin/whatsapp/connection/qrcode", async (request) => {
+    ensureAdminAuth(request);
+
+    const instanceName = getUnifiedEvolutionInstanceName();
+
+    await ensureEvolutionInstance(instanceName);
+    await ensureEvolutionWebhookForRequest(app, request, instanceName);
+    const qr = await getEvolutionQrCode(instanceName);
+
+    return {
+      instance: instanceName,
+      ...qr,
+    };
+  });
+
+  app.get("/admin/whatsapp/connection/status", async (request) => {
+    ensureAdminAuth(request);
+
+    const instanceName = getUnifiedEvolutionInstanceName();
+
+    await ensureEvolutionInstance(instanceName);
+    await ensureEvolutionWebhookForRequest(app, request, instanceName);
+
+    const status = await getEvolutionConnectionStatus(instanceName);
+    const instanceData = (status as any).instance || status;
+
+    return {
+      instance: instanceName,
+      state: instanceData.state || instanceData.status,
+      ...instanceData,
+    };
+  });
+
+  app.delete("/admin/whatsapp/connection/logout", async (request) => {
+    ensureAdminAuth(request);
+
+    const instanceName = getUnifiedEvolutionInstanceName();
+    await logoutEvolutionInstance(instanceName);
+
+    return {
+      instance: instanceName,
+      message: "Unified instance logged out successfully",
     };
   });
 

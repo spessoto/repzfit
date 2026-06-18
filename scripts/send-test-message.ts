@@ -1,6 +1,7 @@
 import { env } from "../src/config/env.js";
 
-const EVOLUTION_BASE_URL = "https://evolution.pododesk.com.br";
+const EVOLUTION_BASE_URL = env.EVOLUTION_BASE_URL;
+const INSTANCE_NAME = env.EVOLUTION_UNIFIED_INSTANCE_NAME;
 
 async function sendTestMessage() {
   try {
@@ -14,7 +15,7 @@ async function sendTestMessage() {
     console.log("📋 Payload:", JSON.stringify(payload, null, 2));
 
     const response = await fetch(
-      `${EVOLUTION_BASE_URL}/message/sendText/personal-teste`,
+      `${EVOLUTION_BASE_URL}/message/sendText/${encodeURIComponent(INSTANCE_NAME)}`,
       {
         method: "POST",
         headers: {

@@ -1,6 +1,7 @@
 import { env } from "../src/config/env.js";
 
-const EVOLUTION_BASE_URL = "https://evolution.pododesk.com.br";
+const EVOLUTION_BASE_URL = env.EVOLUTION_BASE_URL;
+const INSTANCE_NAME = env.EVOLUTION_UNIFIED_INSTANCE_NAME;
 
 async function reconnectInstance() {
   try {
@@ -8,7 +9,7 @@ async function reconnectInstance() {
 
     // Verificar status atual
     const statusResponse = await fetch(
-      `${EVOLUTION_BASE_URL}/instance/connectionState/personal-teste`,
+      `${EVOLUTION_BASE_URL}/instance/connectionState/${encodeURIComponent(INSTANCE_NAME)}`,
       {
         headers: {
           apikey: env.EVOLUTION_GLOBAL_KEY,
@@ -24,7 +25,7 @@ async function reconnectInstance() {
       console.log("\n🔄 Reconectando...");
 
       const connectResponse = await fetch(
-        `${EVOLUTION_BASE_URL}/instance/connect/personal-teste`,
+        `${EVOLUTION_BASE_URL}/instance/connect/${encodeURIComponent(INSTANCE_NAME)}`,
         {
           method: "GET",
           headers: {
@@ -40,7 +41,7 @@ async function reconnectInstance() {
         console.log("\n📲 QR Code disponível!");
         console.log("   Acesse para escanear:");
         console.log(
-          `   https://evolution.pododesk.com.br/instance/connect/personal-teste`,
+          `   ${EVOLUTION_BASE_URL}/instance/connect/${encodeURIComponent(INSTANCE_NAME)}`,
         );
         console.log(
           "\n   Ou use o QR Code base64 (muito grande para exibir aqui)",

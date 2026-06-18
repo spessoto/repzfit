@@ -1475,7 +1475,7 @@
           <!-- WhatsApp Tab -->
           <div id="whatsappTab" class="tab-content">
             <div class="card">
-              <h2>Conexão WhatsApp</h2>
+              <h2>Status do Bot WhatsApp</h2>
               <div
                 id="whatsappStatus"
                 style="
@@ -1495,24 +1495,18 @@
                   Atualização automática a cada 10 segundos
                 </p>
               </div>
-              <div id="whatsappActions" style="display: flex; gap: 10px">
-                <button
-                  id="connectBtn"
-                  class="btn btn-primary"
-                  onclick="gerarQRCode()"
-                >
-                  Conectar WhatsApp
-                </button>
-                <button
-                  id="disconnectBtn"
-                  class="btn btn-danger"
-                  onclick="desconectarWhatsApp()"
-                  style="display: none"
-                >
-                  Desconectar
-                </button>
+              <div
+                style="
+                  padding: 14px;
+                  border: 1px solid #e5e7eb;
+                  border-radius: 8px;
+                  background: #f8fafc;
+                  color: #475569;
+                "
+              >
+                A conexão do WhatsApp é gerenciada apenas no painel admin. Este
+                espaço mostra somente o status global do bot.
               </div>
-              <div id="qrCodeContainer" class="qr-container hidden"></div>
             </div>
           </div>
 
@@ -1728,6 +1722,38 @@
               </p>
 
               <div id="adminSettingsAlert"></div>
+
+              <div
+                style="
+                  margin-bottom: 18px;
+                  padding: 14px;
+                  background: #f8fafc;
+                  border: 1px solid #e5e7eb;
+                  border-radius: 10px;
+                "
+              >
+                <h3 style="margin-bottom: 8px; color: #1f2937">
+                  Conexão WhatsApp do Bot Unificado
+                </h3>
+                <div id="adminWhatsappStatus" style="font-size: 16px">
+                  Verificando...
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px">
+                  <button class="btn btn-primary" onclick="gerarQRCodeAdmin()">
+                    Conectar WhatsApp
+                  </button>
+                  <button
+                    class="btn btn-danger"
+                    onclick="desconectarWhatsAppAdmin()"
+                  >
+                    Desconectar
+                  </button>
+                </div>
+                <div
+                  id="adminQrCodeContainer"
+                  class="qr-container hidden"
+                ></div>
+              </div>
 
               <div class="form-group">
                 <label>Identificador da origem do formulário</label>
@@ -2405,10 +2431,22 @@
         if (tab === "adminSettings") {
           generateAdminEmbedCode();
           carregarRelatorioOrigensAdmin();
+          verificarStatusWhatsAppAdmin();
         }
         if (tab === "whatsapp") {
           verificarStatusWhatsApp();
         }
+      }
+
+      function normalizeQrImageData(value) {
+        if (typeof value !== "string") return null;
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        if (trimmed.startsWith("data:image/")) return trimmed;
+        if (/^[A-Za-z0-9+/=\n\r]+$/.test(trimmed) && trimmed.length > 100) {
+          return `data:image/png;base64,${trimmed.replace(/\s+/g, "")}`;
+        }
+        return null;
       }
 
       async function criarAluno() {
@@ -2439,7 +2477,24 @@
           document.getElementById("alunoWhatsapp").value = "";
           carregarAlunos();
           carregarAlunosSelect();
+          return;
         }
+
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 409) {
+          showAlert(
+            "alunosAlert",
+            "Este WhatsApp já está vinculado a outro aluno. Confirme o número com o personal responsável.",
+            "error",
+          );
+          return;
+        }
+
+        showAlert(
+          "alunosAlert",
+          errorData.message || "Erro ao criar aluno",
+          "error",
+        );
       }
 
       async function carregarAlunos() {
@@ -2628,7 +2683,12 @@
           );
 
           if (!response.ok) {
-            const err = await response.json();
+            const err = await response.json().catch(() => ({}));
+            if (response.status === 409) {
+              throw new Error(
+                "Este WhatsApp já está vinculado a outro aluno. Confirme o número com o personal responsável.",
+              );
+            }
             throw new Error(err.message || "Erro ao salvar aluno");
           }
 
@@ -3507,6 +3567,168 @@
             error.message || "Erro ao carregar relatório",
             "error",
           );
+        }
+      }
+
+      async function verificarStatusWhatsAppAdmin() {
+        if (!isAdminSession || !adminToken) return;
+
+        const statusEl = document.getElementById("adminWhatsappStatus");
+        if (!statusEl) return;
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/whatsapp/connection/status`,
+            {
+              headers: {
+                Authorization: `Bearer ${adminToken}`,
+              },
+            },
+          );
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(data.message || "Erro ao consultar status");
+          }
+
+          const isConnected = data.state === "open";
+          const statusClass = isConnected ? "connected" : "disconnected";
+          const statusText = isConnected ? "Conectado" : "Desconectado";
+          const statusIcon = isConnected ? "✓" : "✕";
+          statusEl.innerHTML = `<span class="status-badge status-${statusClass}">${statusIcon} ${statusText}</span>`;
+        } catch (error) {
+          statusEl.innerHTML =
+            '<span class="status-badge status-disconnected">✕ Erro ao verificar</span>';
+        }
+      }
+
+      async function gerarQRCodeAdmin() {
+        if (!isAdminSession || !adminToken) return;
+
+        const container = document.getElementById("adminQrCodeContainer");
+        if (!container) return;
+
+        try {
+          const statusResp = await fetch(
+            `${getApiBaseUrl()}/api/admin/whatsapp/connection/status`,
+            {
+              headers: { Authorization: `Bearer ${adminToken}` },
+            },
+          );
+          const statusData = await statusResp.json().catch(() => ({}));
+
+          if (statusResp.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (statusResp.ok && statusData.state === "open") {
+            container.classList.remove("hidden");
+            container.innerHTML = `
+              <div style="padding: 20px; background: rgba(115, 213, 55, 0.2); border-radius: 8px; margin-top: 12px;">
+                <h3 style="color: #024d3a; margin-bottom: 10px;">✓ WhatsApp já conectado</h3>
+                <p style="color: #047857;">A instância unificada já está pronta para uso.</p>
+              </div>
+            `;
+            return;
+          }
+
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/whatsapp/connection/qrcode`,
+            {
+              headers: { Authorization: `Bearer ${adminToken}` },
+            },
+          );
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            throw new Error(data.message || "Erro ao gerar QR Code");
+          }
+
+          container.classList.remove("hidden");
+
+          const qrImage =
+            normalizeQrImageData(data.base64) ||
+            normalizeQrImageData(data.qrcode) ||
+            normalizeQrImageData(data.code);
+
+          if (qrImage) {
+            container.innerHTML = `
+              <div style="margin-top: 16px;">
+                <h3>Escaneie o QR Code com o WhatsApp oficial do bot</h3>
+                <img src="${qrImage}" alt="QR Code" />
+                <p style="color: #6b7280;">Abra o WhatsApp > Aparelhos conectados > Conectar aparelho.</p>
+                <p style="color: #6b7280; font-size: 12px; margin-top: 8px;">O QR Code expira em poucos segundos.</p>
+              </div>
+            `;
+          } else if (data.pairingCode || data.code) {
+            const pairingCode = data.pairingCode || data.code;
+            container.innerHTML = `
+              <div style="padding: 20px; background: #eff6ff; border-radius: 8px; margin-top: 12px;">
+                <h3 style="color: #1e40af; margin-bottom: 10px;">Use o código de pareamento</h3>
+                <p style="color: #1e3a8a; font-size: 28px; letter-spacing: 2px; font-weight: 700; margin: 8px 0;">${pairingCode}</p>
+                <p style="color: #1e40af;">No WhatsApp, vá em Aparelhos conectados e informe este código.</p>
+              </div>
+            `;
+          } else {
+            container.innerHTML =
+              '<p style="color: #ef4444;">Não foi possível renderizar o QR Code. Tente novamente.</p>';
+          }
+
+          setTimeout(() => verificarStatusWhatsAppAdmin(), 3000);
+        } catch (error) {
+          container.classList.remove("hidden");
+          container.innerHTML =
+            '<p style="color: #ef4444;">Erro ao conectar com a Evolution API. Verifique a configuração.</p>';
+        }
+      }
+
+      async function desconectarWhatsAppAdmin() {
+        if (!isAdminSession || !adminToken) return;
+
+        if (
+          !confirm("Tem certeza que deseja desconectar o WhatsApp unificado?")
+        ) {
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/whatsapp/connection/logout`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${adminToken}`,
+              },
+            },
+          );
+
+          const data = await response.json().catch(() => ({}));
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            throw new Error(data.message || "Erro ao desconectar WhatsApp");
+          }
+
+          const container = document.getElementById("adminQrCodeContainer");
+          if (container) {
+            container.classList.add("hidden");
+            container.innerHTML = "";
+          }
+
+          alert("WhatsApp desconectado com sucesso.");
+          verificarStatusWhatsAppAdmin();
+        } catch (error) {
+          alert(error.message || "Erro ao desconectar WhatsApp.");
         }
       }
 

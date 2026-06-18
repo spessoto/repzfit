@@ -1,10 +1,10 @@
 import "dotenv/config";
+import { env } from "../src/config/env.js";
 
-const EVOLUTION_BASE_URL =
-  process.env.EVOLUTION_BASE_URL || "https://evolution.pododesk.com.br";
-const EVOLUTION_GLOBAL_KEY = process.env.EVOLUTION_GLOBAL_KEY;
-const EVOLUTION_WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET;
-const INSTANCE_NAME = "personal-teste"; // Instância conectada via plataforma
+const EVOLUTION_BASE_URL = env.EVOLUTION_BASE_URL;
+const EVOLUTION_GLOBAL_KEY = env.EVOLUTION_GLOBAL_KEY;
+const EVOLUTION_WEBHOOK_SECRET = env.EVOLUTION_WEBHOOK_SECRET;
+const INSTANCE_NAME = env.EVOLUTION_UNIFIED_INSTANCE_NAME;
 
 // URL do webhook - use a URL pública do Vercel
 const WEBHOOK_URL = "https://project-pxgam.vercel.app/webhooks/evolution";
@@ -89,7 +89,7 @@ async function setupWebhook() {
     console.log("\n📌 Configuração:");
     console.log(`   URL: ${WEBHOOK_URL}`);
     console.log(`   Eventos: MESSAGES_UPSERT`);
-    console.log(`   Instância: ${INSTANCE_NAME}`);
+    console.log(`   Instância unificada: ${INSTANCE_NAME}`);
   } catch (error) {
     console.error("❌ Erro:", error);
     process.exit(1);

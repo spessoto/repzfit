@@ -27,6 +27,10 @@ type EvolutionWebhookConfig = {
   [key: string]: unknown;
 };
 
+export function getUnifiedEvolutionInstanceName(): string {
+  return env.EVOLUTION_UNIFIED_INSTANCE_NAME.trim();
+}
+
 async function evolutionRequest(path: string, body: unknown) {
   const response = await fetch(`${env.EVOLUTION_BASE_URL}${path}`, {
     method: "POST",

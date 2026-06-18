@@ -198,7 +198,7 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 ## 🎯 Próximos Passos (Sugeridos)
 
 1. **Testar Bot no WhatsApp Real**
-   - Conectar instância Evolution API
+   - Conectar instância unificada via painel admin
    - Cadastrar aluno de teste
    - Criar treino de teste
    - Simular fluxo completo
@@ -230,7 +230,10 @@ ec3e0d0 - feat: adicionar busca AJAX por autocomplete em exercicios ao criar tre
 - `GET /api/workouts/student/:id` - Treinos do aluno
 - `POST /api/workouts` - Cria treino
 - `GET /api/workouts/:id/exercises` - Exercícios do treino
-- `GET /api/personal/connection/status` - Status WhatsApp
+- `GET /api/personal/connection/status` - Status global do WhatsApp (somente leitura)
+- `GET /api/admin/whatsapp/connection/status` - Status da instância unificada (admin)
+- `GET /api/admin/whatsapp/connection/qrcode` - QR Code para conectar número oficial (admin)
+- `DELETE /api/admin/whatsapp/connection/logout` - Desconecta instância unificada (admin)
 
 ### Webhooks
 

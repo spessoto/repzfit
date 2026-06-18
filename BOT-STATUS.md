@@ -4,7 +4,7 @@
 
 ### Webhook Evolution API
 
-- **Instância**: `personal-teste`
+- **Instância**: `EVOLUTION_UNIFIED_INSTANCE_NAME` (instância única da plataforma)
 - **Número WhatsApp**: `5511964099351`
 - **Status**: ✅ Conectado
 - **Webhook URL**: `https://project-pxgam.vercel.app/webhooks/evolution`
@@ -13,9 +13,9 @@
 
 ### Código do Bot
 
-- ✅ Bot está usando `input.instance` corretamente em TODAS as respostas
-- ✅ Webhook captura a instância do payload (`payload.instance`)
-- ✅ Cada personal tem sua própria instância WhatsApp
+- ✅ Bot usa instância unificada da plataforma em toda a operação
+- ✅ Webhook valida e processa apenas a instância esperada (`EVOLUTION_UNIFIED_INSTANCE_NAME`)
+- ✅ Cada personal continua acessando somente seus próprios alunos (tenancy por `students.personal_id` + RLS)
 
 ---
 
@@ -24,6 +24,7 @@
 ### 1. **Aluno Cadastrado**
 
 O bot **só responde** para números de WhatsApp cadastrados como alunos no sistema.
+Se o número não estiver cadastrado/vinculado, o bot orienta procurar o personal trainer.
 
 **Alunos atuais no banco**:
 
@@ -32,7 +33,7 @@ O bot **só responde** para números de WhatsApp cadastrados como alunos no sist
 
 **Número que deve mandar mensagem**: Qualquer número cadastrado acima
 
-**Número que vai RESPONDER**: `5511964099351` (instância personal-teste)
+**Número que vai RESPONDER**: `5511964099351` (bot unificado)
 
 ### 2. **Treino Cadastrado**
 
@@ -66,6 +67,14 @@ O aluno precisa ter um treino cadastrado para o **dia da semana atual**.
 9. Salve o treino
 10. Mande "Iniciar treino" pelo WhatsApp
 
+### Opção 3: Conectar/Revalidar o número oficial do bot
+
+1. Faça login como admin da plataforma
+2. Abra a aba **Configurações de Embed**
+3. Use a seção **Conexão WhatsApp do Bot Unificado**
+4. Clique em **Conectar WhatsApp** e escaneie o QR Code
+5. Verifique o status como **Conectado**
+
 ---
 
 ## 📊 Verificar Logs
@@ -94,6 +103,7 @@ Se não aparecer nada nos logs, o webhook não está enviando para a URL correta
 ### Bot não responde
 
 - Verifique se o aluno está cadastrado
+- Verifique se o aluno está vinculado a um personal
 - Rode: `npx tsx scripts/check-students.ts`
 - Verifique se há treino para hoje
 - Rode: `npx tsx scripts/check-workouts.ts`

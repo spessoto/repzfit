@@ -1,7 +1,10 @@
 import type { FastifyInstance } from "fastify";
 
 import { supabaseAdmin } from "../config/supabase.js";
-import { sendTextMessage } from "./evolution-service.js";
+import {
+  getUnifiedEvolutionInstanceName,
+  sendTextMessage,
+} from "./evolution-service.js";
 import {
   generateFallbackReply,
   generateBotResponse,
@@ -260,7 +263,7 @@ async function safeInputFallback(
 async function getStudentByWhatsapp(whatsapp: string) {
   const { data, error } = await supabaseAdmin
     .from("students")
-    .select("id,name,personal_id,whatsapp_number,is_active")
+    .select("id,name,personal_id,whatsapp_number,is_active,personals!inner(id)")
     .eq("whatsapp_number", whatsapp)
     .eq("is_active", true)
     .maybeSingle();
@@ -289,6 +292,32 @@ async function getOrCreateState(
   }
 
   if (existing) {
+    if (existing.student_id !== studentId) {
+      const { data: migrated, error: migrateError } = await supabaseAdmin
+        .from("bot_state")
+        .update({
+          student_id: studentId,
+          current_state: "IDLE",
+          current_session_id: null,
+          current_workout_exercise_id: null,
+          current_set_number: 1,
+          last_input_attempt: null,
+          rest_end_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("whatsapp_number", whatsapp)
+        .select(
+          "whatsapp_number,student_id,current_state,current_session_id,current_workout_exercise_id,current_set_number,last_input_attempt,rest_end_at",
+        )
+        .single();
+
+      if (migrateError) {
+        throw migrateError;
+      }
+
+      return migrated as BotStateRow;
+    }
+
     return existing as BotStateRow;
   }
 
@@ -1352,8 +1381,8 @@ export async function processIncomingMessage(input: IncomingMessage) {
     if (!student) {
       const response = await safeCoachReply(
         input.app,
-        `O usuário tentou iniciar um treino mas não está cadastrado no sistema. Explique de forma amigável e breve (2 linhas) que ele precisa ser cadastrado pelo personal trainer antes de usar o sistema.`,
-        "Você ainda não está cadastrado no sistema. Peça ao seu personal para concluir seu cadastro e eu te ajudo a iniciar o treino! 💪",
+        `O usuário tentou iniciar um treino mas não está cadastrado ou não está vinculado a um personal no sistema. Explique de forma amigável e breve (2 linhas) que ele precisa procurar o personal trainer para cadastro/vinculação antes de usar o sistema.`,
+        "Não encontrei seu cadastro vinculado a um personal trainer. Procure seu personal para ativar seu acesso e eu te ajudo a iniciar o treino! 💪",
       );
 
       await sendTextMessage({
@@ -2579,24 +2608,15 @@ export async function processExpiredRestTimers(
   for (const raw of expiredStates) {
     const state = raw as BotStateRow;
     try {
-      // Resolver instância: bot_state.student_id → students.personal_id → personals.evolution_instance_name
       const { data: studentRow } = await supabaseAdmin
         .from("students")
-        .select("personal_id,name")
+        .select("id")
         .eq("id", state.student_id)
         .single();
 
       if (!studentRow) continue;
 
-      const { data: personalRow } = await supabaseAdmin
-        .from("personals")
-        .select("evolution_instance_name")
-        .eq("id", studentRow.personal_id)
-        .single();
-
-      if (!personalRow?.evolution_instance_name) continue;
-
-      const instanceName = personalRow.evolution_instance_name as string;
+      const instanceName = getUnifiedEvolutionInstanceName();
 
       await fireExpiredRest(app, state, instanceName);
       processed++;
