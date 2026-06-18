@@ -1052,6 +1052,10 @@ async function advanceAfterSetLog(params: {
   const restSeconds: number | null =
     (exerciseResult.data as any).rest_seconds ?? null;
   const nextSet = state.current_set_number + 1;
+  const isCollectingState =
+    state.current_state === "COLLECTING_REPS" ||
+    state.current_state === "COLLECTING_WEIGHT" ||
+    state.current_state === "COLLECTING_RPE";
 
   if (nextSet <= targetSets) {
     if (restSeconds && restSeconds > 0) {
@@ -1074,6 +1078,21 @@ async function advanceAfterSetLog(params: {
           text: `🔥 Série ${state.current_set_number}/${targetSets} concluída! Boa!\n\n⏱ Descanso já em andamento: faltam ~*${remaining}s*. Vou te avisar quando acabar! 💪`,
         });
       } else if (startedRestEndMs > 0) {
+        await sendTextMessage({
+          instanceName,
+          number: whatsapp,
+          text: `🔥 Série ${state.current_set_number}/${targetSets} concluída!\n\n✅ O descanso já terminou. Bora para a próxima série! Quando terminar a série ${nextSet}, me manda *feito* ✅`,
+        });
+
+        await updateState(whatsapp, {
+          current_state: "EXECUTING_SET",
+          current_set_number: nextSet,
+          last_input_attempt: null,
+          rest_end_at: null,
+        });
+      } else if (isCollectingState) {
+        // No modo por repetição, o descanso pode expirar em background durante a coleta.
+        // Nesse caso, não reinicia descanso ao concluir o log da série.
         await sendTextMessage({
           instanceName,
           number: whatsapp,
@@ -2764,7 +2783,12 @@ export async function processExpiredRestTimers(
     .select(
       "whatsapp_number,student_id,current_set_number,current_workout_exercise_id,current_session_id,last_input_attempt,rest_end_at",
     )
-    .eq("current_state", "RESTING")
+    .in("current_state", [
+      "RESTING",
+      "COLLECTING_REPS",
+      "COLLECTING_WEIGHT",
+      "COLLECTING_RPE",
+    ])
     .lte("rest_end_at", new Date().toISOString());
 
   if (error) {
@@ -2789,7 +2813,21 @@ export async function processExpiredRestTimers(
 
       const instanceName = getUnifiedEvolutionInstanceName();
 
-      await fireExpiredRest(app, state, instanceName);
+      if (state.current_state === "RESTING") {
+        await fireExpiredRest(app, state, instanceName);
+      } else {
+        // No per_rep, o descanso pode terminar enquanto o aluno ainda informa reps/carga/PSE.
+        // Notifica o fim do descanso e limpa rest_end_at para evitar repeticao em cada poll.
+        await sendTextMessage({
+          instanceName,
+          number: state.whatsapp_number,
+          text: "✅ Fim do descanso! Se ainda nao terminou de me passar os dados desta serie, pode enviar agora para liberar a proxima. 💪",
+        });
+
+        await updateState(state.whatsapp_number, {
+          rest_end_at: null,
+        });
+      }
       processed++;
     } catch (err) {
       app.log.error(
