@@ -2179,7 +2179,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
             current_state: "COLLECTING_REPS",
             rest_end_at: restEndAt,
           });
-          restStartNotice = `\n\n⏱ O descanso de *${restSeconds}s* já começou agora. Enquanto isso, me passa os dados desta série.`;
+          restStartNotice = `\n\n⏱ O descanso de *${restSeconds}s* já começou agora. Enquanto isso, me passa quantas repetições você fez.`;
         }
       }
 
