@@ -80,6 +80,36 @@ type AdminTokenPayload = {
   exp: number;
 };
 
+function normalizeBrazilWhatsappNumber(
+  raw: string | null | undefined,
+): string | null {
+  if (!raw) return null;
+
+  let digits = String(raw).trim().replace(/\D+/g, "");
+  if (!digits) return null;
+
+  while (digits.startsWith("00")) {
+    digits = digits.slice(2);
+  }
+
+  if (digits.startsWith("0")) {
+    digits = digits.replace(/^0+/, "");
+  }
+
+  if (
+    digits.startsWith("55") &&
+    (digits.length === 12 || digits.length === 13)
+  ) {
+    return digits;
+  }
+
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+
+  return null;
+}
+
 function toB64Url(input: string): string {
   return Buffer.from(input, "utf8").toString("base64url");
 }
@@ -220,6 +250,13 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
     }
 
     const input = parsed.data;
+    const normalizedWhatsapp = normalizeBrazilWhatsappNumber(input.whatsapp);
+
+    if (!normalizedWhatsapp) {
+      throw app.httpErrors.badRequest(
+        "WhatsApp inválido. Use no formato 55DDDNUMERO.",
+      );
+    }
 
     if (!isStrongPassword(input.password)) {
       throw app.httpErrors.badRequest(
@@ -246,7 +283,7 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
         id: authUserData.user.id,
         name: input.name,
         email: input.email,
-        phone: input.whatsapp,
+        phone: normalizedWhatsapp,
         signup_source: input.source || null,
       })
       .select("id,name,email,phone,evolution_instance_name,created_at")
@@ -390,6 +427,15 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
     }
 
     const input = parsed.data;
+    const normalizedPhone = input.phone
+      ? normalizeBrazilWhatsappNumber(input.phone)
+      : null;
+
+    if (input.phone && !normalizedPhone) {
+      throw app.httpErrors.badRequest(
+        "WhatsApp inválido. Use no formato 55DDDNUMERO.",
+      );
+    }
 
     const { data: authUserData, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
@@ -410,7 +456,7 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
         id: authUserData.user.id,
         name: input.name,
         email: input.email,
-        ...(input.phone ? { phone: input.phone } : {}),
+        ...(normalizedPhone ? { phone: normalizedPhone } : {}),
         ...(input.evolution_instance_name
           ? { evolution_instance_name: input.evolution_instance_name }
           : {}),
@@ -457,7 +503,19 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
     if (parsed.data.name !== undefined) patch.name = parsed.data.name;
     if (parsed.data.email !== undefined) patch.email = parsed.data.email;
     if (parsed.data.phone !== undefined) {
-      patch.phone = parsed.data.phone === "" ? null : parsed.data.phone;
+      if (parsed.data.phone === "" || parsed.data.phone === null) {
+        patch.phone = null;
+      } else {
+        const normalizedPhone = normalizeBrazilWhatsappNumber(
+          parsed.data.phone,
+        );
+        if (!normalizedPhone) {
+          throw app.httpErrors.badRequest(
+            "WhatsApp inválido. Use no formato 55DDDNUMERO.",
+          );
+        }
+        patch.phone = normalizedPhone;
+      }
     }
     if (parsed.data.evolution_instance_name !== undefined) {
       patch.evolution_instance_name = parsed.data.evolution_instance_name;

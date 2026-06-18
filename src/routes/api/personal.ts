@@ -183,6 +183,36 @@ const PERSONAL_SELECT_FULL =
   "id,name,email,evolution_instance_name,phone,crf_registration,created_at";
 const PERSONAL_SELECT_BASE = "id,name,email,evolution_instance_name,created_at";
 
+function normalizeBrazilWhatsappNumber(
+  raw: string | null | undefined,
+): string | null {
+  if (!raw) return null;
+
+  let digits = String(raw).trim().replace(/\D+/g, "");
+  if (!digits) return null;
+
+  while (digits.startsWith("00")) {
+    digits = digits.slice(2);
+  }
+
+  if (digits.startsWith("0")) {
+    digits = digits.replace(/^0+/, "");
+  }
+
+  if (
+    digits.startsWith("55") &&
+    (digits.length === 12 || digits.length === 13)
+  ) {
+    return digits;
+  }
+
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+
+  return null;
+}
+
 function buildCompletedSessionSummaryFromLogs(logs: any[]): string | null {
   if (!Array.isArray(logs) || logs.length === 0) {
     return null;
@@ -585,6 +615,16 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     if (payload.email === "") payload.email = null;
     if (payload.phone === "") payload.phone = null;
     if (payload.crf_registration === "") payload.crf_registration = null;
+
+    if (typeof payload.phone === "string") {
+      const normalizedPhone = normalizeBrazilWhatsappNumber(payload.phone);
+      if (!normalizedPhone) {
+        throw app.httpErrors.badRequest(
+          "WhatsApp inválido. Use no formato 55DDDNUMERO.",
+        );
+      }
+      payload.phone = normalizedPhone;
+    }
 
     if (payload.email) {
       const { error: authUpdateError } =

@@ -234,6 +234,36 @@ function normalizeWhatsapp(remoteJid: string): string {
   return remoteJid.replace(/@.*/, "");
 }
 
+function normalizeBrazilWhatsappNumber(
+  raw: string | null | undefined,
+): string | null {
+  if (!raw) return null;
+
+  let digits = String(raw).trim().replace(/\D+/g, "");
+  if (!digits) return null;
+
+  while (digits.startsWith("00")) {
+    digits = digits.slice(2);
+  }
+
+  if (digits.startsWith("0")) {
+    digits = digits.replace(/^0+/, "");
+  }
+
+  if (
+    digits.startsWith("55") &&
+    (digits.length === 12 || digits.length === 13)
+  ) {
+    return digits;
+  }
+
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+
+  return null;
+}
+
 async function safeCoachReply(
   app: FastifyInstance,
   userMessage: string,
@@ -365,10 +395,11 @@ async function updateState(whatsapp: string, patch: Partial<BotStateRow>) {
 async function getPersonalWhatsapp(personalId: string): Promise<string | null> {
   const { data } = await supabaseAdmin
     .from("personals")
-    .select("whatsapp_number")
+    .select("phone")
     .eq("id", personalId)
     .maybeSingle();
-  return (data as any)?.whatsapp_number ?? null;
+
+  return normalizeBrazilWhatsappNumber((data as any)?.phone ?? null);
 }
 
 /**
