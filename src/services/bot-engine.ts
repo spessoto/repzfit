@@ -73,7 +73,14 @@ function isSetDoneIntent(msg: string): boolean {
 
 function isTrainingDoneIntent(msg: string): boolean {
   const n = msg.toLowerCase().trim();
-  return /^(finali[zs]ei|terminei o treino|acabei o treino|treino finalizado|treino concluido|treino concluído|fim do treino)/.test(
+  return /^(encerrar|encerra|encerro|encerr[aei] treino|finali[zs]ar|finali[zs]a treino|finali[zs]ei|terminei o treino|acabei o treino|treino finalizado|treino concluido|treino concluído|fim do treino)/.test(
+    n,
+  );
+}
+
+function isPauseTrainingIntent(msg: string): boolean {
+  const n = msg.toLowerCase().trim();
+  return /^(parar|para|pausar|pausa|pause|interromper|interrompe|dar um tempo)$/.test(
     n,
   );
 }
@@ -877,20 +884,61 @@ async function sendReportToPersonal(params: {
     return;
   }
 
-  const report = buildPersonalReport(
-    params.studentName,
-    params.tracking,
-    params.monitoredSummary,
+  const fallbackExtract = buildSimpleExerciseList(
+    params.tracking ?? {
+      type: "tracking",
+      mode: "unmonitored",
+      tracking_mode: "none",
+      session_date: null,
+      all_ids: [],
+      remaining_ids: [],
+      done: [],
+      exercise_details: {},
+    },
   );
+
+  const workoutExtract =
+    params.monitoredSummary?.trim() ||
+    fallbackExtract ||
+    "Sem extrato disponível.";
 
   try {
     await sendTextMessage({
       instanceName: params.instanceName,
       number: personalWhatsapp,
-      text: `📬 *Relatório automático — ${params.studentName}*\n\n${report}`,
+      text: `O aluno ${params.studentName} terminou o treino de hoje! veja o extrato do treino dele:\n${workoutExtract}`,
     });
   } catch (err) {
     params.app.log.error(err, "sendReportToPersonal: failed to send message");
+  }
+}
+
+async function sendTrainingStartedToPersonal(params: {
+  app: FastifyInstance;
+  instanceName: string;
+  personalId: string;
+  studentName: string;
+}): Promise<void> {
+  const personalWhatsapp = await getPersonalWhatsapp(params.personalId);
+  if (!personalWhatsapp) {
+    params.app.log.warn(
+      { personalId: params.personalId },
+      "sendTrainingStartedToPersonal: personal has no whatsapp_number configured",
+    );
+    return;
+  }
+
+  try {
+    await sendTextMessage({
+      instanceName: params.instanceName,
+      number: personalWhatsapp,
+      text: `O aluno ${params.studentName} iniciou o treino.`,
+    });
+  } catch (err) {
+    params.app.log.error(
+      err,
+      "sendTrainingStartedToPersonal: failed to send message",
+    );
   }
 }
 
@@ -1320,6 +1368,126 @@ async function advanceAfterSetLog(params: {
   });
 }
 
+async function finishTrainingEarly(params: {
+  app: FastifyInstance;
+  instanceName: string;
+  whatsapp: string;
+  student: { name: string; personal_id: string };
+  state: BotStateRow;
+}): Promise<void> {
+  const { app, instanceName, whatsapp, student, state } = params;
+  const sessionId = state.current_session_id;
+
+  if (!sessionId) {
+    await updateState(whatsapp, {
+      current_state: "IDLE",
+      current_session_id: null,
+      current_workout_exercise_id: null,
+      current_set_number: 1,
+      last_input_attempt: null,
+      rest_end_at: null,
+    });
+    await sendTextMessage({
+      instanceName,
+      number: whatsapp,
+      text: "Treino encerrado. Quando quiser voltar, mande *iniciar treino*! 💪",
+    });
+    return;
+  }
+
+  let tracking: SessionTrackingData | null = null;
+  const { data: sessionRow } = await supabaseAdmin
+    .from("daily_sessions")
+    .select("summary")
+    .eq("id", sessionId)
+    .maybeSingle();
+
+  try {
+    const parsed = JSON.parse((sessionRow as any)?.summary ?? "null");
+    if (parsed?.type === "tracking") tracking = parsed;
+  } catch {}
+
+  const trackingMode = tracking?.tracking_mode ?? "none";
+
+  if (trackingMode === "per_workout") {
+    await updateState(whatsapp, {
+      current_state: "COLLECTING_SESSION_RPE",
+      last_input_attempt: null,
+    });
+    await sendTextMessage({
+      instanceName,
+      number: whatsapp,
+      text: "Treino encerrado! Antes de finalizar, qual foi o PSE geral do treino?\n\nResponda com um número de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - Máximo 🔥",
+    });
+    return;
+  }
+
+  let extrato = "";
+  if (trackingMode === "per_rep" || trackingMode === "per_exercise") {
+    try {
+      extrato = await buildWorkoutSummary(sessionId);
+    } catch (err) {
+      app.log.warn(err, "Failed to build monitored summary on early finish");
+    }
+  }
+
+  if (!extrato) {
+    extrato = buildSimpleExerciseList(
+      tracking ?? {
+        type: "tracking",
+        mode: "unmonitored",
+        tracking_mode: "none",
+        session_date: null,
+        all_ids: [],
+        remaining_ids: [],
+        done: [],
+        exercise_details: {},
+      },
+    );
+  }
+
+  const congratsMessage = await safeCoachReply(
+    app,
+    `O aluno ${student.name} encerrou o treino antecipadamente. Parabenize pelo esforço de forma breve (1-2 linhas).`,
+    `Treino encerrado! Ótimo esforço hoje, ${student.name}! Continue assim! 💪`,
+  );
+
+  const personalReport = buildPersonalReport(student.name, tracking, "");
+  await completeSession(sessionId, personalReport);
+
+  await sendTextMessage({
+    instanceName,
+    number: whatsapp,
+    text: `🎉 ${congratsMessage}`,
+  });
+
+  if (trackingMode !== "none" || (tracking?.done?.length ?? 0) > 0) {
+    await sendTextMessage({
+      instanceName,
+      number: whatsapp,
+      text: extrato,
+    });
+  }
+
+  await sendReportToPersonal({
+    app,
+    instanceName,
+    personalId: student.personal_id,
+    studentName: student.name,
+    tracking,
+    monitoredSummary: extrato,
+  });
+
+  await updateState(whatsapp, {
+    current_state: "IDLE",
+    current_session_id: null,
+    current_workout_exercise_id: null,
+    current_set_number: 1,
+    last_input_attempt: null,
+    rest_end_at: null,
+  });
+}
+
 export async function processIncomingMessage(input: IncomingMessage) {
   const whatsapp = normalizeWhatsapp(input.remoteJid);
 
@@ -1345,8 +1513,8 @@ export async function processIncomingMessage(input: IncomingMessage) {
     return;
   }
 
-  // Comando global: "parar" encerra qualquer sessão ativa
-  if (/^parar$/i.test(effectiveInput.trim())) {
+  // Comando global: pausar treino com variações
+  if (isPauseTrainingIntent(effectiveInput.trim())) {
     const student = await getStudentByWhatsapp(whatsapp);
     if (student) {
       const state = await getOrCreateState(whatsapp, student.id);
@@ -1365,6 +1533,33 @@ export async function processIncomingMessage(input: IncomingMessage) {
       instanceName: input.instance,
       number: whatsapp,
       text: "Bot pausado. Quando quiser retomar, é só mandar *iniciar treino*! 💪",
+    });
+    return;
+  }
+
+  // Comando global: encerrar treino com variações, sem depender da IA.
+  if (isTrainingDoneIntent(effectiveInput.trim())) {
+    const student = await getStudentByWhatsapp(whatsapp);
+    if (!student) {
+      return;
+    }
+
+    const state = await getOrCreateState(whatsapp, student.id);
+    if (state.current_state === "IDLE") {
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: "Você não tem treino em andamento agora. Quando quiser, mande *iniciar treino*! 💪",
+      });
+      return;
+    }
+
+    await finishTrainingEarly({
+      app: input.app,
+      instanceName: input.instance,
+      whatsapp,
+      student,
+      state,
     });
     return;
   }
@@ -1674,9 +1869,16 @@ export async function processIncomingMessage(input: IncomingMessage) {
         rest_end_at: null,
       });
 
+      await sendTrainingStartedToPersonal({
+        app: input.app,
+        instanceName: input.instance,
+        personalId: student.personal_id,
+        studentName: student.name,
+      });
+
       const menuText = buildExerciseSelectionMenu(
         trackingData,
-        `🏋️ *${workout.name}*\n\n*Escolha por qual exercício quer começar:*`,
+        `🏋️ *${workout.name}*\n\n*Escolha por qual exercício quer começar:*\n\n💡 Você pode mandar *parar* para pausar o treino ou *encerrar* para finalizar antes da hora.`,
       );
 
       await sendTextMessage({
@@ -1829,74 +2031,12 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
     // Opção 0 = Encerrar treino
     if (selectedNumber === 0) {
-      const trackingMode = tracking.tracking_mode ?? "per_rep";
-      if (trackingMode === "per_workout") {
-        // Pedir PSE geral do treino
-        await updateState(whatsapp, {
-          current_state: "COLLECTING_SESSION_RPE",
-          last_input_attempt: null,
-        });
-        await sendTextMessage({
-          instanceName: input.instance,
-          number: whatsapp,
-          text: "Treino encerrado! Antes de finalizar, qual foi o PSE geral do treino?\n\nResponda com um número de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - Máximo 🔥",
-        });
-        return;
-      }
-
-      // Extrato dinâmico por modo ao encerrar antecipadamente.
-      let extrato = "";
-      if (trackingMode === "per_rep" || trackingMode === "per_exercise") {
-        try {
-          extrato = await buildWorkoutSummary(sessionId);
-        } catch (err) {
-          input.app.log.warn(
-            err,
-            "Failed to build monitored summary on early finish",
-          );
-        }
-      }
-      if (!extrato) {
-        extrato = buildSimpleExerciseList(tracking);
-      }
-      const congratsMessage = await safeCoachReply(
-        input.app,
-        `O aluno ${student.name} encerrou o treino antecipadamente. Parabenize pelo esforço de forma breve (1-2 linhas).`,
-        `Treino encerrado! Ótimo esforço hoje, ${student.name}! Continue assim! 💪`,
-      );
-
-      const personalReport = buildPersonalReport(student.name, tracking, "");
-      await completeSession(sessionId, personalReport);
-
-      await sendTextMessage({
-        instanceName: input.instance,
-        number: whatsapp,
-        text: `🎉 ${congratsMessage}`,
-      });
-
-      if (trackingMode !== "none" || tracking.done.length > 0) {
-        await sendTextMessage({
-          instanceName: input.instance,
-          number: whatsapp,
-          text: extrato,
-        });
-      }
-
-      await sendReportToPersonal({
+      await finishTrainingEarly({
         app: input.app,
         instanceName: input.instance,
-        personalId: student.personal_id,
-        studentName: student.name,
-        tracking,
-        monitoredSummary: extrato,
-      });
-
-      await updateState(whatsapp, {
-        current_state: "IDLE",
-        current_session_id: null,
-        current_workout_exercise_id: null,
-        current_set_number: 1,
-        last_input_attempt: null,
+        whatsapp,
+        student,
+        state,
       });
       return;
     }
@@ -2311,7 +2451,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Ótimo! E qual foi o PSE desse exercício?\n\nResponda com um número de *1 a 10*.",
+        text: "Ótimo! E qual foi o PSE desse exercício?\n\nResponda com um número de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - Máximo 🔥",
       });
       await updateState(whatsapp, {
         current_state: "COLLECTING_RPE",
