@@ -357,6 +357,99 @@ function normalizeSearchTerm(input: string): string {
   );
 }
 
+function normalizeSearchComparable(input: string): string {
+  return normalizeSearchTerm(input)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function tokenizeSearchTerm(input: string): string[] {
+  return normalizeSearchComparable(input)
+    .split(" ")
+    .map((term) => term.trim())
+    .filter(Boolean);
+}
+
+function resolveExerciseTags(tags: unknown): string[] {
+  if (Array.isArray(tags)) {
+    return tags
+      .map((tag) => String(tag || "").trim())
+      .filter((tag) => tag.length > 0);
+  }
+
+  if (typeof tags === "string") {
+    return tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0);
+  }
+
+  return [];
+}
+
+function matchesExerciseSearch(exercise: any, searchTokens: string[]): boolean {
+  if (searchTokens.length === 0) return true;
+
+  const haystack = normalizeSearchComparable(
+    [
+      exercise?.name,
+      exercise?.description,
+      exercise?.muscle_group,
+      exercise?.equipment,
+      ...resolveExerciseTags(exercise?.tags),
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+
+  return searchTokens.every((token) => haystack.includes(token));
+}
+
+function scoreExerciseSearch(
+  exercise: any,
+  searchTokens: string[],
+  normalizedQuery: string,
+): number {
+  const name = normalizeSearchComparable(exercise?.name ?? "");
+  const description = normalizeSearchComparable(exercise?.description ?? "");
+  const muscleGroup = normalizeSearchComparable(exercise?.muscle_group ?? "");
+  const equipment = normalizeSearchComparable(exercise?.equipment ?? "");
+  const tags = resolveExerciseTags(exercise?.tags)
+    .map((tag) => normalizeSearchComparable(tag))
+    .join(" ");
+
+  const combined = [name, description, muscleGroup, equipment, tags]
+    .filter(Boolean)
+    .join(" ");
+
+  let score = 0;
+
+  if (normalizedQuery) {
+    if (name === normalizedQuery) score += 1000;
+    else if (name.startsWith(normalizedQuery)) score += 700;
+    else if (name.includes(normalizedQuery)) score += 500;
+
+    if (muscleGroup.includes(normalizedQuery)) score += 220;
+    if (equipment.includes(normalizedQuery)) score += 180;
+    if (tags.includes(normalizedQuery)) score += 160;
+    if (description.includes(normalizedQuery)) score += 80;
+
+    if (combined.includes(normalizedQuery)) score += 120;
+  }
+
+  for (const token of searchTokens) {
+    if (!token) continue;
+    if (name.includes(token)) score += 120;
+    if (muscleGroup.includes(token)) score += 95;
+    if (equipment.includes(token)) score += 80;
+    if (tags.includes(token)) score += 70;
+    if (description.includes(token)) score += 35;
+  }
+
+  return score;
+}
+
 function extractBearerToken(request: FastifyRequest): string {
   const header = request.headers.authorization;
   if (!header || !header.startsWith("Bearer ")) {
@@ -1017,6 +1110,8 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
     const search = normalizeSearchTerm(queryParams.search || "");
+    const normalizedQuery = normalizeSearchComparable(search);
+    const searchTokens = tokenizeSearchTerm(search);
 
     // Query base
     let query = client
@@ -1026,14 +1121,66 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         { count: "exact" },
       );
 
-    // Filtro de busca (se fornecido)
-    if (search.length >= 2) {
-      query = query.or(
-        `name.ilike.%${search}%,muscle_group.ilike.%${search}%,equipment.ilike.%${search}%`,
-      );
+    // Busca por termos contendo palavras em vários campos (inclui tags)
+    // Ex.: "supino smith" deve encontrar "supino fechado smith".
+    if (searchTokens.length >= 1) {
+      // Fase 1: filtra no banco via ilike por nome, grupo muscular, equipamento e descrição.
+      // Isso evita o truncamento padrão do Supabase/PostgREST que corta resultados
+      // após N linhas ordenadas — sem esse filtro, exercícios com letra S em diante
+      // podem nunca ser retornados se houver muitos exercícios antes deles.
+      const orClauses = searchTokens
+        .flatMap((token) => {
+          const safe = token.replace(/_/g, "\\_");
+          return [
+            `name.ilike.%${safe}%`,
+            `muscle_group.ilike.%${safe}%`,
+            `equipment.ilike.%${safe}%`,
+            `description.ilike.%${safe}%`,
+          ];
+        })
+        .join(",");
+
+      const { data: candidates, error: candidatesError } = await query
+        .or(orClauses)
+        .order("name", { ascending: true });
+
+      if (candidatesError) {
+        throw app.httpErrors.badRequest(candidatesError.message);
+      }
+
+      // Fase 2: filtragem em memória exigindo TODOS os tokens (inclui tags)
+      const filtered = (candidates ?? [])
+        .filter((exercise) => matchesExerciseSearch(exercise, searchTokens))
+        .map((exercise) => ({
+          exercise,
+          score: scoreExerciseSearch(exercise, searchTokens, normalizedQuery),
+        }))
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          const nameA = String(a.exercise?.name ?? "").toLowerCase();
+          const nameB = String(b.exercise?.name ?? "").toLowerCase();
+          return nameA.localeCompare(nameB, "pt-BR");
+        })
+        .map((item) => item.exercise);
+
+      const total = filtered.length;
+      const totalPages = Math.ceil(total / limit);
+      const paged = filtered.slice(from, to + 1);
+
+      return {
+        data: paged,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+      };
     }
 
-    // Aplicar paginação e ordenação alfabética por nome
+    // Sem busca: mantém fluxo paginado direto no banco.
     const { data, error, count } = await query
       .order("name", { ascending: true })
       .range(from, to);

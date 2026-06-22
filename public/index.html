@@ -1497,96 +1497,6 @@
                   <strong>Email:</strong> <span id="configEmail">-</span>
                 </p>
               </div>
-
-              <!-- Configuração da API Gemini -->
-              <div
-                style="
-                  background: #fff7ed;
-                  padding: 20px;
-                  border-radius: 8px;
-                  border: 2px solid #fb923c;
-                "
-              >
-                <h3 style="color: #ea580c; margin-bottom: 10px">
-                  🤖 Integração Google Gemini
-                </h3>
-                <p style="color: #6b7280; font-size: 14px; margin-bottom: 15px">
-                  Configure sua chave API do Google Gemini para habilitar
-                  recursos de IA na plataforma.
-                  <a
-                    href="https://aistudio.google.com/app/apikey"
-                    target="_blank"
-                    style="color: #024d3a; text-decoration: underline"
-                  >
-                    Obter chave API
-                  </a>
-                </p>
-
-                <div class="form-group">
-                  <label style="color: #374151; font-weight: 600"
-                    >Chave API do Gemini</label
-                  >
-                  <div style="position: relative">
-                    <input
-                      type="password"
-                      id="geminiApiKey"
-                      placeholder="Digite sua chave API do Gemini"
-                      style="padding-right: 100px"
-                    />
-                    <button
-                      id="toggleGeminiKey"
-                      onclick="toggleGeminiKeyVisibility()"
-                      class="btn btn-secondary"
-                      style="
-                        position: absolute;
-                        right: 5px;
-                        top: 5px;
-                        padding: 6px 12px;
-                        font-size: 12px;
-                      "
-                    >
-                      👁️ Mostrar
-                    </button>
-                  </div>
-                  <p style="font-size: 12px; color: #6b7280; margin-top: 5px">
-                    ⚠️ Sua chave será armazenada de forma segura e criptografada
-                  </p>
-                </div>
-
-                <div style="display: flex; gap: 10px">
-                  <button
-                    class="btn btn-primary"
-                    onclick="salvarGeminiApiKey()"
-                  >
-                    💾 Salvar Chave API
-                  </button>
-                  <button
-                    class="btn btn-danger"
-                    onclick="removerGeminiApiKey()"
-                    id="removerGeminiBtn"
-                    style="display: none"
-                  >
-                    🗑️ Remover Chave
-                  </button>
-                </div>
-
-                <div id="geminiAlert" style="margin-top: 15px"></div>
-
-                <div
-                  id="geminiStatus"
-                  style="
-                    margin-top: 15px;
-                    padding: 12px;
-                    border-radius: 6px;
-                    display: none;
-                  "
-                >
-                  <p style="margin: 0; font-size: 14px">
-                    <span id="geminiStatusIcon"></span>
-                    <span id="geminiStatusText"></span>
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1629,19 +1539,6 @@
                     type="password"
                     id="adminPersonalSenha"
                     placeholder="Mínimo 6 caracteres"
-                  />
-                </div>
-                <div class="form-group">
-                  <label
-                    >Evolution Instance
-                    <span style="color: #6b7280; font-weight: 400"
-                      >(opcional)</span
-                    ></label
-                  >
-                  <input
-                    type="text"
-                    id="adminPersonalInstance"
-                    placeholder="Preenchido ao conectar via QR Code"
                   />
                 </div>
               </div>
@@ -2185,6 +2082,80 @@
       let exerciciosBuscaAtual = "";
       let exerciciosFiltroTimeout = null;
       let exerciciosSimilaresCache = [];
+
+      function normalizeComparableText(text) {
+        return String(text || "")
+          .trim()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase();
+      }
+
+      function tokenizeComparableText(text) {
+        return normalizeComparableText(text)
+          .replace(/[,%()'"\\]/g, " ")
+          .replace(/\s+/g, " ")
+          .split(" ")
+          .map((term) => term.trim())
+          .filter(Boolean);
+      }
+
+      function resolveExerciseTagsLocal(tags) {
+        if (Array.isArray(tags)) {
+          return tags
+            .map((tag) => String(tag || "").trim())
+            .filter((tag) => tag.length > 0);
+        }
+
+        if (typeof tags === "string") {
+          return tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter((tag) => tag.length > 0);
+        }
+
+        return [];
+      }
+
+      function scoreExerciseSuggestion(exercise, normalizedQuery, tokens) {
+        const name = normalizeComparableText(exercise?.name);
+        const description = normalizeComparableText(exercise?.description);
+        const muscleGroup = normalizeComparableText(exercise?.muscle_group);
+        const equipment = normalizeComparableText(exercise?.equipment);
+        const tags = resolveExerciseTagsLocal(exercise?.tags)
+          .map((tag) => normalizeComparableText(tag))
+          .join(" ");
+
+        const combined = [name, description, muscleGroup, equipment, tags]
+          .filter(Boolean)
+          .join(" ");
+
+        let score = 0;
+
+        if (normalizedQuery) {
+          if (name === normalizedQuery) score += 1000;
+          else if (name.startsWith(normalizedQuery)) score += 700;
+          else if (name.includes(normalizedQuery)) score += 500;
+
+          if (muscleGroup.includes(normalizedQuery)) score += 220;
+          if (equipment.includes(normalizedQuery)) score += 180;
+          if (tags.includes(normalizedQuery)) score += 160;
+          if (description.includes(normalizedQuery)) score += 80;
+
+          if (combined.includes(normalizedQuery)) score += 120;
+        }
+
+        for (const token of tokens) {
+          if (!token) continue;
+          if (name.includes(token)) score += 120;
+          if (muscleGroup.includes(token)) score += 95;
+          if (equipment.includes(token)) score += 80;
+          if (tags.includes(token)) score += 70;
+          if (description.includes(token)) score += 35;
+        }
+
+        return score;
+      }
       let adminPersonalsCache = [];
       let adminPersonalEditAtualId = null;
 
@@ -3543,9 +3514,6 @@
           .getElementById("adminPersonalWhatsapp")
           .value.trim();
         const password = document.getElementById("adminPersonalSenha").value;
-        const instance = document
-          .getElementById("adminPersonalInstance")
-          .value.trim();
 
         if (!name || !email || !password) {
           showAlert("adminAlert", "Preencha nome, email e senha", "error");
@@ -3566,7 +3534,6 @@
                 email,
                 password,
                 ...(phone ? { phone } : {}),
-                ...(instance ? { evolution_instance_name: instance } : {}),
               }),
             },
           );
@@ -3582,7 +3549,6 @@
           document.getElementById("adminPersonalEmail").value = "";
           document.getElementById("adminPersonalWhatsapp").value = "";
           document.getElementById("adminPersonalSenha").value = "";
-          document.getElementById("adminPersonalInstance").value = "";
           await carregarAdminPersonals();
         } catch (error) {
           showAlert(
@@ -4582,8 +4548,10 @@
         }
 
         try {
+          const normalizedQuery = normalizeComparableText(termo);
+          const tokens = tokenizeComparableText(termo);
           const response = await fetch(
-            `${getApiBaseUrl()}/api/exercises?search=${encodeURIComponent(termo)}&limit=6`,
+            `${getApiBaseUrl()}/api/exercises?search=${encodeURIComponent(termo)}&limit=30`,
             {
               headers: { Authorization: `Bearer ${authToken}` },
             },
@@ -4594,7 +4562,19 @@
           }
 
           const result = await response.json();
-          const similares = (result.data || []).slice(0, 6);
+          const similares = (result.data || [])
+            .map((ex) => ({
+              ex,
+              score: scoreExerciseSuggestion(ex, normalizedQuery, tokens),
+            }))
+            .sort((a, b) => {
+              if (b.score !== a.score) return b.score - a.score;
+              const nameA = normalizeComparableText(a.ex?.name);
+              const nameB = normalizeComparableText(b.ex?.name);
+              return nameA.localeCompare(nameB, "pt-BR");
+            })
+            .map((item) => item.ex)
+            .slice(0, 6);
           exerciciosSimilaresCache = similares;
 
           if (similares.length === 0) {
@@ -5642,177 +5622,9 @@
               personalData.name || "-";
             document.getElementById("configEmail").textContent =
               personalData.email || "-";
-
-            // Carregar chave API do Gemini se existir
-            if (personalData.gemini_api_key) {
-              document.getElementById("geminiApiKey").value =
-                personalData.gemini_api_key;
-              document.getElementById("removerGeminiBtn").style.display =
-                "inline-block";
-              mostrarStatusGemini("✅ Chave API configurada", "success");
-            } else {
-              document.getElementById("geminiApiKey").value = "";
-              document.getElementById("removerGeminiBtn").style.display =
-                "none";
-              mostrarStatusGemini("ℹ️ Nenhuma chave API configurada", "info");
-            }
           }
         } catch (error) {
           console.error("Erro ao carregar configurações:", error);
-        }
-      }
-
-      function toggleGeminiKeyVisibility() {
-        const input = document.getElementById("geminiApiKey");
-        const button = document.getElementById("toggleGeminiKey");
-
-        if (input.type === "password") {
-          input.type = "text";
-          button.textContent = "🙈 Ocultar";
-        } else {
-          input.type = "password";
-          button.textContent = "👁️ Mostrar";
-        }
-      }
-
-      async function salvarGeminiApiKey() {
-        const apiKey = document.getElementById("geminiApiKey").value.trim();
-
-        if (!apiKey) {
-          showAlert(
-            "geminiAlert",
-            "Por favor, insira uma chave API válida",
-            "error",
-          );
-          return;
-        }
-
-        // Validação básica do formato da chave
-        if (!apiKey.startsWith("AI")) {
-          if (
-            !confirm(
-              "A chave não parece ter o formato esperado do Google Gemini (geralmente começa com 'AI'). Deseja continuar mesmo assim?",
-            )
-          ) {
-            return;
-          }
-        }
-
-        try {
-          const apiUrl =
-            window.location.hostname === "localhost"
-              ? "http://localhost:3333"
-              : window.location.origin;
-
-          const response = await fetch(`${apiUrl}/api/personal/config`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({
-              gemini_api_key: apiKey,
-            }),
-          });
-
-          if (response.ok) {
-            showAlert("geminiAlert", "Chave API salva com sucesso!", "success");
-            document.getElementById("removerGeminiBtn").style.display =
-              "inline-block";
-            mostrarStatusGemini("✅ Chave API configurada e ativa", "success");
-
-            // Atualizar dados locais
-            if (personalData) {
-              personalData.gemini_api_key = apiKey;
-            }
-          } else {
-            const error = await response.json();
-            showAlert(
-              "geminiAlert",
-              error.message || "Erro ao salvar chave API",
-              "error",
-            );
-          }
-        } catch (error) {
-          console.error("Erro ao salvar chave API:", error);
-          showAlert("geminiAlert", "Erro ao salvar chave API", "error");
-        }
-      }
-
-      async function removerGeminiApiKey() {
-        if (
-          !confirm(
-            "Tem certeza que deseja remover a chave API do Gemini? Isso desabilitará os recursos de IA.",
-          )
-        ) {
-          return;
-        }
-
-        try {
-          const apiUrl =
-            window.location.hostname === "localhost"
-              ? "http://localhost:3333"
-              : window.location.origin;
-
-          const response = await fetch(`${apiUrl}/api/personal/config`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({
-              gemini_api_key: null,
-            }),
-          });
-
-          if (response.ok) {
-            showAlert(
-              "geminiAlert",
-              "Chave API removida com sucesso",
-              "success",
-            );
-            document.getElementById("geminiApiKey").value = "";
-            document.getElementById("removerGeminiBtn").style.display = "none";
-            mostrarStatusGemini("ℹ️ Nenhuma chave API configurada", "info");
-
-            // Atualizar dados locais
-            if (personalData) {
-              personalData.gemini_api_key = null;
-            }
-          } else {
-            const error = await response.json();
-            showAlert(
-              "geminiAlert",
-              error.message || "Erro ao remover chave API",
-              "error",
-            );
-          }
-        } catch (error) {
-          console.error("Erro ao remover chave API:", error);
-          showAlert("geminiAlert", "Erro ao remover chave API", "error");
-        }
-      }
-
-      function mostrarStatusGemini(mensagem, tipo) {
-        const statusDiv = document.getElementById("geminiStatus");
-        const statusText = document.getElementById("geminiStatusText");
-        const statusIcon = document.getElementById("geminiStatusIcon");
-
-        statusDiv.style.display = "block";
-        statusText.textContent = mensagem;
-
-        if (tipo === "success") {
-          statusDiv.style.background = "rgba(115, 213, 55, 0.2)";
-          statusDiv.style.color = "#024d3a";
-          statusDiv.style.border = "1px solid #73d537";
-        } else if (tipo === "error") {
-          statusDiv.style.background = "#fee2e2";
-          statusDiv.style.color = "#991b1b";
-          statusDiv.style.border = "1px solid #ef4444";
-        } else {
-          statusDiv.style.background = "#dbeafe";
-          statusDiv.style.color = "#1e40af";
-          statusDiv.style.border = "1px solid #3b82f6";
         }
       }
     </script>
