@@ -638,4 +638,205 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       sources: report,
     };
   });
+
+  // Admin: Get students of a specific personal
+  app.get("/admin/personals/:id/students", async (request) => {
+    ensureAdminAuth(request);
+
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+
+    const { data, error } = await supabaseAdmin
+      .from("students")
+      .select(
+        "id,personal_id,name,whatsapp_number,email,blood_type,weight_kg,height_cm,is_active,created_at",
+      )
+      .eq("personal_id", id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    return data ?? [];
+  });
+
+  // Admin: Create a student for a personal
+  const AdminStudentCreateSchema = z.object({
+    name: z.string().min(1).max(255).trim(),
+    whatsapp_number: z
+      .string()
+      .min(8)
+      .max(30)
+      .regex(/^[0-9+\s()-]+$/),
+    email: z.string().email().max(255).trim().optional(),
+    blood_type: z.enum(["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"]).optional(),
+    weight_kg: z.number().positive().optional(),
+    height_cm: z.number().positive().optional(),
+  });
+
+  app.post("/admin/personals/:id/students", async (request) => {
+    ensureAdminAuth(request);
+
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+
+    const parsed = AdminStudentCreateSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    const input = parsed.data;
+    const normalizedPhone = normalizeBrazilWhatsappNumber(input.whatsapp_number);
+
+    if (!normalizedPhone) {
+      throw app.httpErrors.badRequest(
+        "WhatsApp inválido. Use no formato 55DDDNUMERO.",
+      );
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("students")
+      .insert({
+        personal_id: id,
+        name: input.name,
+        whatsapp_number: normalizedPhone,
+        ...(input.email ? { email: input.email } : {}),
+        ...(input.blood_type ? { blood_type: input.blood_type } : {}),
+        ...(input.weight_kg ? { weight_kg: input.weight_kg } : {}),
+        ...(input.height_cm ? { height_cm: input.height_cm } : {}),
+      })
+      .select(
+        "id,personal_id,name,whatsapp_number,email,blood_type,weight_kg,height_cm,is_active,created_at",
+      )
+      .single();
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    return data;
+  });
+
+  // Admin: Update a student
+  const AdminStudentPatchSchema = z
+    .object({
+      name: z.string().min(1).max(255).trim().optional(),
+      email: z.string().email().max(255).trim().optional(),
+      whatsapp_number: z
+        .union([
+          z
+            .string()
+            .min(8)
+            .max(30)
+            .regex(/^[0-9+\s()-]+$/),
+          z.literal(""),
+          z.null(),
+        ])
+        .optional(),
+      blood_type: z
+        .union([z.enum(["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"]), z.literal("")])
+        .optional(),
+      weight_kg: z.union([z.number().positive(), z.null()]).optional(),
+      height_cm: z.union([z.number().positive(), z.null()]).optional(),
+      is_active: z.boolean().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, {
+      message: "At least one field must be provided",
+    });
+
+  app.patch("/admin/students/:id", async (request) => {
+    ensureAdminAuth(request);
+
+    const parsed = AdminStudentPatchSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+
+    const patch: Record<string, unknown> = {};
+    if (parsed.data.name !== undefined) patch.name = parsed.data.name;
+    if (parsed.data.email !== undefined) patch.email = parsed.data.email;
+    if (parsed.data.whatsapp_number !== undefined) {
+      if (parsed.data.whatsapp_number === "" || parsed.data.whatsapp_number === null) {
+        patch.whatsapp_number = null;
+      } else {
+        const normalizedPhone = normalizeBrazilWhatsappNumber(
+          parsed.data.whatsapp_number,
+        );
+        if (!normalizedPhone) {
+          throw app.httpErrors.badRequest(
+            "WhatsApp inválido. Use no formato 55DDDNUMERO.",
+          );
+        }
+        patch.whatsapp_number = normalizedPhone;
+      }
+    }
+    if (parsed.data.blood_type !== undefined) {
+      patch.blood_type = parsed.data.blood_type || null;
+    }
+    if (parsed.data.weight_kg !== undefined) patch.weight_kg = parsed.data.weight_kg;
+    if (parsed.data.height_cm !== undefined) patch.height_cm = parsed.data.height_cm;
+    if (parsed.data.is_active !== undefined) patch.is_active = parsed.data.is_active;
+
+    if (Object.keys(patch).length > 0) {
+      const { error: updateError } = await supabaseAdmin
+        .from("students")
+        .update(patch)
+        .eq("id", id);
+
+      if (updateError) {
+        throw app.httpErrors.badRequest(updateError.message);
+      }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("students")
+      .select(
+        "id,personal_id,name,whatsapp_number,email,blood_type,weight_kg,height_cm,is_active,created_at",
+      )
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    if (!data) {
+      throw app.httpErrors.notFound("Student not found");
+    }
+
+    return data;
+  });
+
+  // Admin: Delete a student
+  app.delete("/admin/students/:id", async (request) => {
+    ensureAdminAuth(request);
+
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+
+    const { error: deleteError } = await supabaseAdmin
+      .from("students")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      throw app.httpErrors.badRequest(deleteError.message);
+    }
+
+    return { success: true };
+  });
 }

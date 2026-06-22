@@ -2022,6 +2022,38 @@
       </div>
     </div>
 
+    <div
+      id="adminAlunosDrawer"
+      class="drawer-backdrop"
+      onclick="closeAdminAlunosDrawer(event)"
+    >
+      <div class="drawer-panel" onclick="event.stopPropagation()">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+          "
+        >
+          <h2 style="color: #1f2937">Alunos de <span id="adminAlunosPersonalName"></span></h2>
+          <button class="btn btn-secondary" onclick="closeAdminAlunosDrawer()">
+            Fechar
+          </button>
+        </div>
+
+        <div id="adminAlunosAlert"></div>
+
+        <div style="margin-bottom: 16px">
+          <button class="btn btn-primary" onclick="criarNovoAlunoAdmin()">
+            + Novo Aluno
+          </button>
+        </div>
+
+        <div id="adminAlunosTable"></div>
+      </div>
+    </div>
+
     <script>
       let authToken = localStorage.getItem("repz_token");
       let adminToken = localStorage.getItem("repz_admin_token");
@@ -3268,9 +3300,10 @@
                   <td><input type="text" id="admin_p_instance_${p.id}" value="${escapeHtml(p.evolution_instance_name || "")}" /></td>
                   <td>${escapeHtml(createdAt)}</td>
                   <td>
-                    <div style="display:flex;gap:8px;">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
                       <input type="password" id="admin_p_password_${p.id}" placeholder="Nova senha (opcional)" />
                       <button class="btn btn-secondary" onclick="salvarPersonalAdmin('${p.id}')">Salvar</button>
+                      <button class="btn" style="background:#dbeafe;color:#0369a1;white-space:nowrap;" onclick="abrirAlunosPersonalAdmin('${p.id}', '${escapeHtml(p.name || "")}')">👥 Ver alunos</button>
                       <button class="btn" style="background:#fee2e2;color:#dc2626;white-space:nowrap;" onclick="excluirPersonalAdmin('${p.id}', '${escapeHtml(p.name || "")}')">Excluir</button>
                     </div>
                   </td>
@@ -3447,6 +3480,260 @@
           showAlert(
             "adminAlert",
             error.message || "Erro ao excluir personal",
+            "error",
+          );
+        }
+      }
+
+      let adminAlunosPersonalId = null;
+      let adminAlunosPersonalName = null;
+
+      async function abrirAlunosPersonalAdmin(personalId, personalName) {
+        if (!adminToken) return;
+
+        adminAlunosPersonalId = personalId;
+        adminAlunosPersonalName = personalName;
+
+        document.getElementById("adminAlunosPersonalName").textContent = personalName;
+        const drawer = document.getElementById("adminAlunosDrawer");
+        if (drawer) drawer.classList.add("open");
+
+        await carregarAlunosPersonalAdmin();
+      }
+
+      function closeAdminAlunosDrawer(event) {
+        if (event && event.target.id !== "adminAlunosDrawer") return;
+        const drawer = document.getElementById("adminAlunosDrawer");
+        if (drawer) drawer.classList.remove("open");
+        adminAlunosPersonalId = null;
+      }
+
+      async function carregarAlunosPersonalAdmin() {
+        if (!adminToken || !adminAlunosPersonalId) return;
+
+        const tbody = document.getElementById("adminAlunosTable");
+        if (!tbody) return;
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/personals/${adminAlunosPersonalId}/students`,
+            {
+              headers: {
+                Authorization: `Bearer ${adminToken}`,
+              },
+            },
+          );
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const alunos = await response.json();
+
+          if (!alunos || alunos.length === 0) {
+            tbody.innerHTML =
+              '<div style="text-align:center;color:#6b7280;padding:20px;">Nenhum aluno cadastrado</div>';
+            return;
+          }
+
+          tbody.innerHTML = `
+            <div style="overflow-x: auto;">
+              <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                  <tr style="background:#f3f4f6;border-bottom:1px solid #e5e7eb;">
+                    <th style="padding:8px;text-align:left;font-weight:600;">Nome</th>
+                    <th style="padding:8px;text-align:left;font-weight:600;">WhatsApp</th>
+                    <th style="padding:8px;text-align:left;font-weight:600;">Email</th>
+                    <th style="padding:8px;text-align:left;font-weight:600;">Status</th>
+                    <th style="padding:8px;text-align:left;font-weight:600;">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${alunos
+                    .map(
+                      (a) => `
+                    <tr style="border-bottom:1px solid #e5e7eb;">
+                      <td style="padding:8px;">${escapeHtml(a.name || "")}</td>
+                      <td style="padding:8px;">${escapeHtml(a.whatsapp_number || "-")}</td>
+                      <td style="padding:8px;">${escapeHtml(a.email || "-")}</td>
+                      <td style="padding:8px;">
+                        <span style="padding:4px 8px;background:${a.is_active ? "#dcfce7" : "#fecaca"};color:${a.is_active ? "#166534" : "#991b1b"};border-radius:4px;font-size:12px;">
+                          ${a.is_active ? "Ativo" : "Inativo"}
+                        </span>
+                      </td>
+                      <td style="padding:8px;">
+                        <div style="display:flex;gap:6px;">
+                          <button class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="editarAlunoAdmin('${a.id}')">Editar</button>
+                          <button class="btn" style="padding:4px 8px;font-size:12px;background:#fee2e2;color:#dc2626;" onclick="deletarAlunoAdmin('${a.id}', '${escapeHtml(a.name || "")}')">Deletar</button>
+                        </div>
+                      </td>
+                    </tr>
+                  `,
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          `;
+        } catch (error) {
+          console.error("Erro ao carregar alunos do admin:", error);
+          tbody.innerHTML =
+            '<div style="text-align:center;color:#ef4444;padding:20px;">Erro ao carregar alunos</div>';
+        }
+      }
+
+      function criarNovoAlunoAdmin() {
+        const nome = prompt("Nome do aluno:");
+        if (!nome) return;
+
+        const whatsapp = prompt("WhatsApp (ex: 5511999999999):");
+        if (!whatsapp) return;
+
+        salvarNovoAlunoAdmin(nome, whatsapp);
+      }
+
+      async function salvarNovoAlunoAdmin(nome, whatsapp) {
+        if (!adminToken || !adminAlunosPersonalId) return;
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/personals/${adminAlunosPersonalId}/students`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${adminToken}`,
+              },
+              body: JSON.stringify({
+                name: nome,
+                whatsapp_number: whatsapp,
+              }),
+            },
+          );
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.message || "Erro ao criar aluno");
+          }
+
+          showAlert("adminAlunosAlert", "Aluno criado com sucesso", "success");
+          await carregarAlunosPersonalAdmin();
+        } catch (error) {
+          showAlert(
+            "adminAlunosAlert",
+            error.message || "Erro ao criar aluno",
+            "error",
+          );
+        }
+      }
+
+      async function editarAlunoAdmin(alunoId) {
+        if (!adminToken) return;
+
+        const nome = prompt("Nome do aluno:");
+        if (!nome) return;
+
+        const whatsapp = prompt("WhatsApp:");
+        const email = prompt("Email:");
+        const tipoSanguineo = prompt("Tipo sanguíneo (ex: O+):");
+        const peso = prompt("Peso (kg):");
+        const altura = prompt("Altura (cm):");
+        const statusInput = prompt("Status (ativo/inativo):");
+
+        try {
+          const patch = {
+            name: nome,
+          };
+
+          if (whatsapp) patch.whatsapp_number = whatsapp;
+          if (email) patch.email = email;
+          if (tipoSanguineo) patch.blood_type = tipoSanguineo;
+          if (peso) patch.weight_kg = parseFloat(peso);
+          if (altura) patch.height_cm = parseFloat(altura);
+          if (statusInput) patch.is_active = statusInput.toLowerCase() === "ativo";
+
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/students/${alunoId}`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${adminToken}`,
+              },
+              body: JSON.stringify(patch),
+            },
+          );
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.message || "Erro ao atualizar aluno");
+          }
+
+          showAlert("adminAlunosAlert", "Aluno atualizado com sucesso", "success");
+          await carregarAlunosPersonalAdmin();
+        } catch (error) {
+          showAlert(
+            "adminAlunosAlert",
+            error.message || "Erro ao atualizar aluno",
+            "error",
+          );
+        }
+      }
+
+      async function deletarAlunoAdmin(alunoId, alunoName) {
+        if (!adminToken) return;
+
+        const confirmado = confirm(
+          `Tem certeza que deseja deletar o aluno "${alunoName}"?\nEssa ação não pode ser desfeita.`,
+        );
+        if (!confirmado) return;
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/students/${alunoId}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${adminToken}`,
+              },
+            },
+          );
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.message || `HTTP ${response.status}`);
+          }
+
+          showAlert(
+            "adminAlunosAlert",
+            `Aluno "${alunoName}" deletado com sucesso`,
+            "success",
+          );
+          await carregarAlunosPersonalAdmin();
+        } catch (error) {
+          showAlert(
+            "adminAlunosAlert",
+            error.message || "Erro ao deletar aluno",
             "error",
           );
         }
