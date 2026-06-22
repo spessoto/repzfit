@@ -1166,6 +1166,14 @@
               <span class="tab-icon" aria-hidden="true">⚙</span>
               <span class="tab-label">Configurações</span>
             </button>
+            <button
+              id="adminLogsTabButton"
+              class="tab hidden"
+              onclick="switchTab('adminLogs')"
+            >
+              <span class="tab-icon" aria-hidden="true">▦</span>
+              <span class="tab-label">Logs do Sistema</span>
+            </button>
           </div>
 
           <div class="sidebar-user">
@@ -1728,6 +1736,119 @@
               </table>
             </div>
           </div>
+
+          <div id="adminLogsTab" class="tab-content">
+            <div class="card">
+              <h2>Logs do Sistema</h2>
+              <p style="color: #6b7280; margin-bottom: 12px">
+                Monitore eventos fora do padrão no BOT para investigação e
+                correção.
+              </p>
+
+              <div id="adminLogsAlert"></div>
+
+              <div class="editor-grid" style="margin-bottom: 12px">
+                <div class="form-group">
+                  <label>Severidade</label>
+                  <select id="adminLogsSeverity">
+                    <option value="">Todas</option>
+                    <option value="info">Info</option>
+                    <option value="warn">Warn</option>
+                    <option value="error">Error</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Categoria</label>
+                  <input
+                    type="text"
+                    id="adminLogsCategory"
+                    placeholder="Ex: state, session, linkage"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Código</label>
+                  <input
+                    type="text"
+                    id="adminLogsCode"
+                    placeholder="Ex: unexpected_fallback_in_non_idle_state"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>WhatsApp</label>
+                  <input
+                    type="text"
+                    id="adminLogsWhatsapp"
+                    placeholder="Ex: 5511999999999"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Registros por página</label>
+                  <select id="adminLogsLimit">
+                    <option value="20">20</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                  </select>
+                </div>
+                <div class="form-group" style="display:flex;align-items:flex-end;">
+                  <label style="display:flex;align-items:center;gap:8px;margin:0;">
+                    <input type="checkbox" id="adminLogsOnlyOpen" />
+                    Mostrar apenas pendentes
+                  </label>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:10px;margin-bottom:14px;">
+                <button class="btn btn-secondary" onclick="carregarLogsSistemaAdmin(1)">
+                  Aplicar filtros
+                </button>
+                <button class="btn btn-primary" onclick="limparFiltrosLogsSistemaAdmin()">
+                  Limpar filtros
+                </button>
+              </div>
+
+              <p style="margin-bottom: 10px; color: #111827; font-weight: 600">
+                Total encontrado: <span id="adminLogsTotal">-</span>
+              </p>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data/Hora</th>
+                    <th>Severidade</th>
+                    <th>Categoria</th>
+                    <th>Código</th>
+                    <th>Mensagem</th>
+                    <th>Estado</th>
+                    <th>WhatsApp</th>
+                  </tr>
+                </thead>
+                <tbody id="adminLogsBody">
+                  <tr>
+                    <td colspan="7" style="text-align: center">Carregando...</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-top: 14px;
+                "
+              >
+                <button class="btn btn-secondary" onclick="adminLogsPrevPage()" id="adminLogsPrevBtn" disabled>
+                  ← Anterior
+                </button>
+                <span id="adminLogsPageInfo" style="color: #6b7280; font-weight: 500">
+                  Página 1 de 1
+                </span>
+                <button class="btn btn-secondary" onclick="adminLogsNextPage()" id="adminLogsNextBtn" disabled>
+                  Próxima →
+                </button>
+              </div>
+            </div>
+          </div>
         </main>
       </div>
     </div>
@@ -2082,6 +2203,8 @@
       let exerciciosBuscaAtual = "";
       let exerciciosFiltroTimeout = null;
       let exerciciosSimilaresCache = [];
+      let adminLogsCurrentPage = 1;
+      let adminLogsTotalPages = 1;
 
       function normalizeComparableText(text) {
         return String(text || "")
@@ -2219,6 +2342,12 @@
         if (adminSettingsButton) {
           adminSettingsButton.classList.toggle("hidden", !enabled);
           adminSettingsButton.style.display = enabled ? "inline-block" : "none";
+        }
+
+        const adminLogsButton = document.getElementById("adminLogsTabButton");
+        if (adminLogsButton) {
+          adminLogsButton.classList.toggle("hidden", !enabled);
+          adminLogsButton.style.display = enabled ? "inline-block" : "none";
         }
 
         const whatsappStatus = document.getElementById("headerWhatsAppStatus");
@@ -2635,6 +2764,171 @@
           carregarRelatorioOrigensAdmin();
           verificarStatusWhatsAppAdmin();
         }
+        if (tab === "adminLogs") {
+          carregarLogsSistemaAdmin(1);
+        }
+      }
+
+      function renderAdminLogSeverityBadge(severity) {
+        const value = String(severity || "warn").toLowerCase();
+        if (value === "error") {
+          return '<span style="padding:4px 8px;border-radius:999px;background:#fee2e2;color:#991b1b;font-size:12px;font-weight:700;">ERROR</span>';
+        }
+        if (value === "info") {
+          return '<span style="padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1e40af;font-size:12px;font-weight:700;">INFO</span>';
+        }
+        return '<span style="padding:4px 8px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;">WARN</span>';
+      }
+
+      function buildAdminLogsQueryParams(page) {
+        const params = new URLSearchParams();
+        params.set("page", String(page || 1));
+
+        const limit = document.getElementById("adminLogsLimit")?.value || "50";
+        params.set("limit", String(limit));
+
+        const severity = document
+          .getElementById("adminLogsSeverity")
+          ?.value?.trim();
+        const category = document
+          .getElementById("adminLogsCategory")
+          ?.value?.trim();
+        const code = document.getElementById("adminLogsCode")?.value?.trim();
+        const whatsapp = document
+          .getElementById("adminLogsWhatsapp")
+          ?.value?.trim();
+        const onlyOpen = Boolean(
+          document.getElementById("adminLogsOnlyOpen")?.checked,
+        );
+
+        if (severity) params.set("severity", severity);
+        if (category) params.set("category", category);
+        if (code) params.set("code", code);
+        if (whatsapp) params.set("whatsapp_number", whatsapp);
+        if (onlyOpen) params.set("unresolved_only", "1");
+
+        return params;
+      }
+
+      async function carregarLogsSistemaAdmin(page = 1) {
+        if (!isAdminSession || !adminToken) return;
+
+        const tbody = document.getElementById("adminLogsBody");
+        const totalEl = document.getElementById("adminLogsTotal");
+        const pageInfo = document.getElementById("adminLogsPageInfo");
+        const prevBtn = document.getElementById("adminLogsPrevBtn");
+        const nextBtn = document.getElementById("adminLogsNextBtn");
+
+        if (!tbody || !totalEl || !pageInfo || !prevBtn || !nextBtn) return;
+
+        tbody.innerHTML =
+          '<tr><td colspan="7" style="text-align:center">Carregando...</td></tr>';
+
+        try {
+          const params = buildAdminLogsQueryParams(page);
+
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/bot/anomaly-logs?${params.toString()}`,
+            {
+              headers: {
+                Authorization: `Bearer ${adminToken}`,
+              },
+            },
+          );
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(payload.message || "Erro ao carregar logs");
+          }
+
+          const logs = Array.isArray(payload.data) ? payload.data : [];
+          const pagination = payload.pagination || {};
+
+          adminLogsCurrentPage = Number(pagination.page || page || 1);
+          adminLogsTotalPages = Number(pagination.totalPages || 1);
+          const total = Number(pagination.total || logs.length || 0);
+
+          totalEl.textContent = String(total);
+          pageInfo.textContent = `Página ${adminLogsCurrentPage} de ${adminLogsTotalPages}`;
+          prevBtn.disabled = adminLogsCurrentPage <= 1;
+          nextBtn.disabled = adminLogsCurrentPage >= adminLogsTotalPages;
+
+          if (!logs.length) {
+            tbody.innerHTML =
+              '<tr><td colspan="7" style="text-align:center;color:#6b7280;">Nenhum log encontrado para os filtros aplicados.</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = logs
+            .map((row) => {
+              const createdAt = row.created_at
+                ? new Date(row.created_at).toLocaleString("pt-BR")
+                : "-";
+              const message = escapeHtml(row.message || "-");
+              const code = escapeHtml(row.code || "-");
+              const category = escapeHtml(row.category || "-");
+              const state = escapeHtml(row.current_state || "-");
+              const whatsapp = escapeHtml(row.whatsapp_number || "-");
+
+              return `
+                <tr>
+                  <td>${escapeHtml(createdAt)}</td>
+                  <td>${renderAdminLogSeverityBadge(row.severity)}</td>
+                  <td>${category}</td>
+                  <td><code style="font-size:12px">${code}</code></td>
+                  <td style="max-width: 340px; white-space: normal;">${message}</td>
+                  <td>${state}</td>
+                  <td>${whatsapp}</td>
+                </tr>
+              `;
+            })
+            .join("");
+        } catch (error) {
+          totalEl.textContent = "-";
+          pageInfo.textContent = "Página -";
+          prevBtn.disabled = true;
+          nextBtn.disabled = true;
+          tbody.innerHTML =
+            '<tr><td colspan="7" style="text-align:center;color:#ef4444;">Erro ao carregar logs</td></tr>';
+          showAlert(
+            "adminLogsAlert",
+            error.message || "Erro ao carregar logs do sistema",
+            "error",
+          );
+        }
+      }
+
+      function adminLogsPrevPage() {
+        if (adminLogsCurrentPage <= 1) return;
+        carregarLogsSistemaAdmin(adminLogsCurrentPage - 1);
+      }
+
+      function adminLogsNextPage() {
+        if (adminLogsCurrentPage >= adminLogsTotalPages) return;
+        carregarLogsSistemaAdmin(adminLogsCurrentPage + 1);
+      }
+
+      function limparFiltrosLogsSistemaAdmin() {
+        const severity = document.getElementById("adminLogsSeverity");
+        const category = document.getElementById("adminLogsCategory");
+        const code = document.getElementById("adminLogsCode");
+        const whatsapp = document.getElementById("adminLogsWhatsapp");
+        const onlyOpen = document.getElementById("adminLogsOnlyOpen");
+        const limit = document.getElementById("adminLogsLimit");
+
+        if (severity) severity.value = "";
+        if (category) category.value = "";
+        if (code) code.value = "";
+        if (whatsapp) whatsapp.value = "";
+        if (onlyOpen) onlyOpen.checked = false;
+        if (limit) limit.value = "50";
+
+        carregarLogsSistemaAdmin(1);
       }
 
       function normalizeQrImageData(value) {
