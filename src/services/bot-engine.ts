@@ -52,7 +52,23 @@ type AssignedWorkout = {
   name: string;
 };
 
+type BotAnomalySeverity = "info" | "warn" | "error";
+
+type BotAnomalyInput = {
+  severity?: BotAnomalySeverity;
+  category: string;
+  code: string;
+  message: string;
+  whatsapp_number?: string | null;
+  student_id?: string | null;
+  session_id?: string | null;
+  current_state?: string | null;
+  input_excerpt?: string | null;
+  context?: Record<string, unknown>;
+};
+
 const NUMERIC_STATES = new Set(["COLLECTING_REPS", "COLLECTING_WEIGHT"]);
+let botAnomalyLogTableUnavailable = false;
 
 function isConfirmIntent(msg: string): boolean {
   const n = msg.toLowerCase().trim();
@@ -294,6 +310,71 @@ async function safeInputFallback(
   } catch (error) {
     app.log.error(error, "Gemini unavailable, using static input fallback");
     return `Não entendi muito bem. Me envie ${params.expectedInput} para continuar. 💪`;
+  }
+}
+
+function buildFriendlyStartPrompt(studentName: string): string {
+  return `Oi ${studentName}! Tudo bem? 💪\n\nQuer começar seu treino agora?\n1️⃣ *Sim, bora treinar!*\n2️⃣ *Deixar para depois*`;
+}
+
+function toInputExcerpt(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const cleaned = String(raw).replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+  return cleaned.slice(0, 220);
+}
+
+async function logBotAnomaly(app: FastifyInstance, input: BotAnomalyInput) {
+  if (botAnomalyLogTableUnavailable) {
+    return;
+  }
+
+  const severity = input.severity ?? "warn";
+  const payload = {
+    severity,
+    category: input.category,
+    code: input.code,
+    message: input.message,
+    whatsapp_number: input.whatsapp_number ?? null,
+    student_id: input.student_id ?? null,
+    session_id: input.session_id ?? null,
+    current_state: input.current_state ?? null,
+    input_excerpt: toInputExcerpt(input.input_excerpt ?? null),
+    context: input.context ?? {},
+  };
+
+  try {
+    const { error } = await supabaseAdmin.from("bot_anomaly_logs").insert(payload);
+    if (error) {
+      if (
+        String(error.message || "")
+          .toLowerCase()
+          .includes("relation") &&
+        String(error.message || "")
+          .toLowerCase()
+          .includes("bot_anomaly_logs")
+      ) {
+        botAnomalyLogTableUnavailable = true;
+        app.log.warn(
+          "bot_anomaly_logs table not found; anomaly persistence disabled until migration is applied",
+        );
+        return;
+      }
+
+      app.log.error({ error, payload }, "failed to persist bot anomaly log");
+      return;
+    }
+  } catch (error) {
+    app.log.error({ error, payload }, "unexpected error while persisting bot anomaly log");
+    return;
+  }
+
+  if (severity === "error") {
+    app.log.error({ anomaly: payload }, "bot anomaly recorded");
+  } else if (severity === "info") {
+    app.log.info({ anomaly: payload }, "bot anomaly recorded");
+  } else {
+    app.log.warn({ anomaly: payload }, "bot anomaly recorded");
   }
 }
 
@@ -1424,11 +1505,48 @@ async function finishTrainingEarly(params: {
   whatsapp: string;
   student: { name: string; personal_id: string };
   state: BotStateRow;
+  trigger?: "explicit_command" | "menu_option" | "system_fallback";
+  inputExcerpt?: string;
 }): Promise<void> {
-  const { app, instanceName, whatsapp, student, state } = params;
+  const {
+    app,
+    instanceName,
+    whatsapp,
+    student,
+    state,
+    trigger = "system_fallback",
+    inputExcerpt,
+  } = params;
   const sessionId = state.current_session_id;
 
+  if (trigger === "system_fallback") {
+    await logBotAnomaly(app, {
+      severity: "warn",
+      category: "session",
+      code: "early_finish_without_explicit_trigger",
+      message:
+        "Treino encerrado antecipadamente sem trigger explícito do usuário.",
+      whatsapp_number: whatsapp,
+      student_id: state.student_id,
+      session_id: sessionId,
+      current_state: state.current_state,
+      input_excerpt: inputExcerpt,
+    });
+  }
+
   if (!sessionId) {
+    await logBotAnomaly(app, {
+      severity: "warn",
+      category: "state",
+      code: "early_finish_without_session",
+      message:
+        "Solicitação de encerramento antecipado recebida sem sessão ativa no bot_state.",
+      whatsapp_number: whatsapp,
+      student_id: state.student_id,
+      current_state: state.current_state,
+      input_excerpt: inputExcerpt,
+    });
+
     await updateState(whatsapp, {
       current_state: "IDLE",
       current_session_id: null,
@@ -1440,7 +1558,7 @@ async function finishTrainingEarly(params: {
     await sendTextMessage({
       instanceName,
       number: whatsapp,
-      text: "Treino encerrado. Quando quiser voltar, mande *iniciar treino*! 💪",
+      text: "Treino encerrado. Quando quiser voltar, me manda *1* para começar de novo! 💪",
     });
     return;
   }
@@ -1455,7 +1573,19 @@ async function finishTrainingEarly(params: {
   try {
     const parsed = JSON.parse((sessionRow as any)?.summary ?? "null");
     if (parsed?.type === "tracking") tracking = parsed;
-  } catch {}
+  } catch {
+    await logBotAnomaly(app, {
+      severity: "warn",
+      category: "session",
+      code: "invalid_session_summary_json",
+      message: "Falha ao parsear summary da sessão durante encerramento antecipado.",
+      whatsapp_number: whatsapp,
+      student_id: state.student_id,
+      session_id: sessionId,
+      current_state: state.current_state,
+      input_excerpt: inputExcerpt,
+    });
+  }
 
   const trackingMode = tracking?.tracking_mode ?? "none";
 
@@ -1558,6 +1688,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
   }
 
   const effectiveInput = input.buttonId ?? text;
+  const inputExcerpt = toInputExcerpt(effectiveInput);
 
   if (!effectiveInput) {
     return;
@@ -1582,7 +1713,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: "Bot pausado. Quando quiser retomar, é só mandar *iniciar treino*! 💪",
+      text: "Bot pausado. Quando quiser retomar, me responde com:\n1️⃣ *Sim, bora treinar!*\n2️⃣ *Deixar para depois* 💪",
     });
     return;
   }
@@ -1596,10 +1727,22 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
     const state = await getOrCreateState(whatsapp, student.id);
     if (state.current_state === "IDLE") {
+      await logBotAnomaly(input.app, {
+        severity: "info",
+        category: "intent",
+        code: "finish_requested_without_active_session",
+        message:
+          "Usuário tentou encerrar treino, mas o estado atual já estava IDLE.",
+        whatsapp_number: whatsapp,
+        student_id: student.id,
+        current_state: state.current_state,
+        input_excerpt: inputExcerpt,
+      });
+
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Você não tem treino em andamento agora. Quando quiser, mande *iniciar treino*! 💪",
+        text: "Você não tem treino em andamento agora.\n\nQuer começar?\n1️⃣ *Sim, bora treinar!*\n2️⃣ *Deixar para depois* 💪",
       });
       return;
     }
@@ -1610,6 +1753,8 @@ export async function processIncomingMessage(input: IncomingMessage) {
       whatsapp,
       student,
       state,
+      trigger: "explicit_command",
+      inputExcerpt: effectiveInput,
     });
     return;
   }
@@ -1635,6 +1780,17 @@ export async function processIncomingMessage(input: IncomingMessage) {
         number: whatsapp,
         text: response,
       });
+
+      await logBotAnomaly(input.app, {
+        severity: "warn",
+        category: "linkage",
+        code: "start_requested_by_unlinked_whatsapp",
+        message:
+          "Tentativa de iniciar treino por WhatsApp sem aluno vinculado/ativo.",
+        whatsapp_number: whatsapp,
+        current_state: null,
+        input_excerpt: inputExcerpt,
+      });
       return;
     }
 
@@ -1655,6 +1811,17 @@ export async function processIncomingMessage(input: IncomingMessage) {
       const workouts = await getStudentAssignedWorkouts(student.id);
 
       if (!workouts.length) {
+        await logBotAnomaly(input.app, {
+          severity: "warn",
+          category: "configuration",
+          code: "student_without_assigned_workout_on_start",
+          message: "Aluno tentou iniciar treino mas não possui treino atribuído.",
+          whatsapp_number: whatsapp,
+          student_id: student.id,
+          current_state: currentState.current_state,
+          input_excerpt: inputExcerpt,
+        });
+
         const response = await safeCoachReply(
           input.app,
           `O aluno ${student.name} quer treinar mas não tem treino atribuído. Responda de forma motivadora mas explique que ele precisa falar com o personal para atribuir um treino.`,
@@ -1725,6 +1892,80 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
   const state = await getOrCreateState(whatsapp, student.id);
 
+  if (state.current_state === "IDLE") {
+    if (isConfirmIntent(effectiveInput)) {
+      const workouts = await getStudentAssignedWorkouts(student.id);
+
+      if (!workouts.length) {
+        const response = await safeCoachReply(
+          input.app,
+          `O aluno ${student.name} quer treinar mas não tem treino atribuído. Responda de forma motivadora mas explique que ele precisa falar com o personal para atribuir um treino.`,
+          "Não encontrei treino atribuído para você agora. Fala com seu personal que eu te ajudo assim que ele liberar! 🔥",
+        );
+
+        await sendTextMessage({
+          instanceName: input.instance,
+          number: whatsapp,
+          text: response,
+        });
+        return;
+      }
+
+      if (workouts.length === 1) {
+        const workout = workouts[0];
+        const welcomeMessage = await safeCoachReply(
+          input.app,
+          `Saude o aluno ${student.name} de forma animada (1 linha) e pergunte se ele está pronto para começar o treino "${workout.name}". Seja breve e motivador.`,
+          `Bora, ${student.name}! Pronto para começar o treino "${workout.name}"? 💪`,
+        );
+
+        await sendTextMessage({
+          instanceName: input.instance,
+          number: whatsapp,
+          text: `${welcomeMessage}\n\nResponda:\n1️⃣ *Sim, bora!*\n2️⃣ Agora não`,
+        });
+
+        await updateState(whatsapp, {
+          current_state: "AWAITING_TRAINING_START",
+          last_input_attempt: `selected_workout:${workout.id}`,
+        });
+        return;
+      }
+
+      const lastWorkout = await getLastCompletedWorkout(student.id);
+      const optionsText = workouts
+        .map((workout, index) => `${index + 1}️⃣ *${workout.name}*`)
+        .join("\n");
+
+      const lastText = lastWorkout
+        ? `\n\nÚltimo treino executado: *${lastWorkout.workoutName}* (${new Date(lastWorkout.date + "T00:00:00").toLocaleDateString("pt-BR")})`
+        : "\n\nAinda não encontrei treino executado anteriormente.";
+
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: `Você tem mais de um treino cadastrado. Qual você quer fazer hoje?\n\n${optionsText}${lastText}\n\nResponda com o *número* do treino.`,
+      });
+
+      await updateState(whatsapp, {
+        current_state: "AWAITING_WORKOUT_SELECTION",
+        last_input_attempt: `workout_options:${workouts
+          .map((workout) => workout.id)
+          .join("|")}`,
+      });
+      return;
+    }
+
+    if (isCancelIntent(effectiveInput)) {
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: `Fechado, ${student.name}! Quando quiser começar, me manda *1* e eu te guio no treino. 💪`,
+      });
+      return;
+    }
+  }
+
   // === FLUXO DE ESTADOS ===
 
   // Estado: AWAITING_WORKOUT_SELECTION
@@ -1736,6 +1977,33 @@ export async function processIncomingMessage(input: IncomingMessage) {
       .split("|")
       .map((id) => id.trim())
       .filter(Boolean);
+
+    if (optionIds.length === 0) {
+      await logBotAnomaly(input.app, {
+        severity: "error",
+        category: "state",
+        code: "workout_selection_options_missing",
+        message:
+          "Estado AWAITING_WORKOUT_SELECTION sem opções de treino válidas em last_input_attempt.",
+        whatsapp_number: whatsapp,
+        student_id: student.id,
+        session_id: state.current_session_id,
+        current_state: state.current_state,
+        input_excerpt: inputExcerpt,
+      });
+
+      await updateState(whatsapp, {
+        current_state: "IDLE",
+        last_input_attempt: null,
+      });
+
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: "Tive um problema ao carregar as opções de treino. Me manda *1* e eu te mostro de novo. 💪",
+      });
+      return;
+    }
 
     // Verifica seleção por número ANTES de isCancelIntent
     // (isCancelIntent também captura "2", que é uma opção válida de treino)
@@ -1773,10 +2041,23 @@ export async function processIncomingMessage(input: IncomingMessage) {
     );
 
     if (!selectedWorkout) {
+      await logBotAnomaly(input.app, {
+        severity: "warn",
+        category: "state",
+        code: "selected_workout_not_found",
+        message:
+          "ID selecionado não foi encontrado entre os treinos atualmente atribuídos ao aluno.",
+        whatsapp_number: whatsapp,
+        student_id: student.id,
+        session_id: state.current_session_id,
+        current_state: state.current_state,
+        input_excerpt: inputExcerpt,
+      });
+
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Esse treino não está mais disponível. Me manda *iniciar treino* para listar novamente.",
+        text: "Esse treino não está mais disponível. Me manda *1* para eu listar os treinos novamente. 💪",
       });
       await updateState(whatsapp, {
         current_state: "IDLE",
@@ -1957,6 +2238,18 @@ export async function processIncomingMessage(input: IncomingMessage) {
   if (state.current_state === "AWAITING_MONITORING_CHOICE") {
     const sessionId = state.current_session_id;
     if (!sessionId) {
+      await logBotAnomaly(input.app, {
+        severity: "error",
+        category: "state",
+        code: "monitoring_choice_without_session",
+        message:
+          "Estado AWAITING_MONITORING_CHOICE detectado sem current_session_id.",
+        whatsapp_number: whatsapp,
+        student_id: student.id,
+        current_state: state.current_state,
+        input_excerpt: inputExcerpt,
+      });
+
       await updateState(whatsapp, { current_state: "IDLE" });
       return;
     }
@@ -1974,10 +2267,23 @@ export async function processIncomingMessage(input: IncomingMessage) {
     } catch {}
 
     if (!tracking) {
+      await logBotAnomaly(input.app, {
+        severity: "error",
+        category: "session",
+        code: "invalid_tracking_on_monitoring_choice",
+        message:
+          "Summary da sessão inválido/ausente no estado AWAITING_MONITORING_CHOICE.",
+        whatsapp_number: whatsapp,
+        student_id: student.id,
+        session_id: sessionId,
+        current_state: state.current_state,
+        input_excerpt: inputExcerpt,
+      });
+
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Ocorreu um erro ao carregar o treino. Tente *iniciar treino* novamente. 😅",
+        text: "Ocorreu um erro ao carregar o treino. Me manda *1* para tentar de novo. 😅",
       });
       await updateState(whatsapp, {
         current_state: "IDLE",
@@ -2048,6 +2354,18 @@ export async function processIncomingMessage(input: IncomingMessage) {
   if (state.current_state === "AWAITING_EXERCISE_ORDER_SELECTION") {
     const sessionId = state.current_session_id;
     if (!sessionId) {
+      await logBotAnomaly(input.app, {
+        severity: "error",
+        category: "state",
+        code: "exercise_selection_without_session",
+        message:
+          "Estado AWAITING_EXERCISE_ORDER_SELECTION detectado sem current_session_id.",
+        whatsapp_number: whatsapp,
+        student_id: student.id,
+        current_state: state.current_state,
+        input_excerpt: inputExcerpt,
+      });
+
       await updateState(whatsapp, { current_state: "IDLE" });
       return;
     }
@@ -2065,10 +2383,23 @@ export async function processIncomingMessage(input: IncomingMessage) {
     } catch {}
 
     if (!tracking || !tracking.remaining_ids?.length) {
+      await logBotAnomaly(input.app, {
+        severity: "error",
+        category: "session",
+        code: "invalid_tracking_on_exercise_selection",
+        message:
+          "Summary/tracking inválido no estado AWAITING_EXERCISE_ORDER_SELECTION.",
+        whatsapp_number: whatsapp,
+        student_id: student.id,
+        session_id: sessionId,
+        current_state: state.current_state,
+        input_excerpt: inputExcerpt,
+      });
+
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Ocorreu um erro ao carregar os exercícios. Tente *iniciar treino* novamente. 😅",
+        text: "Ocorreu um erro ao carregar os exercícios. Me manda *1* para tentar de novo. 😅",
       });
       await updateState(whatsapp, {
         current_state: "IDLE",
@@ -2087,6 +2418,8 @@ export async function processIncomingMessage(input: IncomingMessage) {
         whatsapp,
         student,
         state,
+        trigger: "menu_option",
+        inputExcerpt: effectiveInput,
       });
       return;
     }
@@ -2654,10 +2987,25 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
   // Bot responde a qualquer mensagem recebida com uma resposta amigável
   if (student) {
+    if (state.current_state !== "IDLE") {
+      await logBotAnomaly(input.app, {
+        severity: "warn",
+        category: "state",
+        code: "unexpected_fallback_in_non_idle_state",
+        message:
+          "Fluxo caiu no fallback final mesmo com estado não-IDLE (possível transição não tratada).",
+        whatsapp_number: whatsapp,
+        student_id: student.id,
+        session_id: state.current_session_id,
+        current_state: state.current_state,
+        input_excerpt: inputExcerpt,
+      });
+    }
+
     const reply = await safeCoachReply(
       input.app,
-      `O aluno ${student.name} enviou a mensagem: "${effectiveInput}". Responda brevemente (1-2 linhas) de forma amigável e motivadora, direcionando-o para começar o treino se ainda não começou.`,
-      `Oi ${student.name}! Tudo bem? 💪 Envie *iniciar treino* quando quiser começar sua sessão comigo!`
+      `O aluno ${student.name} enviou a mensagem: "${effectiveInput}". Responda brevemente (1-2 linhas) de forma amigável e motivadora, convidando para iniciar com opções: 1 para começar treino agora e 2 para deixar para depois.`,
+      buildFriendlyStartPrompt(student.name),
     );
 
     await sendTextMessage({

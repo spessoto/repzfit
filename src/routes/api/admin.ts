@@ -75,6 +75,17 @@ const AdminPersonalSourceReportQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(365).optional(),
 });
 
+const AdminBotAnomalyLogsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  severity: z.enum(["info", "warn", "error"]).optional(),
+  category: z.string().min(1).max(120).optional(),
+  code: z.string().min(1).max(160).optional(),
+  unresolved_only: z.string().max(10).optional(),
+  student_id: z.string().uuid().optional(),
+  whatsapp_number: z.string().min(6).max(30).optional(),
+});
+
 type AdminTokenPayload = {
   email: string;
   exp: number;
@@ -636,6 +647,88 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       days,
       total_signups: (data ?? []).length,
       sources: report,
+    };
+  });
+
+  app.get("/admin/bot/anomaly-logs", async (request) => {
+    ensureAdminAuth(request);
+
+    const parsedQuery = AdminBotAnomalyLogsQuerySchema.safeParse(request.query);
+    if (!parsedQuery.success) {
+      throw app.httpErrors.badRequest(parsedQuery.error.message);
+    }
+
+    const page = parsedQuery.data.page ?? 1;
+    const limit = parsedQuery.data.limit ?? 50;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const unresolvedOnlyRaw =
+      parsedQuery.data.unresolved_only?.trim().toLowerCase() ?? "";
+    const unresolvedOnly =
+      unresolvedOnlyRaw === "1" ||
+      unresolvedOnlyRaw === "true" ||
+      unresolvedOnlyRaw === "yes";
+
+    let query = supabaseAdmin
+      .from("bot_anomaly_logs")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false });
+
+    if (parsedQuery.data.severity) {
+      query = query.eq("severity", parsedQuery.data.severity);
+    }
+
+    if (parsedQuery.data.category) {
+      query = query.eq("category", parsedQuery.data.category.trim());
+    }
+
+    if (parsedQuery.data.code) {
+      query = query.eq("code", parsedQuery.data.code.trim());
+    }
+
+    if (parsedQuery.data.student_id) {
+      query = query.eq("student_id", parsedQuery.data.student_id);
+    }
+
+    if (parsedQuery.data.whatsapp_number) {
+      query = query.eq(
+        "whatsapp_number",
+        parsedQuery.data.whatsapp_number.trim(),
+      );
+    }
+
+    if (unresolvedOnly) {
+      query = query.eq("resolved", false);
+    }
+
+    const { data, error, count } = await query.range(from, to);
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    const total = count ?? 0;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: data ?? [],
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+      filters: {
+        severity: parsedQuery.data.severity ?? null,
+        category: parsedQuery.data.category ?? null,
+        code: parsedQuery.data.code ?? null,
+        unresolved_only: unresolvedOnly,
+        student_id: parsedQuery.data.student_id ?? null,
+        whatsapp_number: parsedQuery.data.whatsapp_number ?? null,
+      },
     };
   });
 
