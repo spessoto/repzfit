@@ -1654,25 +1654,15 @@
               <h3 style="margin-bottom: 12px; color: #1f2937">
                 Personals Cadastrados
               </h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Nome</th>
-                    <th>Email</th>
-                    <th>WhatsApp</th>
-                    <th>Instance</th>
-                    <th>Criado em</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody id="adminPersonalsBody">
-                  <tr>
-                    <td colspan="6" style="text-align: center">
-                      Carregando...
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <p style="color: #6b7280; margin-bottom: 14px; font-size: 14px">
+                Visualize rapidamente os dados principais e use as ações ao lado
+                para gerenciar cada personal.
+              </p>
+              <div id="adminPersonalsBody">
+                <div style="text-align: center; color: #6b7280; padding: 20px">
+                  Carregando...
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2109,6 +2099,78 @@
       </div>
     </div>
 
+    <div
+      id="adminPersonalEditModal"
+      class="modal-backdrop"
+      onclick="closeAdminPersonalEditModal(event)"
+    >
+      <div class="modal-panel" onclick="event.stopPropagation()">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+          "
+        >
+          <h3 style="color: #1f2937">Editar Personal</h3>
+          <button
+            class="btn btn-secondary"
+            onclick="closeAdminPersonalEditModal()"
+          >
+            Fechar
+          </button>
+        </div>
+
+        <div id="adminPersonalEditAlert"></div>
+
+        <div class="form-group">
+          <label>Nome</label>
+          <input type="text" id="adminEditPersonalNome" />
+        </div>
+
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="adminEditPersonalEmail" />
+        </div>
+
+        <div class="form-group">
+          <label>WhatsApp</label>
+          <input
+            type="text"
+            id="adminEditPersonalWhatsapp"
+            placeholder="5511999999999"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Evolution Instance (opcional)</label>
+          <input type="text" id="adminEditPersonalInstance" />
+        </div>
+
+        <div class="form-group">
+          <label>Nova senha (opcional)</label>
+          <input
+            type="password"
+            id="adminEditPersonalSenha"
+            placeholder="Preencha apenas para alterar"
+          />
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px">
+          <button
+            class="btn btn-secondary"
+            onclick="closeAdminPersonalEditModal()"
+          >
+            Cancelar
+          </button>
+          <button class="btn btn-primary" onclick="salvarPersonalAdmin()">
+            Salvar alterações
+          </button>
+        </div>
+      </div>
+    </div>
+
     <script>
       let authToken = localStorage.getItem("repz_token");
       let adminToken = localStorage.getItem("repz_admin_token");
@@ -2123,6 +2185,8 @@
       let exerciciosBuscaAtual = "";
       let exerciciosFiltroTimeout = null;
       let exerciciosSimilaresCache = [];
+      let adminPersonalsCache = [];
+      let adminPersonalEditAtualId = null;
 
       // Função de escape HTML para prevenir XSS
       function escapeHtml(text) {
@@ -3387,8 +3451,8 @@
       async function carregarAdminPersonals() {
         if (!isAdminSession || !adminToken) return;
 
-        const tbody = document.getElementById("adminPersonalsBody");
-        if (!tbody) return;
+        const container = document.getElementById("adminPersonalsBody");
+        if (!container) return;
 
         try {
           const response = await fetch(
@@ -3410,41 +3474,60 @@
           }
 
           const personals = await response.json();
+          adminPersonalsCache = Array.isArray(personals) ? personals : [];
 
-          if (!personals || personals.length === 0) {
-            tbody.innerHTML =
-              '<tr><td colspan="6" style="text-align:center;color:#6b7280;">Nenhum personal cadastrado</td></tr>';
+          if (!adminPersonalsCache || adminPersonalsCache.length === 0) {
+            container.innerHTML =
+              '<div style="text-align:center;color:#6b7280;padding:20px;">Nenhum personal cadastrado</div>';
             return;
           }
 
-          tbody.innerHTML = personals
+          container.innerHTML = adminPersonalsCache
             .map((p) => {
               const createdAt = p.created_at
                 ? new Date(p.created_at).toLocaleDateString("pt-BR")
                 : "-";
+              const phone = p.phone ? escapeHtml(p.phone) : "Sem WhatsApp";
               return `
-                <tr>
-                  <td><input type="text" id="admin_p_name_${p.id}" value="${escapeHtml(p.name || "")}" /></td>
-                  <td><input type="email" id="admin_p_email_${p.id}" value="${escapeHtml(p.email || "")}" /></td>
-                  <td><input type="text" id="admin_p_phone_${p.id}" value="${escapeHtml(p.phone || "")}" /></td>
-                  <td><input type="text" id="admin_p_instance_${p.id}" value="${escapeHtml(p.evolution_instance_name || "")}" /></td>
-                  <td>${escapeHtml(createdAt)}</td>
-                  <td>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                      <input type="password" id="admin_p_password_${p.id}" placeholder="Nova senha (opcional)" />
-                      <button class="btn btn-secondary" onclick="salvarPersonalAdmin('${p.id}')">Salvar</button>
-                      <button class="btn" style="background:#dbeafe;color:#0369a1;white-space:nowrap;" onclick="abrirAlunosPersonalAdmin('${p.id}', '${escapeHtml(p.name || "")}')">👥 Ver alunos</button>
-                      <button class="btn" style="background:#fee2e2;color:#dc2626;white-space:nowrap;" onclick="excluirPersonalAdmin('${p.id}', '${escapeHtml(p.name || "")}')">Excluir</button>
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 14px;
+                    padding: 14px;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 12px;
+                    margin-bottom: 10px;
+                    background: #ffffff;
+                    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+                  "
+                >
+                  <div style="min-width: 0; display: flex; flex-direction: column; gap: 4px">
+                    <div style="font-weight: 700; color: #111827; line-height: 1.2">
+                      ${escapeHtml(p.name || "")}
                     </div>
-                  </td>
-                </tr>
+                    <div style="color: #475569; font-size: 14px; line-height: 1.2">
+                      ${phone}
+                    </div>
+                    <div style="color: #94a3b8; font-size: 12px; line-height: 1.2">
+                      Criado em ${escapeHtml(createdAt)}
+                    </div>
+                  </div>
+
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                    <button class="btn btn-secondary" style="white-space:nowrap;" onclick="editarPersonalAdmin('${p.id}')">Editar</button>
+                    <button class="btn" style="background:#dbeafe;color:#0369a1;white-space:nowrap;" onclick="abrirAlunosPersonalAdmin('${p.id}', '${escapeHtml(p.name || "")}')">Ver alunos</button>
+                    <button class="btn" style="background:#fee2e2;color:#dc2626;white-space:nowrap;" onclick="excluirPersonalAdmin('${p.id}', '${escapeHtml(p.name || "")}')">Excluir</button>
+                  </div>
+                </div>
               `;
             })
             .join("");
         } catch (error) {
           console.error("Erro ao carregar personals do admin:", error);
-          tbody.innerHTML =
-            '<tr><td colspan="6" style="text-align:center;color:#ef4444;">Erro ao carregar personals</td></tr>';
+          container.innerHTML =
+            '<div style="text-align:center;color:#ef4444;padding:20px;">Erro ao carregar personals</div>';
         }
       }
 
@@ -3510,31 +3593,71 @@
         }
       }
 
-      async function salvarPersonalAdmin(personalId) {
-        if (!adminToken) return;
+      function editarPersonalAdmin(personalId) {
+        const personal = adminPersonalsCache.find((item) => item.id === personalId);
 
-        const name = document
-          .getElementById(`admin_p_name_${personalId}`)
-          .value.trim();
+        if (!personal) {
+          showAlert(
+            "adminAlert",
+            "Não foi possível abrir o formulário de edição do personal.",
+            "error",
+          );
+          return;
+        }
+
+        adminPersonalEditAtualId = personalId;
+        document.getElementById("adminEditPersonalNome").value = personal.name || "";
+        document.getElementById("adminEditPersonalEmail").value = personal.email || "";
+        document.getElementById("adminEditPersonalWhatsapp").value = personal.phone || "";
+        document.getElementById("adminEditPersonalInstance").value =
+          personal.evolution_instance_name || "";
+        document.getElementById("adminEditPersonalSenha").value = "";
+        document.getElementById("adminPersonalEditAlert").innerHTML = "";
+
+        document.getElementById("adminPersonalEditModal").classList.add("open");
+      }
+
+      function closeAdminPersonalEditModal(event) {
+        if (event && event.target?.id !== "adminPersonalEditModal") return;
+        adminPersonalEditAtualId = null;
+        document
+          .getElementById("adminPersonalEditModal")
+          .classList.remove("open");
+      }
+
+      async function salvarPersonalAdmin() {
+        if (!adminToken) return;
+        if (!adminPersonalEditAtualId) return;
+
+        const name = document.getElementById("adminEditPersonalNome").value.trim();
         const email = document
-          .getElementById(`admin_p_email_${personalId}`)
+          .getElementById("adminEditPersonalEmail")
           .value.trim()
           .toLowerCase();
         const phone = document
-          .getElementById(`admin_p_phone_${personalId}`)
+          .getElementById("adminEditPersonalWhatsapp")
           .value.trim();
         const evolutionInstance = document
-          .getElementById(`admin_p_instance_${personalId}`)
+          .getElementById("adminEditPersonalInstance")
           .value.trim();
-        const password = document.getElementById(
-          `admin_p_password_${personalId}`,
-        ).value;
+        const password = document.getElementById("adminEditPersonalSenha").value;
+
+        if (!name || !email) {
+          showAlert(
+            "adminPersonalEditAlert",
+            "Nome e email são obrigatórios.",
+            "error",
+          );
+          return;
+        }
 
         const payload = {
           name,
           email,
           phone,
-          evolution_instance_name: evolutionInstance,
+          ...(evolutionInstance
+            ? { evolution_instance_name: evolutionInstance }
+            : {}),
         };
 
         if (password) {
@@ -3543,7 +3666,7 @@
 
         try {
           const response = await fetch(
-            `${getApiBaseUrl()}/api/admin/personals/${personalId}`,
+            `${getApiBaseUrl()}/api/admin/personals/${adminPersonalEditAtualId}`,
             {
               method: "PATCH",
               headers: {
@@ -3560,11 +3683,12 @@
             throw new Error(data.message || "Erro ao atualizar personal");
           }
 
+          closeAdminPersonalEditModal();
           showAlert("adminAlert", "Personal atualizado com sucesso", "success");
           await carregarAdminPersonals();
         } catch (error) {
           showAlert(
-            "adminAlert",
+            "adminPersonalEditAlert",
             error.message || "Erro ao atualizar personal",
             "error",
           );
