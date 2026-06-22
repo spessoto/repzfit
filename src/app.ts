@@ -69,6 +69,15 @@ export async function buildApp(options: BuildAppOptions = {}) {
     prefix: "/",
   });
 
+  // SPA fallback para páginas do painel personal com URL amigável.
+  app.get("/personal", async (_request, reply) => {
+    return reply.sendFile("index.html");
+  });
+
+  app.get("/personal/*", async (_request, reply) => {
+    return reply.sendFile("index.html");
+  });
+
   await app.register(cors, {
     origin(origin, callback) {
       // Log para debug

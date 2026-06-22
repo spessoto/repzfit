@@ -1121,7 +1121,7 @@
             <button
               id="alunosTabButton"
               class="tab active"
-              onclick="switchTab('alunos')"
+              onclick="navigatePersonalPage('alunos')"
             >
               <span class="tab-icon" aria-hidden="true">●</span>
               <span class="tab-label">Alunos</span>
@@ -1129,7 +1129,7 @@
             <button
               id="exerciciosTabButton"
               class="tab"
-              onclick="switchTab('exercicios')"
+              onclick="navigatePersonalPage('exercicios')"
             >
               <span class="tab-icon" aria-hidden="true">■</span>
               <span class="tab-label">Exercícios</span>
@@ -1137,10 +1137,18 @@
             <button
               id="treinosTabButton"
               class="tab"
-              onclick="switchTab('treinos')"
+              onclick="navigatePersonalPage('treinos')"
             >
               <span class="tab-icon" aria-hidden="true">▲</span>
               <span class="tab-label">Treinos</span>
+            </button>
+            <button
+              id="configuracoesTabButton"
+              class="tab"
+              onclick="navigatePersonalPage('configuracoes')"
+            >
+              <span class="tab-icon" aria-hidden="true">⚙</span>
+              <span class="tab-label">Configurações</span>
             </button>
             <button
               id="adminTabButton"
@@ -2035,6 +2043,12 @@
       // Paginação de exercícios
       let exerciciosPaginaAtual = 1;
       let exerciciosTotalPaginas = 1;
+      const PERSONAL_PAGES = [
+        "alunos",
+        "exercicios",
+        "treinos",
+        "configuracoes",
+      ];
 
       function getApiBaseUrl() {
         return window.location.hostname === "localhost"
@@ -2047,6 +2061,7 @@
           "alunosTabButton",
           "exerciciosTabButton",
           "treinosTabButton",
+          "configuracoesTabButton",
         ];
         const personalPanels = [
           "alunosTab",
@@ -2267,10 +2282,8 @@
 
         await carregarPerfilPersonal();
 
-        carregarAlunos();
-        carregarExercicios();
-        carregarAlunosSelect();
-        carregarTreinosAluno();
+        const page = getPersonalPageFromUrl();
+        await openPersonalPage(page, { shouldLoadData: true });
       }
 
       async function carregarPerfilPersonal() {
@@ -2390,6 +2403,82 @@
         await carregarAdminPersonals();
       }
 
+      function getPersonalPageFromUrl() {
+        const normalizedPath = window.location.pathname
+          .replace(/^\/+|\/+$/g, "")
+          .toLowerCase();
+        const parts = normalizedPath ? normalizedPath.split("/") : [];
+
+        if (
+          parts[0] === "personal" &&
+          parts[1] &&
+          PERSONAL_PAGES.includes(parts[1])
+        ) {
+          return parts[1];
+        }
+
+        // Compatibilidade com links antigos no formato ?page=
+        const params = new URLSearchParams(window.location.search);
+        const queryPage = (params.get("page") || "").toLowerCase();
+        if (PERSONAL_PAGES.includes(queryPage)) {
+          return queryPage;
+        }
+
+        return "alunos";
+      }
+
+      function buildPersonalPageUrl(page) {
+        const safePage = PERSONAL_PAGES.includes(page) ? page : "alunos";
+        const params = new URLSearchParams(window.location.search);
+        params.delete("page");
+        const query = params.toString();
+        return `/personal/${safePage}${query ? `?${query}` : ""}`;
+      }
+
+      function navigatePersonalPage(page) {
+        if (isAdminSession) return;
+        window.location.href = buildPersonalPageUrl(page);
+      }
+
+      async function openPersonalPage(page, options = {}) {
+        const { shouldLoadData = false } = options;
+        const safePage = PERSONAL_PAGES.includes(page) ? page : "alunos";
+
+        document
+          .querySelectorAll(".tab")
+          .forEach((t) => t.classList.remove("active"));
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((t) => t.classList.remove("active"));
+
+        const button = document.getElementById(`${safePage}TabButton`);
+        const panel = document.getElementById(`${safePage}Tab`);
+        if (button) button.classList.add("active");
+        if (panel) panel.classList.add("active");
+
+        if (!shouldLoadData) return;
+
+        if (safePage === "alunos") {
+          await carregarAlunos();
+          return;
+        }
+
+        if (safePage === "exercicios") {
+          await carregarExercicios();
+          return;
+        }
+
+        if (safePage === "treinos") {
+          await carregarAlunosSelect();
+          await carregarTreinosAluno();
+          return;
+        }
+
+        if (safePage === "configuracoes") {
+          await carregarConfiguracoes();
+        }
+      }
+
       function switchTab(tab) {
         document
           .querySelectorAll(".tab")
@@ -2416,9 +2505,6 @@
           generateAdminEmbedCode();
           carregarRelatorioOrigensAdmin();
           verificarStatusWhatsAppAdmin();
-        }
-        if (tab === "whatsapp") {
-          verificarStatusWhatsApp();
         }
       }
 
