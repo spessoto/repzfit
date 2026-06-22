@@ -2652,7 +2652,20 @@ export async function processIncomingMessage(input: IncomingMessage) {
     return;
   }
 
-  // Mensagens fora dos fluxos esperados são ignoradas para evitar disparos indevidos.
+  // Bot responde a qualquer mensagem recebida com uma resposta amigável
+  if (student) {
+    const reply = await safeCoachReply(
+      input.app,
+      `O aluno ${student.name} enviou a mensagem: "${effectiveInput}". Responda brevemente (1-2 linhas) de forma amigável e motivadora, direcionando-o para começar o treino se ainda não começou.`,
+      `Oi ${student.name}! Tudo bem? 💪 Envie *iniciar treino* quando quiser começar sua sessão comigo!`
+    );
+
+    await sendTextMessage({
+      instanceName: input.instance,
+      number: whatsapp,
+      text: reply,
+    });
+  }
   return;
 }
 
