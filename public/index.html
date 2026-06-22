@@ -1143,14 +1143,6 @@
               <span class="tab-label">Treinos</span>
             </button>
             <button
-              id="whatsappTabButton"
-              class="tab"
-              onclick="switchTab('whatsapp')"
-            >
-              <span class="tab-icon" aria-hidden="true">◆</span>
-              <span class="tab-label">WhatsApp</span>
-            </button>
-            <button
               id="adminTabButton"
               class="tab hidden"
               onclick="switchTab('admin')"
@@ -1472,43 +1464,6 @@
             </div>
           </div>
 
-          <!-- WhatsApp Tab -->
-          <div id="whatsappTab" class="tab-content">
-            <div class="card">
-              <h2>Status do Bot WhatsApp</h2>
-              <div
-                id="whatsappStatus"
-                style="
-                  margin-bottom: 20px;
-                  padding: 15px;
-                  background: #f9fafb;
-                  border-radius: 8px;
-                "
-              >
-                <p style="font-size: 14px; margin-bottom: 8px">
-                  <strong>Status da Conexão:</strong>
-                </p>
-                <div id="connectionStatus" style="font-size: 16px">
-                  Verificando...
-                </div>
-                <p style="font-size: 12px; color: #6b7280; margin-top: 8px">
-                  Atualização automática a cada 10 segundos
-                </p>
-              </div>
-              <div
-                style="
-                  padding: 14px;
-                  border: 1px solid #e5e7eb;
-                  border-radius: 8px;
-                  background: #f8fafc;
-                  color: #475569;
-                "
-              >
-                A conexão do WhatsApp é gerenciada apenas no painel admin. Este
-                espaço mostra somente o status global do bot.
-              </div>
-            </div>
-          </div>
 
           <!-- Configurações Tab -->
           <div id="configuracoesTab" class="tab-content">
@@ -2092,13 +2047,11 @@
           "alunosTabButton",
           "exerciciosTabButton",
           "treinosTabButton",
-          "whatsappTabButton",
         ];
         const personalPanels = [
           "alunosTab",
           "exerciciosTab",
           "treinosTab",
-          "whatsappTab",
           "configuracoesTab",
         ];
 
@@ -2318,7 +2271,6 @@
         carregarExercicios();
         carregarAlunosSelect();
         carregarTreinosAluno();
-        startStatusMonitoring();
       }
 
       async function carregarPerfilPersonal() {
