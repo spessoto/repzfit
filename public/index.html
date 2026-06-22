@@ -2017,6 +2017,98 @@
       </div>
     </div>
 
+    <div
+      id="adminAlunoEditModal"
+      class="modal-backdrop"
+      onclick="closeAdminAlunoEditModal(event)"
+    >
+      <div class="modal-panel" onclick="event.stopPropagation()">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+          "
+        >
+          <h3 style="color: #1f2937">Editar Aluno</h3>
+          <button class="btn btn-secondary" onclick="closeAdminAlunoEditModal()">
+            Fechar
+          </button>
+        </div>
+
+        <div id="adminAlunoEditAlert"></div>
+
+        <div class="form-group">
+          <label>Nome</label>
+          <input type="text" id="adminEditAlunoNome" />
+        </div>
+
+        <div class="form-group">
+          <label>WhatsApp (com 55)</label>
+          <input
+            type="text"
+            id="adminEditAlunoWhatsapp"
+            placeholder="5511999999999"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="adminEditAlunoEmail" />
+        </div>
+
+        <div class="editor-grid">
+          <div class="form-group">
+            <label>Tipo Sanguíneo</label>
+            <select id="adminEditAlunoTipoSanguineo">
+              <option value="">Não informado</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Peso (kg)</label>
+            <input type="number" id="adminEditAlunoPeso" min="0" step="0.1" />
+          </div>
+
+          <div class="form-group">
+            <label>Altura (cm)</label>
+            <input
+              type="number"
+              id="adminEditAlunoAltura"
+              min="0"
+              step="0.1"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Status</label>
+            <select id="adminEditAlunoStatus">
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px">
+          <button class="btn btn-secondary" onclick="closeAdminAlunoEditModal()">
+            Cancelar
+          </button>
+          <button class="btn btn-primary" onclick="salvarAlunoAdminEdicao()">
+            Salvar alterações
+          </button>
+        </div>
+      </div>
+    </div>
+
     <script>
       let authToken = localStorage.getItem("repz_token");
       let adminToken = localStorage.getItem("repz_admin_token");
@@ -3525,6 +3617,33 @@
 
       let adminAlunosPersonalId = null;
       let adminAlunosPersonalName = null;
+      let adminAlunosCache = [];
+      let adminAlunoEditAtualId = null;
+
+      function normalizeAdminWhatsappWith55(rawValue) {
+        const digitsOnly = String(rawValue || "").replace(/\D+/g, "");
+        if (!digitsOnly) return "";
+
+        let normalized = digitsOnly;
+
+        while (normalized.startsWith("00")) {
+          normalized = normalized.slice(2);
+        }
+
+        if (normalized.startsWith("0")) {
+          normalized = normalized.replace(/^0+/, "");
+        }
+
+        if (normalized.startsWith("55")) {
+          return normalized;
+        }
+
+        if (normalized.length === 10 || normalized.length === 11) {
+          return `55${normalized}`;
+        }
+
+        return normalized;
+      }
 
       async function abrirAlunosPersonalAdmin(personalId, personalName) {
         if (!adminToken) return;
@@ -3544,6 +3663,7 @@
         const drawer = document.getElementById("adminAlunosDrawer");
         if (drawer) drawer.classList.remove("open");
         adminAlunosPersonalId = null;
+        adminAlunosCache = [];
       }
 
       async function carregarAlunosPersonalAdmin() {
@@ -3572,6 +3692,7 @@
           }
 
           const alunos = await response.json();
+          adminAlunosCache = Array.isArray(alunos) ? alunos : [];
 
           if (!alunos || alunos.length === 0) {
             tbody.innerHTML =
@@ -3592,7 +3713,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  ${alunos
+                  ${adminAlunosCache
                     .map(
                       (a) => `
                     <tr style="border-bottom:1px solid #e5e7eb;">
@@ -3638,6 +3759,16 @@
       async function salvarNovoAlunoAdmin(nome, whatsapp) {
         if (!adminToken || !adminAlunosPersonalId) return;
 
+        const normalizedWhatsapp = normalizeAdminWhatsappWith55(whatsapp);
+        if (!normalizedWhatsapp || !normalizedWhatsapp.startsWith("55")) {
+          showAlert(
+            "adminAlunosAlert",
+            "WhatsApp inválido. Informe com DDD; o sistema adiciona 55 automaticamente quando necessário.",
+            "error",
+          );
+          return;
+        }
+
         try {
           const response = await fetch(
             `${getApiBaseUrl()}/api/admin/personals/${adminAlunosPersonalId}/students`,
@@ -3649,7 +3780,7 @@
               },
               body: JSON.stringify({
                 name: nome,
-                whatsapp_number: whatsapp,
+                whatsapp_number: normalizedWhatsapp,
               }),
             },
           );
@@ -3675,33 +3806,81 @@
         }
       }
 
-      async function editarAlunoAdmin(alunoId) {
-        if (!adminToken) return;
+      function editarAlunoAdmin(alunoId) {
+        const aluno = adminAlunosCache.find((item) => item.id === alunoId);
+        if (!aluno) {
+          showAlert("adminAlunosAlert", "Aluno não encontrado para edição", "error");
+          return;
+        }
 
-        const nome = prompt("Nome do aluno:");
-        if (!nome) return;
+        adminAlunoEditAtualId = alunoId;
+        document.getElementById("adminAlunoEditAlert").innerHTML = "";
+        document.getElementById("adminEditAlunoNome").value = aluno.name || "";
+        document.getElementById("adminEditAlunoWhatsapp").value =
+          aluno.whatsapp_number || "";
+        document.getElementById("adminEditAlunoEmail").value = aluno.email || "";
+        document.getElementById("adminEditAlunoTipoSanguineo").value =
+          aluno.blood_type || "";
+        document.getElementById("adminEditAlunoPeso").value =
+          aluno.weight_kg ?? "";
+        document.getElementById("adminEditAlunoAltura").value =
+          aluno.height_cm ?? "";
+        document.getElementById("adminEditAlunoStatus").value =
+          String(Boolean(aluno.is_active));
 
-        const whatsapp = prompt("WhatsApp:");
-        const email = prompt("Email:");
-        const tipoSanguineo = prompt("Tipo sanguíneo (ex: O+):");
-        const peso = prompt("Peso (kg):");
-        const altura = prompt("Altura (cm):");
-        const statusInput = prompt("Status (ativo/inativo):");
+        document.getElementById("adminAlunoEditModal").classList.add("open");
+      }
+
+      function closeAdminAlunoEditModal(event) {
+        if (event && event.target?.id !== "adminAlunoEditModal") return;
+        adminAlunoEditAtualId = null;
+        document.getElementById("adminAlunoEditModal").classList.remove("open");
+      }
+
+      async function salvarAlunoAdminEdicao() {
+        if (!adminToken || !adminAlunoEditAtualId) return;
+
+        const name = document.getElementById("adminEditAlunoNome").value.trim();
+        const whatsappInput =
+          document.getElementById("adminEditAlunoWhatsapp").value.trim();
+        const email = document.getElementById("adminEditAlunoEmail").value.trim();
+        const bloodType = document.getElementById(
+          "adminEditAlunoTipoSanguineo",
+        ).value;
+        const weightValue = document.getElementById("adminEditAlunoPeso").value;
+        const heightValue =
+          document.getElementById("adminEditAlunoAltura").value;
+        const isActiveValue =
+          document.getElementById("adminEditAlunoStatus").value === "true";
+
+        if (!name) {
+          showAlert("adminAlunoEditAlert", "Nome é obrigatório", "error");
+          return;
+        }
+
+        const normalizedWhatsapp = normalizeAdminWhatsappWith55(whatsappInput);
+        if (!normalizedWhatsapp || !normalizedWhatsapp.startsWith("55")) {
+          showAlert(
+            "adminAlunoEditAlert",
+            "WhatsApp inválido. Informe com DDD; o sistema adiciona 55 automaticamente quando necessário.",
+            "error",
+          );
+          return;
+        }
+
+        const patch = {
+          name,
+          whatsapp_number: normalizedWhatsapp,
+          blood_type: bloodType || "",
+          weight_kg: weightValue === "" ? null : Number(weightValue),
+          height_cm: heightValue === "" ? null : Number(heightValue),
+          is_active: isActiveValue,
+          ...(email ? { email } : {}),
+        };
 
         try {
-          const patch = {
-            name: nome,
-          };
-
-          if (whatsapp) patch.whatsapp_number = whatsapp;
-          if (email) patch.email = email;
-          if (tipoSanguineo) patch.blood_type = tipoSanguineo;
-          if (peso) patch.weight_kg = parseFloat(peso);
-          if (altura) patch.height_cm = parseFloat(altura);
-          if (statusInput) patch.is_active = statusInput.toLowerCase() === "ativo";
-
           const response = await fetch(
-            `${getApiBaseUrl()}/api/admin/students/${alunoId}`,
+            `${getApiBaseUrl()}/api/admin/students/${adminAlunoEditAtualId}`,
             {
               method: "PATCH",
               headers: {
@@ -3722,11 +3901,12 @@
             throw new Error(data.message || "Erro ao atualizar aluno");
           }
 
+          closeAdminAlunoEditModal();
           showAlert("adminAlunosAlert", "Aluno atualizado com sucesso", "success");
           await carregarAlunosPersonalAdmin();
         } catch (error) {
           showAlert(
-            "adminAlunosAlert",
+            "adminAlunoEditAlert",
             error.message || "Erro ao atualizar aluno",
             "error",
           );
