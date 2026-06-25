@@ -948,7 +948,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data: assignments, error: workoutsError } = await client
       .from("student_workouts")
       .select(
-        "id,workout_id,student_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,start_date,created_at,workout_exercises(id,exercise_id,target_sets,target_reps,target_weight,order_index,rest_seconds,exercises(id,name,description,muscle_group,equipment)))",
+        "id,workout_id,student_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,exercise_id,target_sets,target_reps,target_weight,order_index,rest_seconds,exercises(id,name,description,muscle_group,equipment)))",
       )
       .eq("student_id", id)
       .order("created_at", { ascending: false });
@@ -1728,7 +1728,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("student_workouts")
       .select(
-        "id,student_id,workout_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,start_date,created_at,workout_exercises(id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,created_at))",
+        "id,student_id,workout_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,created_at))",
       )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });

@@ -11,6 +11,7 @@ import {
   COACH_SYSTEM_PROMPT,
 } from "./gemini-service.js";
 import { transcribeAudioFromUrl } from "./openai-service.js";
+import { resolvePersonalWhatsAppNumber } from "./personal-contact.js";
 
 type IncomingMessage = {
   app: FastifyInstance;
@@ -69,6 +70,35 @@ type BotAnomalyInput = {
 
 const NUMERIC_STATES = new Set(["COLLECTING_REPS", "COLLECTING_WEIGHT"]);
 let botAnomalyLogTableUnavailable = false;
+
+export function buildSetRestTransitionMessage(params: {
+  currentSet: number;
+  targetSets: number;
+  restSeconds?: number | null;
+  remainingSeconds?: number | null;
+  state: "started" | "already_started" | "expired" | "no_rest";
+}): string {
+  const base = `🔥 Série ${params.currentSet}/${params.targetSets} concluída!`;
+
+  if (params.state === "already_started") {
+    const remaining = params.remainingSeconds ?? 0;
+    return `${base}\n\n⏱ Descanso em andamento: faltam ~*${remaining}s*. Quando terminar, seguimos para a próxima repetição.`;
+  }
+
+  if (params.state === "expired") {
+    return `${base}\n\n✅ Descanso encerrado. Bora pra próxima repetição.`;
+  }
+
+  if (params.state === "no_rest") {
+    return `${base}\n\nBora pra próxima repetição.`;
+  }
+
+  if (params.restSeconds && params.restSeconds > 0) {
+    return `${base}\n\n⏱ Descanso iniciado: *${params.restSeconds}s*. Quando terminar, seguimos para a próxima repetição.`;
+  }
+
+  return `${base}\n\nVamos para a próxima repetição.`;
+}
 
 function isConfirmIntent(msg: string): boolean {
   const n = msg.toLowerCase().trim();
@@ -476,11 +506,11 @@ async function updateState(whatsapp: string, patch: Partial<BotStateRow>) {
 async function getPersonalWhatsapp(personalId: string): Promise<string | null> {
   const { data } = await supabaseAdmin
     .from("personals")
-    .select("phone")
+    .select("phone,whatsapp_number")
     .eq("id", personalId)
     .maybeSingle();
 
-  return normalizeBrazilWhatsappNumber((data as any)?.phone ?? null);
+  return resolvePersonalWhatsAppNumber(data as any);
 }
 
 /**
@@ -1020,6 +1050,10 @@ async function sendReportToPersonal(params: {
       number: personalWhatsapp,
       text: `O aluno ${params.studentName} terminou o treino de hoje! veja o extrato do treino dele:\n${workoutExtract}`,
     });
+    params.app.log.info(
+      { personalId: params.personalId, studentName: params.studentName },
+      "sendReportToPersonal: report sent to personal",
+    );
   } catch (err) {
     params.app.log.error(err, "sendReportToPersonal: failed to send message");
   }
@@ -1046,6 +1080,10 @@ async function sendTrainingStartedToPersonal(params: {
       number: personalWhatsapp,
       text: `O aluno ${params.studentName} iniciou o treino.`,
     });
+    params.app.log.info(
+      { personalId: params.personalId, studentName: params.studentName },
+      "sendTrainingStartedToPersonal: start notification sent to personal",
+    );
   } catch (err) {
     params.app.log.error(
       err,
@@ -1156,13 +1194,22 @@ async function advanceAfterSetLog(params: {
         await sendTextMessage({
           instanceName,
           number: whatsapp,
-          text: `🔥 Série ${state.current_set_number}/${targetSets} concluída! Boa!\n\n⏱ Descanso já em andamento: faltam ~*${remaining}s*. Vou te avisar quando acabar! 💪`,
+          text: buildSetRestTransitionMessage({
+            currentSet: state.current_set_number,
+            targetSets,
+            remainingSeconds: remaining,
+            state: "already_started",
+          }),
         });
       } else if (startedRestEndMs > 0) {
         await sendTextMessage({
           instanceName,
           number: whatsapp,
-          text: `🔥 Série ${state.current_set_number}/${targetSets} concluída!\n\n✅ O descanso já terminou. Bora para a próxima série! Quando terminar a série ${nextSet}, me manda *feito* ✅`,
+          text: buildSetRestTransitionMessage({
+            currentSet: state.current_set_number,
+            targetSets,
+            state: "expired",
+          }),
         });
 
         await updateState(whatsapp, {
@@ -1177,7 +1224,11 @@ async function advanceAfterSetLog(params: {
         await sendTextMessage({
           instanceName,
           number: whatsapp,
-          text: `🔥 Série ${state.current_set_number}/${targetSets} concluída!\n\n✅ O descanso já terminou. Bora para a próxima série! Quando terminar a série ${nextSet}, me manda *feito* ✅`,
+          text: buildSetRestTransitionMessage({
+            currentSet: state.current_set_number,
+            targetSets,
+            state: "expired",
+          }),
         });
 
         await updateState(whatsapp, {
@@ -1197,14 +1248,23 @@ async function advanceAfterSetLog(params: {
         await sendTextMessage({
           instanceName,
           number: whatsapp,
-          text: `🔥 Série ${state.current_set_number}/${targetSets} concluída! Boa!\n\n⏱ Iniciando descanso de *${restSeconds}s*. Vou te avisar quando acabar! 💪`,
+          text: buildSetRestTransitionMessage({
+            currentSet: state.current_set_number,
+            targetSets,
+            restSeconds,
+            state: "started",
+          }),
         });
       }
     } else {
       await sendTextMessage({
         instanceName,
         number: whatsapp,
-        text: `🔥 Série ${state.current_set_number}/${targetSets} concluída!\n\nDescanso e vamos para a próxima! Quando terminar a série ${nextSet}, me manda *feito* ✅`,
+        text: buildSetRestTransitionMessage({
+          currentSet: state.current_set_number,
+          targetSets,
+          state: "no_rest",
+        }),
       });
 
       await updateState(whatsapp, {
@@ -1371,7 +1431,7 @@ async function advanceAfterSetLog(params: {
       await sendTextMessage({
         instanceName,
         number: whatsapp,
-        text: `✅ ${exerciseName} concluído!\n\n🔸 Próximo: *${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}\n\nQuando estiver pronto, me manda *feito* ✅`,
+        text: `✅ ${exerciseName} concluído!\n\n🔸 Próximo: *${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}`,
       });
 
       await updateState(whatsapp, {
@@ -2468,7 +2528,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: `🔥 *${det.name}*\n${formatExerciseDetails(selectedExercise)}\n\nVamos começar! Quando terminar a série, me manda *feito* ✅`,
+      text: `🔥 *${det.name}*\n${formatExerciseDetails(selectedExercise)}\n\nVamos começar! Quando terminar a série, manda *feito*.`,
     });
     return;
   }
@@ -2672,7 +2732,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: `✅ Exercício concluído!\n\nAgora me diga as *repetições de cada série* (foram ${targetSets} séries).\nExemplo: *12 11 10*`,
+          text: `✅ Exercício concluído!\n\nMe manda as repetições de cada série no formato *12 11 10* (${targetSets} séries).`,
         });
         await updateState(whatsapp, {
           current_state: "COLLECTING_REPS",
@@ -2702,14 +2762,14 @@ export async function processIncomingMessage(input: IncomingMessage) {
             current_state: "COLLECTING_REPS",
             rest_end_at: restEndAt,
           });
-          restStartNotice = `\n\n⏱ O descanso de *${restSeconds}s* já começou agora. Enquanto isso, me passa quantas repetições você fez.`;
+          restStartNotice = `\n\n⏱ Descanso iniciado: *${restSeconds}s*. Enquanto isso, você pode mandar as repetições quando estiver pronto.`;
         }
       }
 
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: `🔥 Boa! Quantas repetições você conseguiu fazer?${restStartNotice}`,
+        text: `🔥 Me manda as repetições desta série.${restStartNotice}`,
       });
 
       if (!restStartNotice) {
@@ -2760,7 +2820,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: `Me passe exatamente ${targetSets} números de repetições, um por série.\nExemplo: *12 11 10*`,
+          text: `Me manda exatamente ${targetSets} números de repetições, um por série.\nExemplo: *12 11 10*`,
         });
         return;
       }
@@ -2768,7 +2828,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Perfeito! Agora me diz qual foi a carga usada no exercício (kg).",
+        text: "Perfeito! Agora me manda a carga usada em kg.",
       });
 
       await updateState(whatsapp, {
@@ -2800,7 +2860,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: `${reps} repetições, show! 💪\n\nAgora me diz: qual carga você usou? (em kg)`,
+      text: `${reps} repetições anotadas! 💪\n\nAgora me manda a carga usada em kg.`,
     });
 
     await updateState(whatsapp, {
@@ -2834,7 +2894,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Ótimo! E qual foi o PSE desse exercício?\n\nResponda com um número de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - Máximo 🔥",
+        text: "Ótimo! Agora me manda o PSE desse exercício (de *1 a 10*).",
       });
       await updateState(whatsapp, {
         current_state: "COLLECTING_RPE",
@@ -2880,7 +2940,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Perfeito! Agora me diz: qual foi o PSE desta série?\n\nResponda com um número de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - Máximo 🔥",
+        text: "Perfeito! Agora me manda o PSE desta série (de *1 a 10*).",
       });
 
       await updateState(whatsapp, {
@@ -3053,7 +3113,7 @@ async function fireExpiredRest(
     await sendTextMessage({
       instanceName,
       number: state.whatsapp_number,
-      text: `✅ Fim do descanso! Vamos lá? 💪\n\n*${exerciseName}* — Série ${nextSet}/${targetSets}\nQuando terminar, me manda *feito* ✅`,
+      text: `✅ Fim do descanso! Vamos lá? 💪\n\n*${exerciseName}* — Série ${nextSet}/${targetSets}`,
     });
   } else if (hint.startsWith("rest:next_exercise:")) {
     const nextExerciseId = hint.replace("rest:next_exercise:", "");
@@ -3115,7 +3175,7 @@ async function fireExpiredRest(
     await sendTextMessage({
       instanceName,
       number: state.whatsapp_number,
-      text: `✅ Fim do descanso! Próximo exercício:\n\n*${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}\n\nQuando estiver pronto para a 1ª série, me manda *feito* ✅`,
+      text: `✅ Fim do descanso! Próximo exercício:\n\n*${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}`,
     });
   } else {
     // hint desconhecido — limpa o estado para não ficar travado
