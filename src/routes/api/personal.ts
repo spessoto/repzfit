@@ -56,6 +56,7 @@ const ExerciseCreateSchema = z.object({
   muscle_group: z.string().max(100).optional(),
   equipment: z.string().max(500).optional(),
   tags: z.array(z.string().max(50)).max(20).optional(),
+  gif_url: z.union([z.string().url().max(2048), z.literal("")]).optional(),
 });
 
 const ExercisePatchSchema = z
@@ -65,10 +66,20 @@ const ExercisePatchSchema = z
     muscle_group: z.string().max(100).optional(),
     equipment: z.string().max(500).optional(),
     tags: z.array(z.string().max(50)).max(20).optional(),
+    gif_url: z.union([z.string().url().max(2048), z.literal("")]).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided",
   });
+
+const ExerciseGifUploadUrlSchema = z.object({
+  filename: z.string().max(255).optional(),
+  content_type: z.string().max(120).optional(),
+});
+
+const ExerciseGifFinalizeSchema = z.object({
+  storage_path: z.string().min(1).max(1024),
+});
 
 const WorkoutCreateSchema = z.object({
   name: z.string().min(1).max(255).trim(),
@@ -78,32 +89,46 @@ const WorkoutCreateSchema = z.object({
   day_of_week: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   exercises: z
     .array(
-      z.object({
-        exercise_id: z.string().uuid(),
-        target_sets: z.number().int().positive().max(100),
-        target_reps: z.number().int().positive().max(1000),
-        target_weight: z.number().nonnegative().max(1000).optional(),
-        order_index: z.number().int().nonnegative().max(100),
-        rest_seconds: z
-          .number()
-          .int()
-          .nonnegative()
-          .max(3600)
-          .nullable()
-          .optional(),
-      }),
+      z
+        .object({
+          exercise_id: z.string().uuid().optional(),
+          exercise_variation_id: z.string().uuid().optional(),
+          target_sets: z.number().int().positive().max(100),
+          target_reps: z.number().int().positive().max(1000),
+          target_weight: z.number().nonnegative().max(1000).optional(),
+          order_index: z.number().int().nonnegative().max(100),
+          rest_seconds: z
+            .number()
+            .int()
+            .nonnegative()
+            .max(3600)
+            .nullable()
+            .optional(),
+        })
+        .refine(
+          (value) => Boolean(value.exercise_id || value.exercise_variation_id),
+          {
+            message: "exercise_id or exercise_variation_id must be provided",
+          },
+        ),
     )
     .max(50)
     .optional(),
 });
 
 const WorkoutExerciseCreateSchema = z.object({
-  exercise_id: z.string().uuid(),
+  exercise_id: z.string().uuid().optional(),
+  exercise_variation_id: z.string().uuid().optional(),
   target_sets: z.number().int().positive().max(100),
   target_reps: z.number().int().positive().max(1000),
   target_weight: z.number().nonnegative().max(1000).optional(),
   order_index: z.number().int().nonnegative().max(100),
   rest_seconds: z.number().int().nonnegative().max(3600).nullable().optional(),
+  custom_description: z
+    .union([z.string().max(2000), z.null(), z.literal("")])
+    .optional(),
+}).refine((value) => Boolean(value.exercise_id || value.exercise_variation_id), {
+  message: "exercise_id or exercise_variation_id must be provided",
 });
 
 const WorkoutPatchSchema = z
@@ -154,6 +179,9 @@ const WorkoutExercisePatchSchema = z
     order_index: z.number().int().nonnegative().max(100).optional(),
     rest_seconds: z
       .union([z.number().int().nonnegative().max(3600), z.null()])
+      .optional(),
+    custom_description: z
+      .union([z.string().max(2000), z.null(), z.literal("")])
       .optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
@@ -528,6 +556,16 @@ function buildWebhookUrlFromRequest(request: FastifyRequest): string {
   return "https://app.ezpersonal.com.br/webhooks/evolution";
 }
 
+function sanitizeFileName(input: string): string {
+  const cleaned = input
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  return cleaned || "exercise.gif";
+}
+
 async function ensureEvolutionWebhookForRequest(
   app: FastifyInstance,
   request: FastifyRequest,
@@ -626,6 +664,93 @@ async function assertWorkoutOwnership(
   }
 
   return workout;
+}
+
+async function resolveWorkoutExerciseReference(params: {
+  app: FastifyInstance;
+  personalId: string;
+  exerciseId?: string;
+  exerciseVariationId?: string;
+}) {
+  const { app, personalId, exerciseId, exerciseVariationId } = params;
+
+  if (exerciseVariationId) {
+    const { data: variation, error: variationError } = await supabaseAdmin
+      .from("exercise_variations")
+      .select("id,personal_id,legacy_exercise_id")
+      .eq("id", exerciseVariationId)
+      .maybeSingle();
+
+    if (variationError) {
+      throw app.httpErrors.badRequest(variationError.message);
+    }
+
+    if (!variation) {
+      throw app.httpErrors.notFound("Exercise variation not found");
+    }
+
+    if (variation.personal_id && variation.personal_id !== personalId) {
+      throw app.httpErrors.notFound("Exercise variation not found");
+    }
+
+    if (!variation.legacy_exercise_id) {
+      throw app.httpErrors.badRequest(
+        "Exercise variation is not linked to legacy exercise yet",
+      );
+    }
+
+    if (exerciseId && exerciseId !== variation.legacy_exercise_id) {
+      throw app.httpErrors.badRequest(
+        "exercise_id does not match provided exercise_variation_id",
+      );
+    }
+
+    return {
+      exerciseId: variation.legacy_exercise_id as string,
+      exerciseVariationId,
+    };
+  }
+
+  if (!exerciseId) {
+    throw app.httpErrors.badRequest(
+      "exercise_id or exercise_variation_id must be provided",
+    );
+  }
+
+  const { data: exerciseFallback, error: exerciseFallbackError } =
+    await supabaseAdmin
+      .from("exercises")
+      .select("id,personal_id")
+      .eq("id", exerciseId)
+      .maybeSingle();
+
+  if (exerciseFallbackError) {
+    throw app.httpErrors.badRequest(exerciseFallbackError.message);
+  }
+
+  if (
+    !exerciseFallback ||
+    (exerciseFallback.personal_id && exerciseFallback.personal_id !== personalId)
+  ) {
+    throw app.httpErrors.notFound("Exercise not found");
+  }
+
+  const { data: linkedVariation, error: linkedVariationError } = await supabaseAdmin
+    .from("exercise_variations")
+    .select("id")
+    .eq("legacy_exercise_id", exerciseId)
+    .or(`personal_id.is.null,personal_id.eq.${personalId}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (linkedVariationError) {
+    throw app.httpErrors.badRequest(linkedVariationError.message);
+  }
+
+  return {
+    exerciseId,
+    exerciseVariationId: linkedVariation?.id ?? null,
+  };
 }
 
 export async function registerPersonalApiRoutes(app: FastifyInstance) {
@@ -948,7 +1073,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data: assignments, error: workoutsError } = await client
       .from("student_workouts")
       .select(
-        "id,workout_id,student_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,exercise_id,target_sets,target_reps,target_weight,order_index,rest_seconds,exercises(id,name,description,muscle_group,equipment)))",
+        "id,workout_id,student_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercises(id,name,description,muscle_group,equipment,gif_url)))",
       )
       .eq("student_id", id)
       .order("created_at", { ascending: false });
@@ -1076,6 +1201,8 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       muscle_group: parsed.data.muscle_group ?? null,
       equipment: parsed.data.equipment ?? null,
       tags: parsed.data.tags ?? null,
+      gif_url: parsed.data.gif_url ? parsed.data.gif_url : null,
+      gif_storage_path: null,
     };
 
     const { data, error } = await client
@@ -1117,7 +1244,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     let query = client
       .from("exercises")
       .select(
-        "id,personal_id,name,description,muscle_group,equipment,tags,created_at",
+        "id,personal_id,name,description,muscle_group,equipment,tags,gif_url,created_at",
         { count: "exact" },
       );
 
@@ -1217,12 +1344,124 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .uuid()
       .parse((request.params as { id?: string }).id);
     const client = getRlsClient(token);
+    const payload: Record<string, unknown> = { ...parsed.data };
+    if (payload.gif_url === "") payload.gif_url = null;
 
     const { data, error } = await client
       .from("exercises")
-      .update(parsed.data)
+      .update(payload)
       .eq("id", id)
-      .select("id,personal_id,name,description,created_at")
+      .select("id,personal_id,name,description,muscle_group,equipment,tags,gif_url,created_at")
+      .maybeSingle();
+
+    if (error) {
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    if (!data) {
+      throw app.httpErrors.notFound("Exercise not found");
+    }
+
+    return data;
+  });
+
+  app.post("/exercises/:id/gif/upload-url", async (request) => {
+    const { token, personalId } = await getAuthenticatedPersonal(app, request);
+    const parsed = ExerciseGifUploadUrlSchema.safeParse(request.body ?? {});
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+    const client = getRlsClient(token);
+
+    const { data: exercise, error: exerciseError } = await client
+      .from("exercises")
+      .select("id,personal_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (exerciseError) {
+      throw app.httpErrors.badRequest(exerciseError.message);
+    }
+
+    if (!exercise || exercise.personal_id !== personalId) {
+      throw app.httpErrors.notFound("Exercise not found");
+    }
+
+    const bucketName = "exercise-media";
+    const { data: existingBuckets } = await supabaseAdmin.storage.listBuckets();
+    const hasBucket = (existingBuckets ?? []).some((bucket) => bucket.name === bucketName);
+
+    if (!hasBucket) {
+      const { error: bucketError } = await supabaseAdmin.storage.createBucket(
+        bucketName,
+        {
+          public: true,
+          fileSizeLimit: 5 * 1024 * 1024,
+          allowedMimeTypes: ["image/gif", "image/webp", "image/png", "image/jpeg"],
+        },
+      );
+
+      if (bucketError && !String(bucketError.message).includes("already exists")) {
+        throw app.httpErrors.badRequest(bucketError.message);
+      }
+    }
+
+    const originalName = parsed.data.filename || "exercise.gif";
+    const safeName = sanitizeFileName(originalName);
+    const storagePath = `personal/${personalId}/exercise/${id}/${Date.now()}-${safeName}`;
+
+    const { data: signedUpload, error: signedUploadError } =
+      await supabaseAdmin.storage.from(bucketName).createSignedUploadUrl(storagePath);
+
+    if (signedUploadError) {
+      throw app.httpErrors.badRequest(signedUploadError.message);
+    }
+
+    const { data: publicData } = supabaseAdmin.storage
+      .from(bucketName)
+      .getPublicUrl(storagePath);
+
+    return {
+      bucket: bucketName,
+      path: storagePath,
+      signed_upload: signedUpload,
+      public_url: publicData.publicUrl,
+    };
+  });
+
+  app.post("/exercises/:id/gif/finalize", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const parsed = ExerciseGifFinalizeSchema.safeParse(request.body ?? {});
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+    const client = getRlsClient(token);
+    const bucketName = "exercise-media";
+
+    const { data: publicData } = supabaseAdmin.storage
+      .from(bucketName)
+      .getPublicUrl(parsed.data.storage_path);
+
+    const { data, error } = await client
+      .from("exercises")
+      .update({
+        gif_storage_path: parsed.data.storage_path,
+        gif_url: publicData.publicUrl,
+      })
+      .eq("id", id)
+      .select("id,personal_id,name,gif_url,gif_storage_path,created_at")
       .maybeSingle();
 
     if (error) {
@@ -1270,15 +1509,27 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     // Add exercises if provided
     if (parsed.data.exercises && parsed.data.exercises.length > 0) {
-      const exercisesData = parsed.data.exercises.map((ex) => ({
-        workout_id: data.id,
-        exercise_id: ex.exercise_id,
-        target_sets: ex.target_sets,
-        target_reps: ex.target_reps,
-        target_weight: ex.target_weight ?? null,
-        order_index: ex.order_index,
-        rest_seconds: ex.rest_seconds ?? null,
-      }));
+      const exercisesData = [] as Record<string, unknown>[];
+
+      for (const ex of parsed.data.exercises) {
+        const resolved = await resolveWorkoutExerciseReference({
+          app,
+          personalId,
+          exerciseId: ex.exercise_id,
+          exerciseVariationId: ex.exercise_variation_id,
+        });
+
+        exercisesData.push({
+          workout_id: data.id,
+          exercise_id: resolved.exerciseId,
+          exercise_variation_id: resolved.exerciseVariationId,
+          target_sets: ex.target_sets,
+          target_reps: ex.target_reps,
+          target_weight: ex.target_weight ?? null,
+          order_index: ex.order_index,
+          rest_seconds: ex.rest_seconds ?? null,
+        });
+      }
 
       const { error: exercisesError } = await client
         .from("workout_exercises")
@@ -1304,6 +1555,8 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
             target_weight,
             order_index,
             rest_seconds,
+            custom_description,
+            exercise_variation_id,
             exercises (id, name, description, muscle_group)
           )
         `,
@@ -1369,50 +1622,31 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     await assertWorkoutOwnership(app, personalId, workoutId);
 
-    const { data: exercise, error: exerciseError } = await client
-      .from("exercises")
-      .select("id")
-      .eq("id", parsed.data.exercise_id)
-      .maybeSingle();
-
-    if (exerciseError) {
-      throw app.httpErrors.badRequest(exerciseError.message);
-    }
-
-    if (!exercise) {
-      const { data: exerciseFallback, error: exerciseFallbackError } =
-        await supabaseAdmin
-          .from("exercises")
-          .select("id,personal_id")
-          .eq("id", parsed.data.exercise_id)
-          .maybeSingle();
-
-      if (exerciseFallbackError) {
-        throw app.httpErrors.badRequest(exerciseFallbackError.message);
-      }
-
-      if (
-        !exerciseFallback ||
-        (exerciseFallback.personal_id &&
-          exerciseFallback.personal_id !== personalId)
-      ) {
-        throw app.httpErrors.notFound("Exercise not found");
-      }
-    }
+    const resolved = await resolveWorkoutExerciseReference({
+      app,
+      personalId,
+      exerciseId: parsed.data.exercise_id,
+      exerciseVariationId: parsed.data.exercise_variation_id,
+    });
 
     const { data, error } = await supabaseAdmin
       .from("workout_exercises")
       .insert({
         workout_id: workoutId,
-        exercise_id: parsed.data.exercise_id,
+        exercise_id: resolved.exerciseId,
+        exercise_variation_id: resolved.exerciseVariationId,
         target_sets: parsed.data.target_sets,
         target_reps: parsed.data.target_reps,
         target_weight: parsed.data.target_weight ?? null,
         order_index: parsed.data.order_index,
         rest_seconds: parsed.data.rest_seconds ?? null,
+        custom_description:
+          parsed.data.custom_description === ""
+            ? null
+            : (parsed.data.custom_description ?? null),
       })
       .select(
-        "id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,rest_seconds,created_at",
+        "id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,created_at",
       )
       .single();
 
@@ -1663,6 +1897,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
       const payload: Record<string, unknown> = { ...parsed.data };
       if (payload.target_weight === "") payload.target_weight = null;
+      if (payload.custom_description === "") payload.custom_description = null;
 
       const { data, error } = await client
         .from("workout_exercises")
@@ -1670,7 +1905,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         .eq("id", workoutExerciseId)
         .eq("workout_id", workoutId)
         .select(
-          "id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,exercises(id,name)",
+          "id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercises(id,name)",
         )
         .maybeSingle();
 
@@ -1728,7 +1963,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("student_workouts")
       .select(
-        "id,student_id,workout_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,workout_id,exercise_id,target_sets,target_reps,target_weight,order_index,created_at))",
+        "id,student_id,workout_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,created_at))",
       )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
@@ -1762,7 +1997,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("workout_exercises")
       .select(
-        "id,target_sets,target_reps,target_weight,order_index,rest_seconds,exercises!inner(id,name,description,muscle_group)",
+        "id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercise_variation_id,exercises!inner(id,name,description,muscle_group,equipment,gif_url)",
       )
       .eq("workout_id", workoutId)
       .order("order_index", { ascending: true });
@@ -1779,9 +2014,14 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       return {
         workout_exercise_id: we.id,
         id: exercise?.id,
+        exercise_variation_id: we.exercise_variation_id ?? null,
         name: exercise?.name,
-        description: exercise?.description,
+        description: we.custom_description ?? exercise?.description,
+        description_default: exercise?.description,
+        custom_description: we.custom_description ?? null,
         muscle_group: exercise?.muscle_group,
+        equipment: exercise?.equipment,
+        gif_url: exercise?.gif_url,
         target_sets: we.target_sets,
         target_reps: we.target_reps,
         target_weight: we.target_weight,

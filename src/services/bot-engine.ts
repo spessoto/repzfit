@@ -41,6 +41,7 @@ type WorkoutExercise = {
   muscle_group: string | null;
   equipment: string | null;
   description: string | null;
+  custom_description: string | null;
   target_sets: number;
   target_reps: number;
   target_weight: number | null;
@@ -504,11 +505,15 @@ async function updateState(whatsapp: string, patch: Partial<BotStateRow>) {
 }
 
 async function getPersonalWhatsapp(personalId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("personals")
-    .select("phone,whatsapp_number")
+    .select("phone")
     .eq("id", personalId)
     .maybeSingle();
+
+  if (error) {
+    return null;
+  }
 
   return resolvePersonalWhatsAppNumber(data as any);
 }
@@ -617,6 +622,7 @@ async function getWorkoutExercises(
       target_weight,
       order_index,
       rest_seconds,
+      custom_description,
       exercises (
         name,
         muscle_group,
@@ -638,7 +644,8 @@ async function getWorkoutExercises(
     exercise_name: item.exercises?.name ?? "Exercício",
     muscle_group: item.exercises?.muscle_group ?? null,
     equipment: item.exercises?.equipment ?? null,
-    description: item.exercises?.description ?? null,
+    description: item.custom_description ?? item.exercises?.description ?? null,
+    custom_description: item.custom_description ?? null,
     target_sets: item.target_sets,
     target_reps: item.target_reps,
     target_weight: item.target_weight,
@@ -2511,6 +2518,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       muscle_group: det.muscle,
       equipment: det.equipment,
       description: det.description,
+      custom_description: null,
       target_sets: det.sets,
       target_reps: det.reps,
       target_weight: det.weight,
@@ -3121,7 +3129,7 @@ async function fireExpiredRest(
     const { data: exRow } = await supabaseAdmin
       .from("workout_exercises")
       .select(
-        "target_sets,target_reps,target_weight,order_index,exercise_id,exercises(name,muscle_group,equipment,description)",
+        "target_sets,target_reps,target_weight,order_index,exercise_id,custom_description,exercises(name,muscle_group,equipment,description)",
       )
       .eq("id", nextExerciseId)
       .single();
@@ -3156,7 +3164,8 @@ async function fireExpiredRest(
       exercise_name: exercise?.name ?? "Exercício",
       muscle_group: exercise?.muscle_group ?? null,
       equipment: exercise?.equipment ?? null,
-      description: exercise?.description ?? null,
+      description: ex.custom_description ?? exercise?.description ?? null,
+      custom_description: ex.custom_description ?? null,
       target_sets: ex.target_sets,
       target_reps: ex.target_reps,
       target_weight: ex.target_weight ?? null,

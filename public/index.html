@@ -1320,6 +1320,18 @@
                 ></textarea>
               </div>
 
+              <div class="form-group">
+                <label>GIF (URL)</label>
+                <input
+                  type="url"
+                  id="exercicioGifUrl"
+                  placeholder="https://.../exercicio.gif"
+                />
+                <small style="color: #6b7280; font-size: 12px"
+                  >Use uma URL pública do GIF para ilustrar o exercício</small
+                >
+              </div>
+
               <div style="display: flex; gap: 10px">
                 <button class="btn btn-primary" onclick="criarExercicio()">
                   Adicionar Exercício
@@ -1362,11 +1374,12 @@
                     <th>Equipamentos</th>
                     <th>Tags</th>
                     <th>Descrição</th>
+                    <th>GIF</th>
                   </tr>
                 </thead>
                 <tbody id="exerciciosBody">
                   <tr>
-                    <td colspan="5" style="text-align: center">
+                    <td colspan="6" style="text-align: center">
                       Carregando...
                     </td>
                   </tr>
@@ -4629,6 +4642,7 @@
         document.getElementById("exercicioGrupo").value = "";
         document.getElementById("exercicioEquipamento").value = "";
         document.getElementById("exercicioTags").value = "";
+        document.getElementById("exercicioGifUrl").value = "";
         document.getElementById("exerciciosAlert").innerHTML = "";
         const similares = document.getElementById("exercicioSimilares");
         if (similares) {
@@ -4646,6 +4660,7 @@
           "exercicioEquipamento",
         ).value;
         const tagsInput = document.getElementById("exercicioTags").value;
+        const gifUrl = document.getElementById("exercicioGifUrl").value;
 
         if (!nome) {
           showAlert(
@@ -4692,6 +4707,7 @@
           muscle_group: grupo || null,
           equipment: equipamento || null,
           tags: tags,
+          gif_url: gifUrl || null,
         };
 
         const response = await fetch(`${apiUrl}/api/exercises`, {
@@ -4758,7 +4774,7 @@
 
           if (!exercicios || exercicios.length === 0) {
             tbody.innerHTML =
-              '<tr><td colspan="5" style="text-align: center; color: #6b7280;">Nenhum exercício cadastrado</td></tr>';
+              '<tr><td colspan="6" style="text-align: center; color: #6b7280;">Nenhum exercício cadastrado</td></tr>';
 
             // Ocultar paginação
             document.getElementById("exerciciosPaginacao").style.display =
@@ -4775,6 +4791,7 @@
                     <td>${escapeHtml(e.equipment) || "-"}</td>
                     <td>${e.tags && e.tags.length > 0 ? e.tags.map((t) => `<span style="background: #e5e7eb; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 4px;">${escapeHtml(t)}</span>`).join("") : "-"}</td>
                     <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(e.description || "")}">${escapeHtml(e.description) || "-"}</td>
+                    <td>${e.gif_url ? `<a href="${escapeHtml(e.gif_url)}" target="_blank" rel="noopener noreferrer">Ver GIF</a>` : "-"}</td>
                 </tr>
             `,
             )
@@ -4795,7 +4812,7 @@
           console.error("Erro ao carregar exercícios:", error);
           const tbody = document.getElementById("exerciciosBody");
           tbody.innerHTML =
-            '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Erro ao carregar exercícios</td></tr>';
+            '<tr><td colspan="6" style="text-align: center; color: #ef4444;">Erro ao carregar exercícios</td></tr>';
         }
       }
 
@@ -5261,6 +5278,7 @@
                                 (ex) => `
                             <div class="exercise-row" style="margin-bottom:8px;">
                               <p class="exercise-title">🏋️ ${escapeHtml(ex.name || "Exercício")}</p>
+                              <p style="margin:4px 0; font-size:12px; color:#6b7280;">Descrição padrão: ${escapeHtml(ex.description_default || ex.description || "-")}</p>
                               <div class="exercise-fields-grid">
                                 <div class="exercise-field">
                                   <label>Séries</label>
@@ -5282,6 +5300,10 @@
                                   <label>Descanso (s)</label>
                                   <input type="number" min="0" max="3600" step="5" id="tw_rest_${ex.workout_exercise_id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" placeholder="Ex: 60" />
                                 </div>
+                              </div>
+                              <div class="form-group" style="margin-top:8px;">
+                                <label>Descrição personalizada para este treino (opcional)</label>
+                                <textarea id="tw_desc_${ex.workout_exercise_id}" rows="2" placeholder="Se vazio, usa a descrição padrão">${escapeHtml(ex.custom_description || "")}</textarea>
                               </div>
                               <div class="exercise-actions">
                                 <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Salvar exercício</button>
@@ -5456,6 +5478,9 @@
                     document.getElementById(`tw_rest_${workoutExerciseId}`)
                       .value,
                   ),
+            custom_description:
+              document.getElementById(`tw_desc_${workoutExerciseId}`)?.value
+                ?.trim() || null,
           };
 
           const response = await fetch(
