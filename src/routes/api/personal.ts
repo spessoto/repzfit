@@ -1524,6 +1524,50 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return data ?? [];
   });
 
+  app.post("/exercise-catalog", async (request) => {
+    const { personalId } = await getAuthenticatedPersonal(app, request);
+    const body = request.body as { name?: string };
+    const name = z.string().min(2).max(120).parse((body?.name ?? "").trim());
+
+    const { data, error } = await supabaseAdmin
+      .from("exercise_catalog")
+      .insert({ name, personal_id: personalId })
+      .select("id,name,personal_id")
+      .single();
+
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data;
+  });
+
+  app.delete("/exercise-catalog/:id", async (request) => {
+    const { personalId } = await getAuthenticatedPersonal(app, request);
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+
+    const { data: used, error: usedErr } = await supabaseAdmin
+      .from("workout_exercises")
+      .select("id")
+      .eq("exercise_catalog_id", id)
+      .limit(1);
+    if (usedErr) throw app.httpErrors.badRequest(usedErr.message);
+    if ((used ?? []).length > 0) {
+      throw app.httpErrors.badRequest(
+        "Exercise is already used in workouts and cannot be removed.",
+      );
+    }
+
+    const { error } = await supabaseAdmin
+      .from("exercise_catalog")
+      .delete()
+      .eq("id", id)
+      .eq("personal_id", personalId);
+
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return { success: true };
+  });
+
   app.get("/exercise-variations", async (request) => {
     const { personalId } = await getAuthenticatedPersonal(app, request);
     const query = request.query as { search?: string; limit?: string };
@@ -1548,6 +1592,51 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return data ?? [];
   });
 
+  app.post("/exercise-variations", async (request) => {
+    const { personalId } = await getAuthenticatedPersonal(app, request);
+    const body = request.body as { name?: string; gif_url?: string | null };
+    const name = z.string().min(2).max(120).parse((body?.name ?? "").trim());
+    const gifUrl = body?.gif_url?.trim() ? body.gif_url.trim() : null;
+
+    const { data, error } = await supabaseAdmin
+      .from("exercise_variations")
+      .insert({ name, personal_id: personalId, gif_url: gifUrl })
+      .select("id,name,gif_url,personal_id")
+      .single();
+
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data;
+  });
+
+  app.delete("/exercise-variations/:id", async (request) => {
+    const { personalId } = await getAuthenticatedPersonal(app, request);
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+
+    const { data: used, error: usedErr } = await supabaseAdmin
+      .from("workout_exercises")
+      .select("id")
+      .eq("exercise_variation_id", id)
+      .limit(1);
+    if (usedErr) throw app.httpErrors.badRequest(usedErr.message);
+    if ((used ?? []).length > 0) {
+      throw app.httpErrors.badRequest(
+        "Variation is already used in workouts and cannot be removed.",
+      );
+    }
+
+    const { error } = await supabaseAdmin
+      .from("exercise_variations")
+      .delete()
+      .eq("id", id)
+      .eq("personal_id", personalId);
+
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return { success: true };
+  });
+
   app.get("/equipment-catalog", async (request) => {
     await getAuthenticatedPersonal(app, request);
     const query = request.query as { search?: string; limit?: string };
@@ -1569,6 +1658,58 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await q.limit(limit);
     if (error) throw app.httpErrors.badRequest(error.message);
     return data ?? [];
+  });
+
+  app.post("/equipment-catalog", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const body = request.body as { name?: string };
+    const name = z.string().min(2).max(120).parse((body?.name ?? "").trim());
+
+    const { data: inserted, error: insertErr } = await supabaseAdmin
+      .from("equipment_catalog")
+      .insert({ name })
+      .select("id,name")
+      .maybeSingle();
+
+    if (!insertErr && inserted) return inserted;
+
+    const { data: existing, error: existingErr } = await supabaseAdmin
+      .from("equipment_catalog")
+      .select("id,name")
+      .eq("name", name)
+      .maybeSingle();
+
+    if (existingErr) throw app.httpErrors.badRequest(existingErr.message);
+    if (existing) return existing;
+    if (insertErr) throw app.httpErrors.badRequest(insertErr.message);
+    throw app.httpErrors.badRequest("Unable to create equipment");
+  });
+
+  app.delete("/equipment-catalog/:id", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+
+    const { data: used, error: usedErr } = await supabaseAdmin
+      .from("workout_exercises")
+      .select("id")
+      .eq("equipment_id", id)
+      .limit(1);
+    if (usedErr) throw app.httpErrors.badRequest(usedErr.message);
+    if ((used ?? []).length > 0) {
+      throw app.httpErrors.badRequest(
+        "Equipment is already used in workouts and cannot be removed.",
+      );
+    }
+
+    const { error } = await supabaseAdmin
+      .from("equipment_catalog")
+      .delete()
+      .eq("id", id);
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return { success: true };
   });
 
   app.post("/exercise-combos/generate-description", async (request) => {
