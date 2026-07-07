@@ -979,7 +979,9 @@ function buildExerciseSelectionMenu(
   const list = tracking.remaining_ids
     .map((id, i) => {
       const det = tracking.exercise_details[id];
-      return `${i + 1}️⃣ *${det.name}*${det.muscle ? ` (${det.muscle})` : ""} — ${det.sets}×${det.reps}`;
+      const muscle = det.muscle ? ` (${det.muscle})` : "";
+      const equipment = det.equipment ? ` | ${det.equipment}` : "";
+      return `${i + 1}️⃣ *${det.name}*${muscle}${equipment} — ${det.sets}×${det.reps}`;
     })
     .join("\n");
 
