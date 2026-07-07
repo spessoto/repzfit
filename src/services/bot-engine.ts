@@ -37,9 +37,14 @@ type BotStateRow = {
 type WorkoutExercise = {
   id: string;
   exercise_id: string;
+  exercise_catalog_id?: string | null;
+  exercise_variation_id?: string | null;
+  equipment_id?: string | null;
   exercise_name: string;
+  variation_name?: string | null;
   muscle_group: string | null;
   equipment: string | null;
+  equipment_name?: string | null;
   description: string | null;
   custom_description: string | null;
   target_sets: number;
@@ -617,12 +622,18 @@ async function getWorkoutExercises(
       `
       id,
       exercise_id,
+      exercise_catalog_id,
+      exercise_variation_id,
+      equipment_id,
       target_sets,
       target_reps,
       target_weight,
       order_index,
       rest_seconds,
       custom_description,
+      exercise_catalog ( name ),
+      exercise_variations ( name ),
+      equipment_catalog ( name ),
       exercises (
         name,
         muscle_group,
@@ -638,12 +649,38 @@ async function getWorkoutExercises(
     throw error;
   }
 
-  return (data ?? []).map((item: any) => ({
+  return (data ?? []).map((item: any) => mapWorkoutExerciseRow(item));
+}
+
+// Adaptador de shape para manter compatibilidade do restante do bot.
+function mapWorkoutExerciseRow(item: any): WorkoutExercise {
+  const catalog = Array.isArray(item.exercise_catalog)
+    ? item.exercise_catalog[0]
+    : item.exercise_catalog;
+  const variation = Array.isArray(item.exercise_variations)
+    ? item.exercise_variations[0]
+    : item.exercise_variations;
+  const equipment = Array.isArray(item.equipment_catalog)
+    ? item.equipment_catalog[0]
+    : item.equipment_catalog;
+
+  const baseName = catalog?.name ?? item.exercises?.name ?? "Exercício";
+  const variationName = variation?.name ?? null;
+  const exerciseName = variationName
+    ? `${baseName} - ${variationName}`
+    : baseName;
+
+  return {
     id: item.id,
     exercise_id: item.exercise_id,
-    exercise_name: item.exercises?.name ?? "Exercício",
+    exercise_catalog_id: item.exercise_catalog_id ?? null,
+    exercise_variation_id: item.exercise_variation_id ?? null,
+    equipment_id: item.equipment_id ?? null,
+    exercise_name: exerciseName,
+    variation_name: variationName,
     muscle_group: item.exercises?.muscle_group ?? null,
-    equipment: item.exercises?.equipment ?? null,
+    equipment: equipment?.name ?? item.exercises?.equipment ?? null,
+    equipment_name: equipment?.name ?? null,
     description: item.custom_description ?? item.exercises?.description ?? null,
     custom_description: item.custom_description ?? null,
     target_sets: item.target_sets,
@@ -651,7 +688,7 @@ async function getWorkoutExercises(
     target_weight: item.target_weight,
     order_index: item.order_index,
     rest_seconds: item.rest_seconds ?? null,
-  }));
+  };
 }
 
 /**
@@ -805,6 +842,8 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
       workout_exercise_id,
       workout_exercises (
         order_index,
+        exercise_catalog ( name ),
+        exercise_variations ( name ),
         exercises ( name )
       )
     `,
@@ -821,7 +860,14 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
   >();
   for (const log of logs) {
     const we = log.workout_exercises as any;
-    const name = we?.exercises?.name ?? "Exercício";
+    const catalog = Array.isArray(we?.exercise_catalog)
+      ? we.exercise_catalog[0]
+      : we?.exercise_catalog;
+    const variation = Array.isArray(we?.exercise_variations)
+      ? we.exercise_variations[0]
+      : we?.exercise_variations;
+    const base = catalog?.name ?? we?.exercises?.name ?? "Exercício";
+    const name = variation?.name ? `${base} - ${variation.name}` : base;
     const order = we?.order_index ?? 0;
     if (!exerciseMap.has(log.workout_exercise_id)) {
       exerciseMap.set(log.workout_exercise_id, { name, order, sets: [] });
@@ -1149,7 +1195,9 @@ async function advanceAfterSetLog(params: {
 
   const exerciseResult = await supabaseAdmin
     .from("workout_exercises")
-    .select("target_sets,exercise_id,rest_seconds,exercises(name)")
+    .select(
+      "target_sets,exercise_id,rest_seconds,exercise_catalog(name),exercise_variations(name),exercises(name)",
+    )
     .eq("id", state.current_workout_exercise_id!)
     .single();
 
@@ -1171,10 +1219,20 @@ async function advanceAfterSetLog(params: {
     return;
   }
 
-  const targetSets = exerciseResult.data.target_sets;
-  const exerciseName = Array.isArray(exerciseResult.data.exercises)
+  const catalog = Array.isArray((exerciseResult.data as any).exercise_catalog)
+    ? (exerciseResult.data as any).exercise_catalog[0]
+    : (exerciseResult.data as any).exercise_catalog;
+  const variation = Array.isArray((exerciseResult.data as any).exercise_variations)
+    ? (exerciseResult.data as any).exercise_variations[0]
+    : (exerciseResult.data as any).exercise_variations;
+  const baseExerciseName = catalog?.name ?? (Array.isArray(exerciseResult.data.exercises)
     ? exerciseResult.data.exercises[0]?.name
-    : ((exerciseResult.data.exercises as any)?.name ?? "Exercício");
+    : ((exerciseResult.data.exercises as any)?.name ?? "Exercício"));
+
+  const targetSets = exerciseResult.data.target_sets;
+  const exerciseName = variation?.name
+    ? `${baseExerciseName} - ${variation.name}`
+    : baseExerciseName;
   const restSeconds: number | null =
     (exerciseResult.data as any).rest_seconds ?? null;
   const nextSet = state.current_set_number + 1;
