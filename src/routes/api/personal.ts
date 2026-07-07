@@ -2194,7 +2194,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("workout_exercises")
       .select(
-        "id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercise_variation_id,exercises!inner(id,name,description,muscle_group,equipment,gif_url)",
+        "id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercise_catalog_id,equipment_id,exercise_variation_id,exercise_catalog(name),exercise_variations(name),equipment_catalog(name),exercises(id,name,description,muscle_group,equipment,gif_url)",
       )
       .eq("workout_id", workoutId)
       .order("order_index", { ascending: true });
@@ -2208,11 +2208,32 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       const exercise = Array.isArray(we.exercises)
         ? we.exercises[0]
         : we.exercises;
+      const catalog = Array.isArray(we.exercise_catalog)
+        ? we.exercise_catalog[0]
+        : we.exercise_catalog;
+      const variation = Array.isArray(we.exercise_variations)
+        ? we.exercise_variations[0]
+        : we.exercise_variations;
+      const equipment = Array.isArray(we.equipment_catalog)
+        ? we.equipment_catalog[0]
+        : we.equipment_catalog;
+
+      const displayBaseName =
+        catalog?.name ?? exercise?.name ?? "Exercício";
+      const displayName = variation?.name
+        ? `${displayBaseName} - ${variation.name}`
+        : displayBaseName;
+
       return {
         workout_exercise_id: we.id,
         id: exercise?.id,
+        exercise_catalog_id: we.exercise_catalog_id ?? null,
         exercise_variation_id: we.exercise_variation_id ?? null,
-        name: exercise?.name,
+        equipment_id: we.equipment_id ?? null,
+        name: displayName,
+        exercise_name: displayBaseName,
+        variation_name: variation?.name ?? null,
+        equipment_name: equipment?.name ?? null,
         description: we.custom_description ?? exercise?.description,
         description_default: exercise?.description,
         custom_description: we.custom_description ?? null,
