@@ -9,3 +9,7 @@ supabase/.temp/
 .vercel
 .env*.local
 .env*
+
+# Exercise spreadsheets (large binary files – keep locally, not in VCS)
+src/*.xlsx
+*.xlsx
