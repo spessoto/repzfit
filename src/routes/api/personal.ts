@@ -94,6 +94,11 @@ const WorkoutCreateSchema = z.object({
         .object({
           exercise_id: z.string().uuid().optional(),
           exercise_variation_id: z.string().uuid().optional(),
+          exercise_catalog_id: z.string().uuid().optional(),
+          equipment_id: z.string().uuid().optional(),
+          custom_description: z
+            .union([z.string().max(2000), z.null(), z.literal("")])
+            .optional(),
           target_sets: z.number().int().positive().max(100),
           target_reps: z.number().int().positive().max(1000),
           target_weight: z.number().nonnegative().max(1000).optional(),
@@ -120,6 +125,8 @@ const WorkoutCreateSchema = z.object({
 const WorkoutExerciseCreateSchema = z.object({
   exercise_id: z.string().uuid().optional(),
   exercise_variation_id: z.string().uuid().optional(),
+  exercise_catalog_id: z.string().uuid().optional(),
+  equipment_id: z.string().uuid().optional(),
   target_sets: z.number().int().positive().max(100),
   target_reps: z.number().int().positive().max(1000),
   target_weight: z.number().nonnegative().max(1000).optional(),
@@ -672,8 +679,9 @@ async function resolveWorkoutExerciseReference(params: {
   personalId: string;
   exerciseId?: string;
   exerciseVariationId?: string;
+  exerciseCatalogId?: string;
 }) {
-  const { app, personalId, exerciseId, exerciseVariationId } = params;
+  const { app, personalId, exerciseId, exerciseVariationId, exerciseCatalogId } = params;
 
   if (exerciseVariationId) {
     const { data: variation, error: variationError } = await supabaseAdmin
@@ -695,8 +703,22 @@ async function resolveWorkoutExerciseReference(params: {
     }
 
     if (!variation.legacy_exercise_id) {
+      // Fallback: use the exercise catalog's legacy exercise link
+      if (exerciseCatalogId) {
+        const { data: catalog, error: catalogErr } = await supabaseAdmin
+          .from("exercise_catalog")
+          .select("legacy_exercise_id")
+          .eq("id", exerciseCatalogId)
+          .maybeSingle();
+        if (!catalogErr && (catalog as any)?.legacy_exercise_id) {
+          return {
+            exerciseId: (catalog as any).legacy_exercise_id as string,
+            exerciseVariationId,
+          };
+        }
+      }
       throw app.httpErrors.badRequest(
-        "Exercise variation is not linked to legacy exercise yet",
+        "Exercise variation is not linked to a legacy exercise. Please re-import exercises.",
       );
     }
 
@@ -1502,136 +1524,144 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return data ?? [];
   });
 
-  app.get("/exercise-catalog/:catalogId/variations", async (request) => {
+  app.get("/exercise-variations", async (request) => {
     const { personalId } = await getAuthenticatedPersonal(app, request);
-    const catalogId = z
-      .string()
-      .uuid()
-      .parse((request.params as { catalogId?: string }).catalogId);
+    const query = request.query as { search?: string; limit?: string };
+    const search = (query.search ?? "").trim();
+    const limit = Math.min(
+      Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
+      50,
+    );
 
-    const { data, error } = await supabaseAdmin
+    let q = supabaseAdmin
       .from("exercise_variations")
-      .select(
-        "id,name,method,ai_default_description,gif_url,ai_default_muscle_group_id,muscle_groups(name),exercise_variation_equipments(equipment_catalog(id,name))",
-      )
-      .eq("exercise_catalog_id", catalogId)
+      .select("id,name,gif_url")
       .or(`personal_id.is.null,personal_id.eq.${personalId}`)
       .order("name", { ascending: true });
 
-    if (error) throw app.httpErrors.badRequest(error.message);
+    if (search) {
+      q = q.ilike("name", `%${search}%`);
+    }
 
-    return (data ?? []).map((v: any) => ({
-      id: v.id,
-      name: v.name,
-      method: v.method ?? null,
-      ai_default_description: v.ai_default_description ?? null,
-      gif_url: v.gif_url ?? null,
-      muscle_group_name: v.muscle_groups?.name ?? null,
-      equipments: (v.exercise_variation_equipments ?? [])
-        .map((e: any) => ({ id: e.equipment_catalog?.id, name: e.equipment_catalog?.name }))
-        .filter((e: any) => e.id),
-    }));
+    const { data, error } = await q.limit(limit);
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data ?? [];
   });
 
-  app.get("/exercise-variations/:variationId/equipments", async (request) => {
+  app.get("/equipment-catalog", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const query = request.query as { search?: string; limit?: string };
+    const search = (query.search ?? "").trim();
+    const limit = Math.min(
+      Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
+      50,
+    );
+
+    let q = supabaseAdmin
+      .from("equipment_catalog")
+      .select("id,name")
+      .order("name", { ascending: true });
+
+    if (search) {
+      q = q.ilike("name", `%${search}%`);
+    }
+
+    const { data, error } = await q.limit(limit);
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data ?? [];
+  });
+
+  app.post("/exercise-combos/generate-description", async (request) => {
     const { personalId } = await getAuthenticatedPersonal(app, request);
+    const body = request.body as {
+      exercise_catalog_id?: string;
+      exercise_variation_id?: string;
+    };
+
+    const exerciseCatalogId = z
+      .string()
+      .uuid()
+      .parse((body as any)?.exercise_catalog_id);
     const variationId = z
       .string()
       .uuid()
-      .parse((request.params as { variationId?: string }).variationId);
+      .parse((body as any)?.exercise_variation_id);
 
-    const { data, error } = await supabaseAdmin
-      .from("exercise_variation_equipments")
-      .select("equipment_catalog(id,name)")
-      .eq("exercise_variation_id", variationId);
+    // Check combo cache first
+    const { data: cached, error: cacheError } = await supabaseAdmin
+      .from("exercise_combo_cache")
+      .select("description,muscle_group_id,muscle_groups(name)")
+      .eq("exercise_catalog_id", exerciseCatalogId)
+      .eq("exercise_variation_id", variationId)
+      .maybeSingle();
 
-    if (error) throw app.httpErrors.badRequest(error.message);
+    if (cacheError) throw app.httpErrors.badRequest(cacheError.message);
 
-    return (data ?? [])
-      .map((e: any) => ({ id: e.equipment_catalog?.id, name: e.equipment_catalog?.name }))
-      .filter((e: any) => e.id);
-  });
+    if (cached && (cached as any).description) {
+      return {
+        description: (cached as any).description as string,
+        muscle_group_name: (cached as any).muscle_groups?.name ?? null,
+        cached: true,
+      };
+    }
 
-  app.post(
-    "/exercise-variations/:variationId/generate-description",
-    async (request) => {
-      const { personalId } = await getAuthenticatedPersonal(app, request);
-      const variationId = z
-        .string()
-        .uuid()
-        .parse((request.params as { variationId?: string }).variationId);
-
-      const { data: variation, error: varError } = await supabaseAdmin
+    // Fetch exercise name, variation name, and muscle groups in parallel
+    const [catalogRes, variationRes, muscleGroupsRes] = await Promise.all([
+      supabaseAdmin
+        .from("exercise_catalog")
+        .select("name")
+        .eq("id", exerciseCatalogId)
+        .or(`personal_id.is.null,personal_id.eq.${personalId}`)
+        .maybeSingle(),
+      supabaseAdmin
         .from("exercise_variations")
-        .select(
-          "id,name,method,ai_default_description,ai_default_muscle_group_id,exercise_catalog!inner(name),exercise_variation_equipments(equipment_catalog(name)),muscle_groups(name)",
-        )
+        .select("name")
         .eq("id", variationId)
         .or(`personal_id.is.null,personal_id.eq.${personalId}`)
-        .maybeSingle();
+        .maybeSingle(),
+      supabaseAdmin.from("muscle_groups").select("id,name").order("name"),
+    ]);
 
-      if (varError) throw app.httpErrors.badRequest(varError.message);
-      if (!variation) throw app.httpErrors.notFound("Variation not found");
+    if (catalogRes.error) throw app.httpErrors.badRequest(catalogRes.error.message);
+    if (variationRes.error) throw app.httpErrors.badRequest(variationRes.error.message);
+    if (!catalogRes.data) throw app.httpErrors.notFound("Exercise not found");
+    if (!variationRes.data) throw app.httpErrors.notFound("Variation not found");
 
-      // Return cached result if already generated
-      if ((variation as any).ai_default_description) {
-        return {
-          description: (variation as any).ai_default_description as string,
-          muscle_group_name: (variation as any).muscle_groups?.name ?? null,
-          cached: true,
-        };
-      }
+    const result = await generateExerciseDescription({
+      exerciseName: (catalogRes.data as any).name,
+      variationName: (variationRes.data as any).name,
+      muscleGroups: (muscleGroupsRes.data ?? []).map((mg: any) => ({
+        id: mg.id,
+        name: mg.name,
+      })),
+    });
 
-      // Load muscle groups for AI to pick from
-      const { data: muscleGroups, error: mgError } = await supabaseAdmin
-        .from("muscle_groups")
-        .select("id,name")
-        .order("name");
+    // Save to combo cache
+    const { error: upsertError } = await supabaseAdmin
+      .from("exercise_combo_cache")
+      .upsert(
+        {
+          exercise_catalog_id: exerciseCatalogId,
+          exercise_variation_id: variationId,
+          description: result.description,
+          muscle_group_id: result.muscleGroupId,
+        },
+        { onConflict: "exercise_catalog_id,exercise_variation_id" },
+      );
 
-      if (mgError) throw app.httpErrors.badRequest(mgError.message);
+    if (upsertError) {
+      app.log.warn(
+        { error: upsertError, exerciseCatalogId, variationId },
+        "Failed to cache exercise combo description",
+      );
+    }
 
-      const exerciseName =
-        (variation as any).exercise_catalog?.name ?? variation.name;
-      const equipmentNames: string[] = (
-        (variation as any).exercise_variation_equipments ?? []
-      )
-        .map((e: any) => e.equipment_catalog?.name)
-        .filter(Boolean);
-
-      const result = await generateExerciseDescription({
-        exerciseName,
-        variationName: variation.name,
-        method: (variation as any).method ?? null,
-        equipments: equipmentNames,
-        muscleGroups: (muscleGroups ?? []).map((mg: any) => ({
-          id: mg.id,
-          name: mg.name,
-        })),
-      });
-
-      // Persist so next call is cached
-      const { error: updateError } = await supabaseAdmin
-        .from("exercise_variations")
-        .update({
-          ai_default_description: result.description,
-          ai_default_muscle_group_id: result.muscleGroupId,
-        })
-        .eq("id", variationId);
-
-      if (updateError) {
-        app.log.warn(
-          { error: updateError, variationId },
-          "Failed to save AI description for variation",
-        );
-      }
-
-      return {
-        description: result.description,
-        muscle_group_name: result.muscleGroupName,
-        cached: false,
-      };
-    },
-  );
+    return {
+      description: result.description,
+      muscle_group_name: result.muscleGroupName,
+      cached: false,
+    };
+  });
 
   // ── Workouts ─────────────────────────────────────────────────────────────────
 
@@ -1677,17 +1707,21 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
           personalId,
           exerciseId: ex.exercise_id,
           exerciseVariationId: ex.exercise_variation_id,
+          exerciseCatalogId: (ex as any).exercise_catalog_id,
         });
 
         exercisesData.push({
           workout_id: data.id,
           exercise_id: resolved.exerciseId,
           exercise_variation_id: resolved.exerciseVariationId,
+          exercise_catalog_id: (ex as any).exercise_catalog_id ?? null,
+          equipment_id: (ex as any).equipment_id ?? null,
           target_sets: ex.target_sets,
           target_reps: ex.target_reps,
           target_weight: ex.target_weight ?? null,
           order_index: ex.order_index,
           rest_seconds: ex.rest_seconds ?? null,
+          custom_description: (ex as any).custom_description === "" ? null : ((ex as any).custom_description ?? null),
         });
       }
 
@@ -1787,6 +1821,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       personalId,
       exerciseId: parsed.data.exercise_id,
       exerciseVariationId: parsed.data.exercise_variation_id,
+      exerciseCatalogId: parsed.data.exercise_catalog_id,
     });
 
     const { data, error } = await supabaseAdmin
@@ -1795,6 +1830,8 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         workout_id: workoutId,
         exercise_id: resolved.exerciseId,
         exercise_variation_id: resolved.exerciseVariationId,
+        exercise_catalog_id: parsed.data.exercise_catalog_id ?? null,
+        equipment_id: parsed.data.equipment_id ?? null,
         target_sets: parsed.data.target_sets,
         target_reps: parsed.data.target_reps,
         target_weight: parsed.data.target_weight ?? null,

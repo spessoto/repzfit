@@ -16,7 +16,6 @@ type InputRow = {
   description: string | null;
   gifUrl: string | null;
   equipments: string[];
-  method: string | null;
 };
 
 type ExistingSharedExercise = {
@@ -159,9 +158,6 @@ function parseWorkbookRows(filePath: string): InputRow[] {
     const gifUrl =
       pickColumn(row, ["GIF", "Gif", "gif_url", "GIF URL", "Gif URL"]) ||
       null;
-    const method =
-      pickColumn(row, ["Método", "Metodo", "method", "Method"]) ||
-      null;
 
     const equipmentRaw = pickColumn(row, [
       "Equipamento",
@@ -178,7 +174,6 @@ function parseWorkbookRows(filePath: string): InputRow[] {
       description,
       gifUrl,
       equipments: splitCsv(equipmentRaw),
-      method,
     });
   });
 
@@ -222,17 +217,14 @@ async function importExercises() {
   const uniqueEquipments = Array.from(
     new Set(rows.flatMap((r) => r.equipments).filter(Boolean)),
   );
-  const uniqueExercises = Array.from(
+  const uniqueExerciseNames = Array.from(
     new Set(rows.map((r) => normalizeText(r.exerciseName)).filter(Boolean)),
   );
-
-  const variationKeySet = new Set(
-    rows.map((r) =>
-      `${normalizeComparable(r.exerciseName)}|${normalizeComparable(r.variationName)}`,
-    ),
+  const uniqueVariationNames = Array.from(
+    new Set(rows.map((r) => normalizeText(r.variationName)).filter(Boolean)),
   );
 
-  console.log(`🧠 Resumo: ${uniqueExercises.length} exercícios, ${variationKeySet.size} variações, ${uniqueEquipments.length} equipamentos`);
+  console.log(`🧠 Resumo: ${uniqueExerciseNames.length} exercícios, ${uniqueVariationNames.length} variações, ${uniqueEquipments.length} equipamentos`);
 
   if (dryRun) {
     console.log("🧪 Dry run habilitado, nenhuma alteração será aplicada.");
@@ -263,62 +255,12 @@ async function importExercises() {
 
   console.log(`📦 Snapshot da base antiga capturado (${oldShared.length} exercícios compartilhados)`);
 
-  // Limpa somente os dados compartilhados normalizados, preservando dados privados.
-  const { data: sharedVariationIds, error: sharedVariationIdsError } = await supabaseAdmin
-    .from("exercise_variations")
-    .select("id")
-    .is("personal_id", null);
-
-  assertNoError(sharedVariationIdsError, "list shared variation ids");
-
-  const variationIds = (sharedVariationIds ?? []).map((v: any) => v.id);
-  if (variationIds.length) {
-    const { error: deleteVariationEquipmentsError } = await supabaseAdmin
-      .from("exercise_variation_equipments")
-      .delete()
-      .in("exercise_variation_id", variationIds);
-    assertNoError(
-      deleteVariationEquipmentsError,
-      "delete shared variation equipments",
-    );
-  }
-
-  const { error: deleteSharedVariationsError } = await supabaseAdmin
-    .from("exercise_variations")
-    .delete()
-    .is("personal_id", null);
-  assertNoError(deleteSharedVariationsError, "delete shared variations");
-
-  const { error: deleteSharedCatalogError } = await supabaseAdmin
-    .from("exercise_catalog")
-    .delete()
-    .is("personal_id", null);
-  assertNoError(deleteSharedCatalogError, "delete shared catalog");
-
+  // ── Muscle groups ──────────────────────────────────────────────────────────
   if (uniqueMuscleGroups.length) {
     const { error: muscleGroupError } = await supabaseAdmin
       .from("muscle_groups")
       .upsert(uniqueMuscleGroups.map((name) => ({ name })), { onConflict: "name" });
     assertNoError(muscleGroupError, "upsert muscle groups");
-  }
-
-  if (uniqueEquipments.length) {
-    const { error: equipmentError } = await supabaseAdmin
-      .from("equipment_catalog")
-      .upsert(uniqueEquipments.map((name) => ({ name })), { onConflict: "name" });
-    assertNoError(equipmentError, "upsert equipment catalog");
-  }
-
-  const { data: insertedCatalog, error: catalogError } = await supabaseAdmin
-    .from("exercise_catalog")
-    .insert(uniqueExercises.map((name) => ({ name, personal_id: null })))
-    .select("id,name");
-
-  assertNoError(catalogError, "insert exercise catalog");
-
-  const catalogByName = new Map<string, string>();
-  for (const item of insertedCatalog ?? []) {
-    catalogByName.set(normalizeComparable(item.name), item.id);
   }
 
   const { data: muscleGroups, error: muscleGroupsError } = await supabaseAdmin
@@ -330,76 +272,87 @@ async function importExercises() {
     muscleGroupIdByName.set(normalizeComparable(mg.name), mg.id);
   });
 
-  const variationInput = rows.map((row) => ({
-    personal_id: null,
-    exercise_catalog_id: catalogByName.get(normalizeComparable(row.exerciseName)),
-    name: row.variationName,
-    method: row.method,
-    short_description: row.description,
-    ai_default_description: row.description,
-    ai_default_muscle_group_id: row.muscleGroup
-      ? muscleGroupIdByName.get(normalizeComparable(row.muscleGroup)) ?? null
-      : null,
-    gif_url: row.gifUrl,
-  }));
-
-  const invalidVariationRows = variationInput.filter((row) => !row.exercise_catalog_id);
-  if (invalidVariationRows.length) {
-    throw new Error("Falha ao mapear catálogo para todas as variações");
+  // ── Equipment catalog (upsert, stable IDs) ─────────────────────────────────
+  if (uniqueEquipments.length) {
+    const { error: equipmentError } = await supabaseAdmin
+      .from("equipment_catalog")
+      .upsert(uniqueEquipments.map((name) => ({ name })), { onConflict: "name" });
+    assertNoError(equipmentError, "upsert equipment catalog");
   }
 
-  const { data: insertedVariations, error: variationError } = await supabaseAdmin
+  // ── Exercise catalog (get-existing + insert-new, preserve IDs) ────────────
+  const { data: existingCatalog, error: existingCatalogError } = await supabaseAdmin
+    .from("exercise_catalog")
+    .select("id,name")
+    .is("personal_id", null);
+  assertNoError(existingCatalogError, "read existing exercise catalog");
+
+  const catalogByName = new Map<string, string>();
+  for (const item of existingCatalog ?? []) {
+    catalogByName.set(normalizeComparable(item.name), item.id);
+  }
+
+  const newExerciseNames = uniqueExerciseNames.filter(
+    (name) => !catalogByName.has(normalizeComparable(name)),
+  );
+
+  if (newExerciseNames.length) {
+    const { data: insertedCatalog, error: catalogError } = await supabaseAdmin
+      .from("exercise_catalog")
+      .insert(newExerciseNames.map((name) => ({ name, personal_id: null })))
+      .select("id,name");
+    assertNoError(catalogError, "insert new exercise catalog");
+    for (const item of insertedCatalog ?? []) {
+      catalogByName.set(normalizeComparable(item.name), item.id);
+    }
+  }
+
+  console.log(`📂 Catálogo de exercícios: ${existingCatalog?.length ?? 0} existentes, ${newExerciseNames.length} novos`);
+
+  // ── Exercise variations (get-existing + insert-new by name, preserve IDs) ──
+  const { data: existingVariations, error: existingVariationsError } = await supabaseAdmin
     .from("exercise_variations")
-    .insert(variationInput)
-    .select("id,name,exercise_catalog_id");
-  assertNoError(variationError, "insert exercise variations");
+    .select("id,name")
+    .is("personal_id", null);
+  assertNoError(existingVariationsError, "read existing exercise variations");
 
-  const { data: equipmentCatalog, error: equipmentCatalogError } = await supabaseAdmin
-    .from("equipment_catalog")
-    .select("id,name");
-  assertNoError(equipmentCatalogError, "read equipment catalog");
-  const equipmentIdByName = new Map<string, string>();
-  (equipmentCatalog ?? []).forEach((item: any) => {
-    equipmentIdByName.set(normalizeComparable(item.name), item.id);
-  });
-
-  const variationLookup = new Map<string, string>();
-  (insertedVariations ?? []).forEach((variation: any, index: number) => {
-    const row = rows[index];
-    const key = `${normalizeComparable(row.exerciseName)}|${normalizeComparable(row.variationName)}`;
-    variationLookup.set(key, variation.id);
-  });
-
-  const variationEquipmentRows: Array<{ exercise_variation_id: string; equipment_id: string }> = [];
-  rows.forEach((row) => {
-    const key = `${normalizeComparable(row.exerciseName)}|${normalizeComparable(row.variationName)}`;
-    const variationId = variationLookup.get(key);
-    if (!variationId) return;
-
-    row.equipments.forEach((equipmentName) => {
-      const equipmentId = equipmentIdByName.get(normalizeComparable(equipmentName));
-      if (!equipmentId) return;
-      variationEquipmentRows.push({
-        exercise_variation_id: variationId,
-        equipment_id: equipmentId,
-      });
-    });
-  });
-
-  if (variationEquipmentRows.length) {
-    const dedupMap = new Map<string, { exercise_variation_id: string; equipment_id: string }>();
-    variationEquipmentRows.forEach((item) => {
-      dedupMap.set(`${item.exercise_variation_id}|${item.equipment_id}`, item);
-    });
-
-    const { error: linkError } = await supabaseAdmin
-      .from("exercise_variation_equipments")
-      .insert(Array.from(dedupMap.values()));
-
-    assertNoError(linkError, "insert variation equipment links");
+  const variationByName = new Map<string, string>();
+  for (const item of existingVariations ?? []) {
+    variationByName.set(normalizeComparable(item.name), item.id);
   }
 
-  // Recria base legada compartilhada (compatibilidade com telas e bot atuais).
+  const newVariationRows = uniqueVariationNames
+    .filter((name) => !variationByName.has(normalizeComparable(name)))
+    .map((name) => {
+      const matchRow = rows.find(
+        (r) => normalizeComparable(r.variationName) === normalizeComparable(name),
+      );
+      return {
+        personal_id: null,
+        name,
+        short_description: matchRow?.description ?? null,
+        ai_default_description: matchRow?.description ?? null,
+        ai_default_muscle_group_id: matchRow?.muscleGroup
+          ? (muscleGroupIdByName.get(normalizeComparable(matchRow.muscleGroup)) ?? null)
+          : null,
+        gif_url: matchRow?.gifUrl ?? null,
+      };
+    });
+
+  if (newVariationRows.length) {
+    const { data: insertedVariations, error: variationError } = await supabaseAdmin
+      .from("exercise_variations")
+      .insert(newVariationRows)
+      .select("id,name");
+    assertNoError(variationError, "insert exercise variations");
+    for (const item of insertedVariations ?? []) {
+      variationByName.set(normalizeComparable(item.name), item.id);
+    }
+  }
+
+  console.log(`🔄 Variações: ${existingVariations?.length ?? 0} existentes, ${newVariationRows.length} novas`);
+
+  // ── Legacy exercises (recria a base compartilhada) ─────────────────────────
   const legacyInsert = rows.map((row) => ({
     personal_id: null,
     name: row.exerciseName,
@@ -433,12 +386,10 @@ async function importExercises() {
       }),
       row.id,
     );
-
     const normalizedName = normalizeComparable(row.name);
     if (!newLegacyByName.has(normalizedName)) {
       newLegacyByName.set(normalizedName, row.id);
     }
-
     newLegacyNameEntries.push({
       id: row.id,
       name: String(row.name ?? ""),
@@ -446,22 +397,16 @@ async function importExercises() {
     });
   });
 
-  // Atualiza relacionamento das variações para compatibilidade.
-  for (const variation of rows) {
-    const variationKey = `${normalizeComparable(variation.exerciseName)}|${normalizeComparable(variation.variationName)}`;
-    const variationId = variationLookup.get(variationKey);
-    const legacyId = newLegacyByKey.get(
-      legacyExerciseKey({
-        name: variation.exerciseName,
-        muscleGroup: variation.muscleGroup,
-        equipmentCsv: variation.equipments.join(", "),
-      }),
-    );
-    if (!variationId || !legacyId) continue;
+  // Atualiza exercise_catalog.legacy_exercise_id
+  for (const exerciseName of uniqueExerciseNames) {
+    const catalogId = catalogByName.get(normalizeComparable(exerciseName));
+    const legacyId = newLegacyByName.get(normalizeComparable(exerciseName));
+    if (!catalogId || !legacyId) continue;
     await supabaseAdmin
-      .from("exercise_variations")
+      .from("exercise_catalog")
       .update({ legacy_exercise_id: legacyId })
-      .eq("id", variationId);
+      .eq("id", catalogId)
+      .is("legacy_exercise_id", null);
   }
 
   // Remapeia treinos ativos/históricos dos exercícios antigos para a nova base legada.
@@ -499,7 +444,6 @@ async function importExercises() {
           bestId = candidate.id;
         }
       }
-
       if (bestId && bestScore >= 0.6) {
         newId = bestId;
       }
@@ -509,18 +453,14 @@ async function importExercises() {
       const normalizedMuscleGroup = normalizeComparable(oldItem.muscle_group);
       const candidateByMuscle = newLegacyNameEntries.find(
         (candidate) =>
-          normalizeComparable(candidate.muscleGroup ?? "") ===
-          normalizedMuscleGroup,
+          normalizeComparable(candidate.muscleGroup ?? "") === normalizedMuscleGroup,
       );
-
       if (candidateByMuscle) {
         newId = candidateByMuscle.id;
       }
     }
 
-    if (!newId) {
-      continue;
-    }
+    if (!newId) continue;
 
     const { error: updateWorkoutError } = await supabaseAdmin
       .from("workout_exercises")
@@ -528,7 +468,6 @@ async function importExercises() {
       .eq("exercise_id", oldItem.id);
 
     assertNoError(updateWorkoutError, "remap workout_exercises references");
-
     mappedOldIds.add(oldItem.id);
     remappedCount += 1;
   }
@@ -558,8 +497,8 @@ async function importExercises() {
   }
 
   console.log("\n✅ Importação concluída com sucesso.");
-  console.log(`   Exercícios canônicos: ${uniqueExercises.length}`);
-  console.log(`   Variações: ${variationKeySet.size}`);
+  console.log(`   Exercícios canônicos: ${uniqueExerciseNames.length}`);
+  console.log(`   Variações: ${uniqueVariationNames.length}`);
   console.log(`   Remapeados da base antiga: ${remappedCount}`);
 }
 

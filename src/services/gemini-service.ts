@@ -97,8 +97,6 @@ export async function generateBotResponse(context: {
 export async function generateExerciseDescription(params: {
   exerciseName: string;
   variationName: string;
-  method: string | null;
-  equipments: string[];
   muscleGroups: Array<{ id: string; name: string }>;
 }): Promise<{
   description: string;
@@ -109,20 +107,14 @@ export async function generateExerciseDescription(params: {
     throw new Error("GEMINI_API_KEY não configurada");
   }
 
-  const { exerciseName, variationName, method, equipments, muscleGroups } =
-    params;
+  const { exerciseName, variationName, muscleGroups } = params;
 
   const muscleGroupList = muscleGroups.map((mg) => `- ${mg.name}`).join("\n");
-  const equipmentText = equipments.length
-    ? equipments.join(", ")
-    : "peso corporal ou nenhum";
-  const methodNote = method ? ` Método: ${method}.` : "";
 
   const prompt = `Você é especialista em musculação. Escreva uma breve descrição técnica (máximo 3 linhas) de como executar este exercício e identifique o grupo muscular principal.
 
 Exercício: ${exerciseName}
-Variação: ${variationName}${methodNote}
-Equipamentos: ${equipmentText}
+Variação: ${variationName}
 
 Responda APENAS com JSON no formato exato abaixo (sem texto extra):
 {"description":"descreva aqui a execução em 1-3 linhas","muscleGroup":"nome do grupo muscular"}
