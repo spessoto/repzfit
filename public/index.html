@@ -522,6 +522,37 @@
         color: #1f2937;
       }
 
+      .tag-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+        border-radius: 99px;
+        padding: 2px 10px 2px 10px;
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .tag-chip .tag-remove {
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+        color: #0369a1;
+        background: none;
+        border: none;
+        padding: 0;
+      }
+      .tag-chip .tag-remove:hover { color: #ef4444; }
+      .tag-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        min-height: 24px;
+        margin-bottom: 4px;
+      }
+
       .autocomplete-item:last-child {
         border-bottom: none;
       }
@@ -4969,27 +5000,24 @@
               oninput="buscarCatalogo(${index}, this.value)"
               onfocus="buscarCatalogo(${index}, this.value)"
             />
-            <select id="excat_select_${index}" onchange="selecionarCatalogoPorSelect(${index}, this.value)" style="margin-top:6px;">
-              <option value="">Ou selecione no dropdown...</option>
-            </select>
             <input type="hidden" id="excat_id_${index}" />
             <div id="excat_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
           </div>
 
           <div id="exvar_wrapper_${index}" class="form-group" style="display:none; position:relative;">
             <label>Variação *</label>
+            <div id="exvar_tags_${index}" class="tag-container"></div>
             <input type="text" id="exvar_search_${index}" placeholder="Digite para buscar variação..." autocomplete="off"
                    oninput="buscarVariacao(${index}, this.value)" onfocus="buscarVariacao(${index}, this.value)" />
-            <select id="exvar_select_${index}" multiple size="4" onchange="syncVariacoesSelecionadas(${index})" style="margin-top:6px;"></select>
             <div id="exvar_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
           </div>
 
           <div id="exmeta_wrapper_${index}" style="display:none;">
             <div class="form-group" style="position:relative;margin-bottom:10px;">
-              <label>Equipamento *</label>
+              <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+              <div id="exequip_tags_${index}" class="tag-container"></div>
               <input type="text" id="exequip_search_${index}" placeholder="Digite para buscar equipamento..." autocomplete="off"
                      oninput="buscarEquipamento(${index}, this.value)" onfocus="buscarEquipamento(${index}, this.value)" />
-              <select id="exequip_select_${index}" multiple size="4" onchange="syncEquipamentosSelecionados(${index})" style="margin-top:6px;"></select>
               <input type="hidden" id="exequip_id_${index}" />
               <input type="hidden" id="exequip_ids_${index}" />
               <div id="exequip_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
@@ -5029,43 +5057,62 @@
         exerciciosDoTreino.push({ index });
       }
 
+      // ── Estado in-memory para multi-seleção ──────────────────────────────────
+      const exVarState = {};    // { [index]: [{id, name}] }
+      const exEquipState = {};  // { [index]: [{id, name}] }
+
       // Caches para seleção em cascata – Novo Treino
       let catalogoBuscaTimeout = {};
       let variacaoBuscaTimeout = {};
       let equipamentoBuscaTimeout = {};
 
-      function selectedValues(selectEl) {
-        return Array.from(selectEl?.selectedOptions || []).map((opt) => opt.value).filter(Boolean);
+      function renderTagsEx(containerId, items, removeFn) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        el.innerHTML = items.map((item) =>
+          `<span class="tag-chip">
+            ${escapeHtml(item.name)}
+            <button type="button" class="tag-remove" onclick="(${removeFn})(${JSON.stringify(item.id)})" title="Remover">×</button>
+          </span>`
+        ).join("");
+      }
+
+      function renderVarTags(index) {
+        const items = exVarState[index] || [];
+        renderTagsEx(`exvar_tags_${index}`, items,
+          `function(id){ removeVariacaoItem(${index},id) }`);
+        document.getElementById(`exvarids_${index}`).value = items.map((i) => i.id).join(",");
+        document.getElementById(`exvarid_${index}`).value = items[0]?.id || "";
+        updateIAButtonState(index);
+      }
+
+      function removeVariacaoItem(index, id) {
+        exVarState[index] = (exVarState[index] || []).filter((i) => i.id !== id);
+        renderVarTags(index);
+        if (!(exVarState[index] || []).length) {
+          document.getElementById(`exmeta_wrapper_${index}`).style.display = "none";
+        }
+      }
+
+      function renderEquipTags(index) {
+        const items = exEquipState[index] || [];
+        renderTagsEx(`exequip_tags_${index}`, items,
+          `function(id){ removeEquipamentoItem(${index},id) }`);
+        document.getElementById(`exequip_ids_${index}`).value = items.map((i) => i.id).join(",");
+        document.getElementById(`exequip_id_${index}`).value = items[0]?.id || "";
+        updateIAButtonState(index);
+      }
+
+      function removeEquipamentoItem(index, id) {
+        exEquipState[index] = (exEquipState[index] || []).filter((i) => i.id !== id);
+        renderEquipTags(index);
       }
 
       function updateIAButtonState(index) {
         const catalogId = document.getElementById(`excat_id_${index}`)?.value;
-        const varIds = (document.getElementById(`exvarids_${index}`)?.value || "").split(",").filter(Boolean);
-        const equipIds = (document.getElementById(`exequip_ids_${index}`)?.value || "").split(",").filter(Boolean);
+        const varIds = exVarState[index]?.length;
         const btn = document.getElementById(`exai_btn_${index}`);
-        if (btn) btn.disabled = !(catalogId && varIds.length > 0 && equipIds.length > 0);
-      }
-
-      function preencherSelect(selectId, items, placeholder) {
-        const sel = document.getElementById(selectId);
-        if (!sel) return;
-        const isMulti = sel.multiple;
-        const selected = new Set(selectedValues(sel));
-        if (isMulti) {
-          sel.innerHTML = items
-            .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`)
-            .join("");
-          Array.from(sel.options).forEach((opt) => {
-            if (selected.has(opt.value)) opt.selected = true;
-          });
-        } else {
-          sel.innerHTML = `<option value="">${placeholder}</option>` + items
-            .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`)
-            .join("");
-          if (selected.size > 0) {
-            sel.value = Array.from(selected)[0];
-          }
-        }
+        if (btn) btn.disabled = !(catalogId && varIds);
       }
 
       async function buscarCatalogo(index, termo) {
@@ -5073,6 +5120,7 @@
         const dropdown = document.getElementById(`excat_dropdown_${index}`);
         if (!dropdown) return;
         const query = (termo || "").trim();
+        if (!query) { dropdown.style.display = "none"; return; }
         catalogoBuscaTimeout[index] = setTimeout(async () => {
           try {
             const res = await fetch(
@@ -5085,10 +5133,8 @@
             if (!items.length) {
               dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Nenhum exercício encontrado.</div>';
               dropdown.style.display = "block";
-              preencherSelect(`excat_select_${index}`, [], "Ou selecione no dropdown...");
               return;
             }
-            preencherSelect(`excat_select_${index}`, items, "Ou selecione no dropdown...");
             dropdown.innerHTML = items.map(item => `
               <div class="autocomplete-item"
                    onclick="selecionarCatalogo(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
@@ -5103,28 +5149,17 @@
         }, 300);
       }
 
-      function selecionarCatalogoPorSelect(index, catalogId) {
-        const sel = document.getElementById(`excat_select_${index}`);
-        if (!sel || !catalogId) return;
-        const opt = sel.options[sel.selectedIndex];
-        selecionarCatalogo(index, catalogId, opt?.textContent || "");
-      }
-
       async function selecionarCatalogo(index, catalogId, catalogName) {
         document.getElementById(`excat_search_${index}`).value = catalogName;
         document.getElementById(`excat_id_${index}`).value = catalogId;
         document.getElementById(`excat_dropdown_${index}`).style.display = "none";
-        const catSelect = document.getElementById(`excat_select_${index}`);
-        if (catSelect) catSelect.value = catalogId;
-        document.getElementById(`exvarid_${index}`).value = "";
-        document.getElementById(`exvarids_${index}`).value = "";
-        const varSearch = document.getElementById(`exvar_search_${index}`);
-        if (varSearch) varSearch.value = "";
-        preencherSelect(`exvar_select_${index}`, [], "");
-        document.getElementById(`exequip_ids_${index}`).value = "";
-        const equipId = document.getElementById(`exequip_id_${index}`);
-        if (equipId) equipId.value = "";
-        preencherSelect(`exequip_select_${index}`, [], "");
+        // Reset variação e equipamento
+        exVarState[index] = [];
+        exEquipState[index] = [];
+        renderVarTags(index);
+        renderEquipTags(index);
+        document.getElementById(`exvar_search_${index}`).value = "";
+        document.getElementById(`exequip_search_${index}`).value = "";
         document.getElementById(`exvar_wrapper_${index}`).style.display = "block";
         document.getElementById(`exmeta_wrapper_${index}`).style.display = "none";
         updateIAButtonState(index);
@@ -5135,6 +5170,7 @@
         const dropdown = document.getElementById(`exvar_dropdown_${index}`);
         if (!dropdown) return;
         const query = (termo || "").trim();
+        if (!query) { dropdown.style.display = "none"; return; }
         variacaoBuscaTimeout[index] = setTimeout(async () => {
           try {
             const res = await fetch(
@@ -5147,10 +5183,8 @@
             if (!items.length) {
               dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Nenhuma variação encontrada.</div>';
               dropdown.style.display = "block";
-              preencherSelect(`exvar_select_${index}`, [], "");
               return;
             }
-            preencherSelect(`exvar_select_${index}`, items, "");
             dropdown.innerHTML = items.map(item => `
               <div class="autocomplete-item"
                    onclick="selecionarVariacaoItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
@@ -5165,34 +5199,15 @@
         }, 300);
       }
 
-      async function selecionarVariacaoItem(index, variationId, variationName) {
-        document.getElementById(`exvar_search_${index}`).value = variationName;
-        const varSel = document.getElementById(`exvar_select_${index}`);
-        if (varSel) {
-          let opt = Array.from(varSel.options).find((o) => o.value === variationId);
-          if (!opt) {
-            opt = document.createElement("option");
-            opt.value = variationId;
-            opt.textContent = variationName;
-            varSel.appendChild(opt);
-          }
-          opt.selected = true;
-        }
-        syncVariacoesSelecionadas(index);
+      function selecionarVariacaoItem(index, variationId, variationName) {
+        document.getElementById(`exvar_search_${index}`).value = "";
         document.getElementById(`exvar_dropdown_${index}`).style.display = "none";
-        document.getElementById(`exmeta_wrapper_${index}`).style.display = "block";
-        updateIAButtonState(index);
-      }
-
-      function syncVariacoesSelecionadas(index) {
-        const sel = document.getElementById(`exvar_select_${index}`);
-        const ids = selectedValues(sel);
-        document.getElementById(`exvarids_${index}`).value = ids.join(",");
-        document.getElementById(`exvarid_${index}`).value = ids[0] || "";
-        if (ids.length > 0) {
-          document.getElementById(`exmeta_wrapper_${index}`).style.display = "block";
+        if (!exVarState[index]) exVarState[index] = [];
+        if (!exVarState[index].find((i) => i.id === variationId)) {
+          exVarState[index].push({ id: variationId, name: variationName });
         }
-        updateIAButtonState(index);
+        renderVarTags(index);
+        document.getElementById(`exmeta_wrapper_${index}`).style.display = "block";
       }
 
       async function buscarEquipamento(index, termo) {
@@ -5200,6 +5215,7 @@
         const dropdown = document.getElementById(`exequip_dropdown_${index}`);
         if (!dropdown) return;
         const query = (termo || "").trim();
+        if (!query) { dropdown.style.display = "none"; return; }
         equipamentoBuscaTimeout[index] = setTimeout(async () => {
           try {
             const res = await fetch(
@@ -5208,8 +5224,7 @@
             );
             if (!res.ok) return;
             const items = await res.json();
-            if (!items.length) { dropdown.style.display = "none"; preencherSelect(`exequip_select_${index}`, [], ""); return; }
-            preencherSelect(`exequip_select_${index}`, items, "");
+            if (!items.length) { dropdown.style.display = "none"; return; }
             dropdown.innerHTML = items.map(item => `
               <div class="autocomplete-item"
                    onclick="selecionarEquipamentoItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
@@ -5223,35 +5238,19 @@
       }
 
       function selecionarEquipamentoItem(index, equipId, equipName) {
-        document.getElementById(`exequip_search_${index}`).value = equipName;
-        const equipSel = document.getElementById(`exequip_select_${index}`);
-        if (equipSel) {
-          let opt = Array.from(equipSel.options).find((o) => o.value === equipId);
-          if (!opt) {
-            opt = document.createElement("option");
-            opt.value = equipId;
-            opt.textContent = equipName;
-            equipSel.appendChild(opt);
-          }
-          opt.selected = true;
-        }
-        syncEquipamentosSelecionados(index);
+        document.getElementById(`exequip_search_${index}`).value = "";
         document.getElementById(`exequip_dropdown_${index}`).style.display = "none";
-      }
-
-      function syncEquipamentosSelecionados(index) {
-        const sel = document.getElementById(`exequip_select_${index}`);
-        const ids = selectedValues(sel);
-        document.getElementById(`exequip_ids_${index}`).value = ids.join(",");
-        document.getElementById(`exequip_id_${index}`).value = ids[0] || "";
-        updateIAButtonState(index);
+        if (!exEquipState[index]) exEquipState[index] = [];
+        if (!exEquipState[index].find((i) => i.id === equipId)) {
+          exEquipState[index].push({ id: equipId, name: equipName });
+        }
+        renderEquipTags(index);
       }
 
       async function gerarDescricaoExercicioIA(index) {
         const catalogId = document.getElementById(`excat_id_${index}`)?.value;
-        const variationIds = (document.getElementById(`exvarids_${index}`)?.value || "").split(",").filter(Boolean);
-        const equipmentIds = (document.getElementById(`exequip_ids_${index}`)?.value || "").split(",").filter(Boolean);
-        if (!catalogId || !variationIds.length || !equipmentIds.length) return;
+        const varItems = exVarState[index] || [];
+        if (!catalogId || !varItems.length) return;
         const descArea = document.getElementById(`exdesc_${index}`);
         const mgSmall = document.getElementById(`exdesc_mg_${index}`);
         if (!descArea) return;
@@ -5264,16 +5263,19 @@
             {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-              body: JSON.stringify({ exercise_catalog_id: catalogId, exercise_variation_id: variationIds[0] }),
+              body: JSON.stringify({ exercise_catalog_id: catalogId, exercise_variation_id: varItems[0].id }),
             },
           );
-          if (!res.ok) throw new Error();
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.message || `Erro ${res.status}`);
+          }
           const result = await res.json();
           descArea.value = result.description || "";
           descArea.placeholder = "Descrição gerada pela IA...";
           if (mgSmall) mgSmall.textContent = result.muscle_group_name ? `Grupo muscular: ${result.muscle_group_name}` : "";
         } catch (e) {
-          descArea.placeholder = "Descrição não disponível.";
+          descArea.placeholder = e?.message || "Erro ao gerar descrição.";
         }
       }
 
@@ -5326,14 +5328,6 @@
           const customDesc = document.getElementById(`exdesc_${i}`)?.value?.trim();
 
           if (variationIds.length) {
-            if (!equipIds.length) {
-              showAlert(
-                "treinosAlert",
-                `Selecione ao menos um equipamento para o exercício ${i + 1}.`,
-                "error",
-              );
-              return;
-            }
             if (
               !Number.isFinite(series) ||
               !Number.isFinite(reps) ||
@@ -5543,27 +5537,24 @@
                             oninput="buscarCatalogoEdicao('${treino.id}', this.value)"
                             onfocus="buscarCatalogoEdicao('${treino.id}', this.value)"
                           />
-                          <select id="tab_cat_select_${treino.id}" onchange="selecionarCatalogoEdicaoPorSelect('${treino.id}', this.value)" style="margin-top:6px;">
-                            <option value="">Ou selecione no dropdown...</option>
-                          </select>
                           <input type="hidden" id="tab_cat_id_${treino.id}" />
                           <div id="tab_cat_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
                         </div>
 
                         <div id="tab_var_wrapper_${treino.id}" class="form-group" style="display:none; margin-bottom:8px; position:relative;">
                           <label>Variação</label>
+                          <div id="tab_var_tags_${treino.id}" class="tag-container"></div>
                           <input type="text" id="tab_var_search_${treino.id}" placeholder="Digite para buscar variação..." autocomplete="off"
                                  oninput="buscarVariacaoEdicao('${treino.id}', this.value)" onfocus="buscarVariacaoEdicao('${treino.id}', this.value)" />
-                          <select id="tab_var_select_${treino.id}" multiple size="4" onchange="syncVariacoesEdicaoSelecionadas('${treino.id}')" style="margin-top:6px;"></select>
                           <div id="tab_var_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
                         </div>
 
                         <div id="tab_meta_wrapper_${treino.id}" style="display:none; margin-bottom:8px;">
                           <div class="form-group" style="position:relative;margin-bottom:8px;">
-                            <label>Equipamento *</label>
+                            <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                            <div id="tab_equip_tags_${treino.id}" class="tag-container"></div>
                             <input type="text" id="tab_equip_search_${treino.id}" placeholder="Digite para buscar equipamento..." autocomplete="off"
                                    oninput="buscarEquipamentoEdicao('${treino.id}', this.value)" onfocus="buscarEquipamentoEdicao('${treino.id}', this.value)" />
-                            <select id="tab_equip_select_${treino.id}" multiple size="4" onchange="syncEquipamentosEdicaoSelecionados('${treino.id}')" style="margin-top:6px;"></select>
                             <input type="hidden" id="tab_equip_id_${treino.id}" />
                             <input type="hidden" id="tab_equip_ids_${treino.id}" />
                             <div id="tab_equip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
@@ -5799,12 +5790,62 @@
       const catalogoEdicaoBuscaTimeout = {};
       const variacaoEdicaoBuscaTimeout = {};
       const equipamentoEdicaoBuscaTimeout = {};
+      const tabVarState = {};
+      const tabEquipState = {};
+
+      function renderTabVarTags(workoutId) {
+        const items = tabVarState[workoutId] || [];
+        const el = document.getElementById(`tab_var_tags_${workoutId}`);
+        if (el) el.innerHTML = items.map((item) =>
+          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabVarItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+        ).join("");
+        const first = document.getElementById(`tab_add_var_id_${workoutId}`);
+        if (first) first.value = items[0]?.id || "";
+        const all = document.getElementById(`tab_add_var_ids_${workoutId}`);
+        if (all) all.value = items.map((i) => i.id).join(",");
+        updateIAButtonStateEdicao(workoutId);
+      }
+
+      function removeTabVarItem(workoutId, id) {
+        tabVarState[workoutId] = (tabVarState[workoutId] || []).filter((i) => i.id !== id);
+        renderTabVarTags(workoutId);
+        if (!(tabVarState[workoutId] || []).length) {
+          const meta = document.getElementById(`tab_meta_wrapper_${workoutId}`);
+          if (meta) meta.style.display = "none";
+        }
+      }
+
+      function renderTabEquipTags(workoutId) {
+        const items = tabEquipState[workoutId] || [];
+        const el = document.getElementById(`tab_equip_tags_${workoutId}`);
+        if (el) el.innerHTML = items.map((item) =>
+          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabEquipItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+        ).join("");
+        const first = document.getElementById(`tab_equip_id_${workoutId}`);
+        if (first) first.value = items[0]?.id || "";
+        const all = document.getElementById(`tab_equip_ids_${workoutId}`);
+        if (all) all.value = items.map((i) => i.id).join(",");
+        updateIAButtonStateEdicao(workoutId);
+      }
+
+      function removeTabEquipItem(workoutId, id) {
+        tabEquipState[workoutId] = (tabEquipState[workoutId] || []).filter((i) => i.id !== id);
+        renderTabEquipTags(workoutId);
+      }
+
+      function updateIAButtonStateEdicao(workoutId) {
+        const catalogId = document.getElementById(`tab_cat_id_${workoutId}`)?.value;
+        const varItems = tabVarState[workoutId]?.length;
+        const btn = document.getElementById(`tab_ai_btn_${workoutId}`);
+        if (btn) btn.disabled = !(catalogId && varItems);
+      }
 
       async function buscarCatalogoEdicao(workoutId, termo) {
         if (catalogoEdicaoBuscaTimeout[workoutId]) clearTimeout(catalogoEdicaoBuscaTimeout[workoutId]);
         const dropdown = document.getElementById(`tab_cat_dropdown_${workoutId}`);
         if (!dropdown) return;
         const query = (termo || "").trim();
+        if (!query) { dropdown.style.display = "none"; return; }
         catalogoEdicaoBuscaTimeout[workoutId] = setTimeout(async () => {
           try {
             const res = await fetch(
@@ -5816,10 +5857,8 @@
             if (!items.length) {
               dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhum exercício encontrado.</div>';
               dropdown.style.display = "block";
-              preencherSelect(`tab_cat_select_${workoutId}`, [], "Ou selecione no dropdown...");
               return;
             }
-            preencherSelect(`tab_cat_select_${workoutId}`, items, "Ou selecione no dropdown...");
             dropdown.innerHTML = items.map(item => `
               <div class="autocomplete-item"
                    onclick="selecionarCatalogoEdicao('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
@@ -5834,13 +5873,6 @@
         }, 250);
       }
 
-      function selecionarCatalogoEdicaoPorSelect(workoutId, catalogId) {
-        const sel = document.getElementById(`tab_cat_select_${workoutId}`);
-        if (!sel || !catalogId) return;
-        const opt = sel.options[sel.selectedIndex];
-        selecionarCatalogoEdicao(workoutId, catalogId, opt?.textContent || "");
-      }
-
       async function selecionarCatalogoEdicao(workoutId, catalogId, catalogName) {
         const catSearch = document.getElementById(`tab_cat_search_${workoutId}`);
         const catId = document.getElementById(`tab_cat_id_${workoutId}`);
@@ -5848,25 +5880,17 @@
         if (catSearch) catSearch.value = catalogName;
         if (catId) catId.value = catalogId;
         if (catDropdown) catDropdown.style.display = "none";
-        const catSelect = document.getElementById(`tab_cat_select_${workoutId}`);
-        if (catSelect) catSelect.value = catalogId;
-        const varId = document.getElementById(`tab_add_var_id_${workoutId}`);
-        if (varId) varId.value = "";
-        const varIds = document.getElementById(`tab_add_var_ids_${workoutId}`);
-        if (varIds) varIds.value = "";
+        tabVarState[workoutId] = [];
+        tabEquipState[workoutId] = [];
+        renderTabVarTags(workoutId);
+        renderTabEquipTags(workoutId);
         const varSearch = document.getElementById(`tab_var_search_${workoutId}`);
         if (varSearch) varSearch.value = "";
-        preencherSelect(`tab_var_select_${workoutId}`, [], "");
         const equipSearch = document.getElementById(`tab_equip_search_${workoutId}`);
         if (equipSearch) equipSearch.value = "";
-        const equipId = document.getElementById(`tab_equip_id_${workoutId}`);
-        if (equipId) equipId.value = "";
-        const equipIds = document.getElementById(`tab_equip_ids_${workoutId}`);
-        if (equipIds) equipIds.value = "";
-        preencherSelect(`tab_equip_select_${workoutId}`, [], "");
         const varWrapper = document.getElementById(`tab_var_wrapper_${workoutId}`);
-        const metaWrapper = document.getElementById(`tab_meta_wrapper_${workoutId}`);
         if (varWrapper) varWrapper.style.display = "block";
+        const metaWrapper = document.getElementById(`tab_meta_wrapper_${workoutId}`);
         if (metaWrapper) metaWrapper.style.display = "none";
         updateIAButtonStateEdicao(workoutId);
       }
@@ -5876,6 +5900,7 @@
         const dropdown = document.getElementById(`tab_var_dropdown_${workoutId}`);
         if (!dropdown) return;
         const query = (termo || "").trim();
+        if (!query) { dropdown.style.display = "none"; return; }
         variacaoEdicaoBuscaTimeout[workoutId] = setTimeout(async () => {
           try {
             const res = await fetch(
@@ -5887,10 +5912,8 @@
             if (!items.length) {
               dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhuma variação encontrada.</div>';
               dropdown.style.display = "block";
-              preencherSelect(`tab_var_select_${workoutId}`, [], "");
               return;
             }
-            preencherSelect(`tab_var_select_${workoutId}`, items, "");
             dropdown.innerHTML = items.map(item => `
               <div class="autocomplete-item"
                    onclick="selecionarVariacaoEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
@@ -5905,26 +5928,18 @@
         }, 250);
       }
 
-      async function selecionarVariacaoEdicaoItem(workoutId, variationId, variationName) {
+      function selecionarVariacaoEdicaoItem(workoutId, variationId, variationName) {
         const varSearch = document.getElementById(`tab_var_search_${workoutId}`);
-        if (varSearch) varSearch.value = variationName;
-        const varSel = document.getElementById(`tab_var_select_${workoutId}`);
-        if (varSel) {
-          let opt = Array.from(varSel.options).find((o) => o.value === variationId);
-          if (!opt) {
-            opt = document.createElement("option");
-            opt.value = variationId;
-            opt.textContent = variationName;
-            varSel.appendChild(opt);
-          }
-          opt.selected = true;
-        }
-        syncVariacoesEdicaoSelecionadas(workoutId);
+        if (varSearch) varSearch.value = "";
         const varDropdown = document.getElementById(`tab_var_dropdown_${workoutId}`);
         if (varDropdown) varDropdown.style.display = "none";
+        if (!tabVarState[workoutId]) tabVarState[workoutId] = [];
+        if (!tabVarState[workoutId].find((i) => i.id === variationId)) {
+          tabVarState[workoutId].push({ id: variationId, name: variationName });
+        }
+        renderTabVarTags(workoutId);
         const metaWrapper = document.getElementById(`tab_meta_wrapper_${workoutId}`);
         if (metaWrapper) metaWrapper.style.display = "block";
-        updateIAButtonStateEdicao(workoutId);
       }
 
       async function buscarEquipamentoEdicao(workoutId, termo) {
@@ -5932,6 +5947,7 @@
         const dropdown = document.getElementById(`tab_equip_dropdown_${workoutId}`);
         if (!dropdown) return;
         const query = (termo || "").trim();
+        if (!query) { dropdown.style.display = "none"; return; }
         equipamentoEdicaoBuscaTimeout[workoutId] = setTimeout(async () => {
           try {
             const res = await fetch(
@@ -5940,8 +5956,7 @@
             );
             if (!res.ok) return;
             const items = await res.json();
-            if (!items.length) { dropdown.style.display = "none"; preencherSelect(`tab_equip_select_${workoutId}`, [], ""); return; }
-            preencherSelect(`tab_equip_select_${workoutId}`, items, "");
+            if (!items.length) { dropdown.style.display = "none"; return; }
             dropdown.innerHTML = items.map(item => `
               <div class="autocomplete-item"
                    onclick="selecionarEquipamentoEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
@@ -5956,60 +5971,20 @@
 
       function selecionarEquipamentoEdicaoItem(workoutId, equipId, equipName) {
         const search = document.getElementById(`tab_equip_search_${workoutId}`);
-        if (search) search.value = equipName;
-        const sel = document.getElementById(`tab_equip_select_${workoutId}`);
-        if (sel) {
-          let opt = Array.from(sel.options).find((o) => o.value === equipId);
-          if (!opt) {
-            opt = document.createElement("option");
-            opt.value = equipId;
-            opt.textContent = equipName;
-            sel.appendChild(opt);
-          }
-          opt.selected = true;
-        }
-        syncEquipamentosEdicaoSelecionados(workoutId);
+        if (search) search.value = "";
         const dropdown = document.getElementById(`tab_equip_dropdown_${workoutId}`);
         if (dropdown) dropdown.style.display = "none";
-      }
-
-      function syncVariacoesEdicaoSelecionadas(workoutId) {
-        const sel = document.getElementById(`tab_var_select_${workoutId}`);
-        const ids = selectedValues(sel);
-        const first = document.getElementById(`tab_add_var_id_${workoutId}`);
-        if (first) first.value = ids[0] || "";
-        const all = document.getElementById(`tab_add_var_ids_${workoutId}`);
-        if (all) all.value = ids.join(",");
-        if (ids.length > 0) {
-          const meta = document.getElementById(`tab_meta_wrapper_${workoutId}`);
-          if (meta) meta.style.display = "block";
+        if (!tabEquipState[workoutId]) tabEquipState[workoutId] = [];
+        if (!tabEquipState[workoutId].find((i) => i.id === equipId)) {
+          tabEquipState[workoutId].push({ id: equipId, name: equipName });
         }
-        updateIAButtonStateEdicao(workoutId);
-      }
-
-      function syncEquipamentosEdicaoSelecionados(workoutId) {
-        const sel = document.getElementById(`tab_equip_select_${workoutId}`);
-        const ids = selectedValues(sel);
-        const first = document.getElementById(`tab_equip_id_${workoutId}`);
-        if (first) first.value = ids[0] || "";
-        const all = document.getElementById(`tab_equip_ids_${workoutId}`);
-        if (all) all.value = ids.join(",");
-        updateIAButtonStateEdicao(workoutId);
-      }
-
-      function updateIAButtonStateEdicao(workoutId) {
-        const catalogId = document.getElementById(`tab_cat_id_${workoutId}`)?.value;
-        const varIds = (document.getElementById(`tab_add_var_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
-        const equipIds = (document.getElementById(`tab_equip_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
-        const btn = document.getElementById(`tab_ai_btn_${workoutId}`);
-        if (btn) btn.disabled = !(catalogId && varIds.length > 0 && equipIds.length > 0);
+        renderTabEquipTags(workoutId);
       }
 
       async function gerarDescricaoExercicioIAEdicao(workoutId) {
         const catalogId = document.getElementById(`tab_cat_id_${workoutId}`)?.value;
-        const variationIds = (document.getElementById(`tab_add_var_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
-        const equipmentIds = (document.getElementById(`tab_equip_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
-        if (!catalogId || !variationIds.length || !equipmentIds.length) return;
+        const varItems = tabVarState[workoutId] || [];
+        if (!catalogId || !varItems.length) return;
         const descArea = document.getElementById(`tab_desc_${workoutId}`);
         const mgSmall = document.getElementById(`tab_mg_${workoutId}`);
         if (!descArea) return;
@@ -6022,16 +5997,19 @@
             {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-              body: JSON.stringify({ exercise_catalog_id: catalogId, exercise_variation_id: variationIds[0] }),
+              body: JSON.stringify({ exercise_catalog_id: catalogId, exercise_variation_id: varItems[0].id }),
             },
           );
-          if (!res.ok) throw new Error();
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.message || `Erro ${res.status}`);
+          }
           const result = await res.json();
           descArea.value = result.description || "";
           descArea.placeholder = "Descrição gerada pela IA...";
           if (mgSmall) mgSmall.textContent = result.muscle_group_name ? `Grupo muscular: ${result.muscle_group_name}` : "";
         } catch (e) {
-          descArea.placeholder = "Descrição não disponível.";
+          descArea.placeholder = e?.message || "Erro ao gerar descrição.";
         }
       }
 
@@ -6050,18 +6028,6 @@
         );
 
         if (!variationIds.length) {
-          showAlert(
-            "treinosAlert",
-            "Selecione um exercício e sua variação para adicionar ao treino.",
-            "error",
-          );
-          return;
-        }
-
-        if (!equipIds.length) {
-          showAlert("treinosAlert", "Selecione ao menos um equipamento.", "error");
-          return;
-        }
 
         if (!targetSets || !targetReps || targetSets < 1 || targetReps < 1) {
           showAlert(
@@ -6114,14 +6080,14 @@
           // Reset cascade fields
           const catSearch = document.getElementById(`tab_cat_search_${workoutId}`);
           const catId = document.getElementById(`tab_cat_id_${workoutId}`);
+          const catSearch = document.getElementById(`tab_cat_search_${workoutId}`);
+          const catId = document.getElementById(`tab_cat_id_${workoutId}`);
           const varId = document.getElementById(`tab_add_var_id_${workoutId}`);
           const varIds = document.getElementById(`tab_add_var_ids_${workoutId}`);
           const varSearch = document.getElementById(`tab_var_search_${workoutId}`);
-          const varSelect = document.getElementById(`tab_var_select_${workoutId}`);
           const equipSearch = document.getElementById(`tab_equip_search_${workoutId}`);
           const equipHidden = document.getElementById(`tab_equip_id_${workoutId}`);
           const equipIdsHidden = document.getElementById(`tab_equip_ids_${workoutId}`);
-          const equipSelect = document.getElementById(`tab_equip_select_${workoutId}`);
           const varWrapper = document.getElementById(`tab_var_wrapper_${workoutId}`);
           const metaWrapper = document.getElementById(`tab_meta_wrapper_${workoutId}`);
           if (catSearch) catSearch.value = "";
@@ -6129,11 +6095,13 @@
           if (varId) varId.value = "";
           if (varIds) varIds.value = "";
           if (varSearch) varSearch.value = "";
-          if (varSelect) varSelect.innerHTML = "";
           if (equipSearch) equipSearch.value = "";
           if (equipHidden) equipHidden.value = "";
           if (equipIdsHidden) equipIdsHidden.value = "";
-          if (equipSelect) equipSelect.innerHTML = "";
+          tabVarState[workoutId] = [];
+          tabEquipState[workoutId] = [];
+          renderTabVarTags(workoutId);
+          renderTabEquipTags(workoutId);
           if (varWrapper) varWrapper.style.display = "none";
           if (metaWrapper) metaWrapper.style.display = "none";
 
