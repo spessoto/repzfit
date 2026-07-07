@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { env } from "../../config/env.js";
 import { supabaseAdmin } from "../../config/supabase.js";
+import { generateExerciseDescription } from "../../services/gemini-service.js";
 import {
   ensureEvolutionWebhook,
   ensureEvolutionInstance,
@@ -1474,6 +1475,165 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     return data;
   });
+
+  // ── Exercise catalog / variations / equipment cascade ───────────────────────
+
+  app.get("/exercise-catalog", async (request) => {
+    const { personalId } = await getAuthenticatedPersonal(app, request);
+    const query = request.query as { search?: string; limit?: string };
+    const search = (query.search ?? "").trim();
+    const limit = Math.min(
+      Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
+      50,
+    );
+
+    let q = supabaseAdmin
+      .from("exercise_catalog")
+      .select("id,name")
+      .or(`personal_id.is.null,personal_id.eq.${personalId}`)
+      .order("name", { ascending: true });
+
+    if (search) {
+      q = q.ilike("name", `%${search}%`);
+    }
+
+    const { data, error } = await q.limit(limit);
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data ?? [];
+  });
+
+  app.get("/exercise-catalog/:catalogId/variations", async (request) => {
+    const { personalId } = await getAuthenticatedPersonal(app, request);
+    const catalogId = z
+      .string()
+      .uuid()
+      .parse((request.params as { catalogId?: string }).catalogId);
+
+    const { data, error } = await supabaseAdmin
+      .from("exercise_variations")
+      .select(
+        "id,name,method,ai_default_description,gif_url,ai_default_muscle_group_id,muscle_groups(name),exercise_variation_equipments(equipment_catalog(id,name))",
+      )
+      .eq("exercise_catalog_id", catalogId)
+      .or(`personal_id.is.null,personal_id.eq.${personalId}`)
+      .order("name", { ascending: true });
+
+    if (error) throw app.httpErrors.badRequest(error.message);
+
+    return (data ?? []).map((v: any) => ({
+      id: v.id,
+      name: v.name,
+      method: v.method ?? null,
+      ai_default_description: v.ai_default_description ?? null,
+      gif_url: v.gif_url ?? null,
+      muscle_group_name: v.muscle_groups?.name ?? null,
+      equipments: (v.exercise_variation_equipments ?? [])
+        .map((e: any) => ({ id: e.equipment_catalog?.id, name: e.equipment_catalog?.name }))
+        .filter((e: any) => e.id),
+    }));
+  });
+
+  app.get("/exercise-variations/:variationId/equipments", async (request) => {
+    const { personalId } = await getAuthenticatedPersonal(app, request);
+    const variationId = z
+      .string()
+      .uuid()
+      .parse((request.params as { variationId?: string }).variationId);
+
+    const { data, error } = await supabaseAdmin
+      .from("exercise_variation_equipments")
+      .select("equipment_catalog(id,name)")
+      .eq("exercise_variation_id", variationId);
+
+    if (error) throw app.httpErrors.badRequest(error.message);
+
+    return (data ?? [])
+      .map((e: any) => ({ id: e.equipment_catalog?.id, name: e.equipment_catalog?.name }))
+      .filter((e: any) => e.id);
+  });
+
+  app.post(
+    "/exercise-variations/:variationId/generate-description",
+    async (request) => {
+      const { personalId } = await getAuthenticatedPersonal(app, request);
+      const variationId = z
+        .string()
+        .uuid()
+        .parse((request.params as { variationId?: string }).variationId);
+
+      const { data: variation, error: varError } = await supabaseAdmin
+        .from("exercise_variations")
+        .select(
+          "id,name,method,ai_default_description,ai_default_muscle_group_id,exercise_catalog!inner(name),exercise_variation_equipments(equipment_catalog(name)),muscle_groups(name)",
+        )
+        .eq("id", variationId)
+        .or(`personal_id.is.null,personal_id.eq.${personalId}`)
+        .maybeSingle();
+
+      if (varError) throw app.httpErrors.badRequest(varError.message);
+      if (!variation) throw app.httpErrors.notFound("Variation not found");
+
+      // Return cached result if already generated
+      if ((variation as any).ai_default_description) {
+        return {
+          description: (variation as any).ai_default_description as string,
+          muscle_group_name: (variation as any).muscle_groups?.name ?? null,
+          cached: true,
+        };
+      }
+
+      // Load muscle groups for AI to pick from
+      const { data: muscleGroups, error: mgError } = await supabaseAdmin
+        .from("muscle_groups")
+        .select("id,name")
+        .order("name");
+
+      if (mgError) throw app.httpErrors.badRequest(mgError.message);
+
+      const exerciseName =
+        (variation as any).exercise_catalog?.name ?? variation.name;
+      const equipmentNames: string[] = (
+        (variation as any).exercise_variation_equipments ?? []
+      )
+        .map((e: any) => e.equipment_catalog?.name)
+        .filter(Boolean);
+
+      const result = await generateExerciseDescription({
+        exerciseName,
+        variationName: variation.name,
+        method: (variation as any).method ?? null,
+        equipments: equipmentNames,
+        muscleGroups: (muscleGroups ?? []).map((mg: any) => ({
+          id: mg.id,
+          name: mg.name,
+        })),
+      });
+
+      // Persist so next call is cached
+      const { error: updateError } = await supabaseAdmin
+        .from("exercise_variations")
+        .update({
+          ai_default_description: result.description,
+          ai_default_muscle_group_id: result.muscleGroupId,
+        })
+        .eq("id", variationId);
+
+      if (updateError) {
+        app.log.warn(
+          { error: updateError, variationId },
+          "Failed to save AI description for variation",
+        );
+      }
+
+      return {
+        description: result.description,
+        muscle_group_name: result.muscleGroupName,
+        cached: false,
+      };
+    },
+  );
+
+  // ── Workouts ─────────────────────────────────────────────────────────────────
 
   app.post("/workouts", async (request) => {
     const { token, personalId } = await getAuthenticatedPersonal(app, request);

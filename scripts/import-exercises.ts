@@ -16,6 +16,7 @@ type InputRow = {
   description: string | null;
   gifUrl: string | null;
   equipments: string[];
+  method: string | null;
 };
 
 type ExistingSharedExercise = {
@@ -158,6 +159,9 @@ function parseWorkbookRows(filePath: string): InputRow[] {
     const gifUrl =
       pickColumn(row, ["GIF", "Gif", "gif_url", "GIF URL", "Gif URL"]) ||
       null;
+    const method =
+      pickColumn(row, ["Método", "Metodo", "method", "Method"]) ||
+      null;
 
     const equipmentRaw = pickColumn(row, [
       "Equipamento",
@@ -174,6 +178,7 @@ function parseWorkbookRows(filePath: string): InputRow[] {
       description,
       gifUrl,
       equipments: splitCsv(equipmentRaw),
+      method,
     });
   });
 
@@ -329,6 +334,7 @@ async function importExercises() {
     personal_id: null,
     exercise_catalog_id: catalogByName.get(normalizeComparable(row.exerciseName)),
     name: row.variationName,
+    method: row.method,
     short_description: row.description,
     ai_default_description: row.description,
     ai_default_muscle_group_id: row.muscleGroup

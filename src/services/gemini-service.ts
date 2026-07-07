@@ -91,6 +91,94 @@ export async function generateBotResponse(context: {
 }
 
 /**
+ * Gera descrição técnica e grupo muscular para uma variação de exercício via IA.
+ * Retorna valor em cache se ai_default_description já estiver preenchido.
+ */
+export async function generateExerciseDescription(params: {
+  exerciseName: string;
+  variationName: string;
+  method: string | null;
+  equipments: string[];
+  muscleGroups: Array<{ id: string; name: string }>;
+}): Promise<{
+  description: string;
+  muscleGroupId: string | null;
+  muscleGroupName: string | null;
+}> {
+  if (!env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY não configurada");
+  }
+
+  const { exerciseName, variationName, method, equipments, muscleGroups } =
+    params;
+
+  const muscleGroupList = muscleGroups.map((mg) => `- ${mg.name}`).join("\n");
+  const equipmentText = equipments.length
+    ? equipments.join(", ")
+    : "peso corporal ou nenhum";
+  const methodNote = method ? ` Método: ${method}.` : "";
+
+  const prompt = `Você é especialista em musculação. Escreva uma breve descrição técnica (máximo 3 linhas) de como executar este exercício e identifique o grupo muscular principal.
+
+Exercício: ${exerciseName}
+Variação: ${variationName}${methodNote}
+Equipamentos: ${equipmentText}
+
+Responda APENAS com JSON no formato exato abaixo (sem texto extra):
+{"description":"descreva aqui a execução em 1-3 linhas","muscleGroup":"nome do grupo muscular"}
+
+Grupos musculares disponíveis (use exatamente um da lista):
+${muscleGroupList}`;
+
+  const endpoint = `${GEMINI_API_BASE}/models/${GEMINI_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 250,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Gemini API error ${response.status}: ${error}`);
+  }
+
+  const data = (await response.json()) as {
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+    }>;
+  };
+
+  const text =
+    data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+
+  let parsed: { description: string; muscleGroup: string };
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+  } catch {
+    throw new Error(`Gemini retornou resposta inválida: ${text}`);
+  }
+
+  const mgName = (parsed.muscleGroup ?? "").trim();
+  const matched = muscleGroups.find(
+    (mg) => mg.name.toLowerCase() === mgName.toLowerCase(),
+  );
+
+  return {
+    description: (parsed.description ?? "").trim(),
+    muscleGroupId: matched?.id ?? null,
+    muscleGroupName: matched?.name ?? (mgName || null),
+  };
+}
+
+/**
  * Prompt padrão para o coach de treino
  */
 export const COACH_SYSTEM_PROMPT = `Você é o REPZ, um coach de treino virtual via WhatsApp. Sua personalidade é:
