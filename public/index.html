@@ -5066,21 +5066,14 @@
       let variacaoBuscaTimeout = {};
       let equipamentoBuscaTimeout = {};
 
-      function renderTagsEx(containerId, items, removeFn) {
-        const el = document.getElementById(containerId);
-        if (!el) return;
-        el.innerHTML = items.map((item) =>
-          `<span class="tag-chip">
-            ${escapeHtml(item.name)}
-            <button type="button" class="tag-remove" onclick="(${removeFn})(${JSON.stringify(item.id)})" title="Remover">×</button>
-          </span>`
-        ).join("");
-      }
-
       function renderVarTags(index) {
         const items = exVarState[index] || [];
-        renderTagsEx(`exvar_tags_${index}`, items,
-          `function(id){ removeVariacaoItem(${index},id) }`);
+        const el = document.getElementById(`exvar_tags_${index}`);
+        if (el) {
+          el.innerHTML = items.map((item) =>
+            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeVariacaoItem(${index},'${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+          ).join("");
+        }
         document.getElementById(`exvarids_${index}`).value = items.map((i) => i.id).join(",");
         document.getElementById(`exvarid_${index}`).value = items[0]?.id || "";
         updateIAButtonState(index);
@@ -5096,8 +5089,12 @@
 
       function renderEquipTags(index) {
         const items = exEquipState[index] || [];
-        renderTagsEx(`exequip_tags_${index}`, items,
-          `function(id){ removeEquipamentoItem(${index},id) }`);
+        const el = document.getElementById(`exequip_tags_${index}`);
+        if (el) {
+          el.innerHTML = items.map((item) =>
+            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeEquipamentoItem(${index},'${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+          ).join("");
+        }
         document.getElementById(`exequip_ids_${index}`).value = items.map((i) => i.id).join(",");
         document.getElementById(`exequip_id_${index}`).value = items[0]?.id || "";
         updateIAButtonState(index);
@@ -6028,6 +6025,13 @@
         );
 
         if (!variationIds.length) {
+          showAlert(
+            "treinosAlert",
+            "Selecione um exercício e ao menos uma variação.",
+            "error",
+          );
+          return;
+        }
 
         if (!targetSets || !targetReps || targetSets < 1 || targetReps < 1) {
           showAlert(
@@ -6044,8 +6048,9 @@
 
         try {
           let localOrder = Number.isFinite(orderIndex) ? orderIndex : 0;
+          const equipLoop = equipIds.length ? equipIds : [null];
           for (const variationId of variationIds) {
-            for (const equipId of equipIds) {
+            for (const equipId of equipLoop) {
               const payload = {
                 exercise_variation_id: variationId,
                 exercise_catalog_id: catalogId || null,
@@ -6078,8 +6083,6 @@
           }
 
           // Reset cascade fields
-          const catSearch = document.getElementById(`tab_cat_search_${workoutId}`);
-          const catId = document.getElementById(`tab_cat_id_${workoutId}`);
           const catSearch = document.getElementById(`tab_cat_search_${workoutId}`);
           const catId = document.getElementById(`tab_cat_id_${workoutId}`);
           const varId = document.getElementById(`tab_add_var_id_${workoutId}`);
