@@ -99,6 +99,8 @@ const WorkoutCreateSchema = z.object({
           exercise_variation_id: z.string().uuid().optional(),
           exercise_catalog_id: z.string().uuid().optional(),
           equipment_id: z.string().uuid().optional(),
+          grip_footing_id: z.string().uuid().optional(),
+          method_id: z.string().uuid().optional(),
           custom_description: z
             .union([z.string().max(2000), z.null(), z.literal("")])
             .optional(),
@@ -130,6 +132,8 @@ const WorkoutExerciseCreateSchema = z.object({
   exercise_variation_id: z.string().uuid().optional(),
   exercise_catalog_id: z.string().uuid().optional(),
   equipment_id: z.string().uuid().optional(),
+  grip_footing_id: z.string().uuid().optional(),
+  method_id: z.string().uuid().optional(),
   target_sets: z.number().int().positive().max(100),
   target_reps: z.number().int().positive().max(1000),
   target_weight: z.number().nonnegative().max(1000).optional(),
@@ -191,6 +195,8 @@ const WorkoutExercisePatchSchema = z
     rest_seconds: z
       .union([z.number().int().nonnegative().max(3600), z.null()])
       .optional(),
+    grip_footing_id: z.union([z.string().uuid(), z.null()]).optional(),
+    method_id: z.union([z.string().uuid(), z.null()]).optional(),
     custom_description: z
       .union([z.string().max(2000), z.null(), z.literal("")])
       .optional(),
@@ -2025,6 +2031,156 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return { success: true };
   });
 
+  app.get("/grip-footing-catalog", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const query = request.query as { search?: string; limit?: string };
+    const search = (query.search ?? "").trim();
+    const limit = Math.min(
+      Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
+      50,
+    );
+
+    let q = supabaseAdmin
+      .from("grip_footing_catalog")
+      .select("id,name")
+      .order("name", { ascending: true });
+
+    if (search) {
+      q = q.ilike("name", `%${search}%`);
+    }
+
+    const { data, error } = await q.limit(limit);
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data ?? [];
+  });
+
+  app.post("/grip-footing-catalog", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const body = request.body as { name?: string };
+    const name = z.string().min(2).max(120).parse((body?.name ?? "").trim());
+
+    const { data: inserted, error: insertErr } = await supabaseAdmin
+      .from("grip_footing_catalog")
+      .insert({ name })
+      .select("id,name")
+      .maybeSingle();
+
+    if (!insertErr && inserted) return inserted;
+
+    const { data: existing, error: existingErr } = await supabaseAdmin
+      .from("grip_footing_catalog")
+      .select("id,name")
+      .eq("name", name)
+      .maybeSingle();
+
+    if (existingErr) throw app.httpErrors.badRequest(existingErr.message);
+    if (existing) return existing;
+    if (insertErr) throw app.httpErrors.badRequest(insertErr.message);
+    throw app.httpErrors.badRequest("Unable to create grip/footing item");
+  });
+
+  app.delete("/grip-footing-catalog/:id", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+
+    const { data: used, error: usedErr } = await supabaseAdmin
+      .from("workout_exercises")
+      .select("id")
+      .eq("grip_footing_id", id)
+      .limit(1);
+    if (usedErr) throw app.httpErrors.badRequest(usedErr.message);
+    if ((used ?? []).length > 0) {
+      throw app.httpErrors.badRequest(
+        "Grip/footing item is already used in workouts and cannot be removed.",
+      );
+    }
+
+    const { error } = await supabaseAdmin
+      .from("grip_footing_catalog")
+      .delete()
+      .eq("id", id);
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return { success: true };
+  });
+
+  app.get("/method-catalog", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const query = request.query as { search?: string; limit?: string };
+    const search = (query.search ?? "").trim();
+    const limit = Math.min(
+      Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
+      50,
+    );
+
+    let q = supabaseAdmin
+      .from("method_catalog")
+      .select("id,name")
+      .order("name", { ascending: true });
+
+    if (search) {
+      q = q.ilike("name", `%${search}%`);
+    }
+
+    const { data, error } = await q.limit(limit);
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data ?? [];
+  });
+
+  app.post("/method-catalog", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const body = request.body as { name?: string };
+    const name = z.string().min(2).max(120).parse((body?.name ?? "").trim());
+
+    const { data: inserted, error: insertErr } = await supabaseAdmin
+      .from("method_catalog")
+      .insert({ name })
+      .select("id,name")
+      .maybeSingle();
+
+    if (!insertErr && inserted) return inserted;
+
+    const { data: existing, error: existingErr } = await supabaseAdmin
+      .from("method_catalog")
+      .select("id,name")
+      .eq("name", name)
+      .maybeSingle();
+
+    if (existingErr) throw app.httpErrors.badRequest(existingErr.message);
+    if (existing) return existing;
+    if (insertErr) throw app.httpErrors.badRequest(insertErr.message);
+    throw app.httpErrors.badRequest("Unable to create method item");
+  });
+
+  app.delete("/method-catalog/:id", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+
+    const { data: used, error: usedErr } = await supabaseAdmin
+      .from("workout_exercises")
+      .select("id")
+      .eq("method_id", id)
+      .limit(1);
+    if (usedErr) throw app.httpErrors.badRequest(usedErr.message);
+    if ((used ?? []).length > 0) {
+      throw app.httpErrors.badRequest(
+        "Method is already used in workouts and cannot be removed.",
+      );
+    }
+
+    const { error } = await supabaseAdmin
+      .from("method_catalog")
+      .delete()
+      .eq("id", id);
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return { success: true };
+  });
+
   app.post("/exercise-combos/generate-description", async (request) => {
     const { personalId } = await getAuthenticatedPersonal(app, request);
     const body = request.body as {
@@ -2172,6 +2328,8 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
           exercise_variation_id: resolved.exerciseVariationId,
           exercise_catalog_id: (ex as any).exercise_catalog_id ?? null,
           equipment_id: (ex as any).equipment_id ?? null,
+          grip_footing_id: (ex as any).grip_footing_id ?? null,
+          method_id: (ex as any).method_id ?? null,
           target_sets: ex.target_sets,
           target_reps: ex.target_reps,
           target_weight: ex.target_weight ?? null,
@@ -2288,6 +2446,8 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         exercise_variation_id: resolved.exerciseVariationId,
         exercise_catalog_id: parsed.data.exercise_catalog_id ?? null,
         equipment_id: parsed.data.equipment_id ?? null,
+        grip_footing_id: parsed.data.grip_footing_id ?? null,
+        method_id: parsed.data.method_id ?? null,
         target_sets: parsed.data.target_sets,
         target_reps: parsed.data.target_reps,
         target_weight: parsed.data.target_weight ?? null,
@@ -2299,7 +2459,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
             : (parsed.data.custom_description ?? null),
       })
       .select(
-        "id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,created_at",
+        "id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,grip_footing_id,method_id,created_at",
       )
       .single();
 
@@ -2558,7 +2718,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         .eq("id", workoutExerciseId)
         .eq("workout_id", workoutId)
         .select(
-          "id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercises(id,name)",
+          "id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,grip_footing_id,method_id,exercises(id,name)",
         )
         .maybeSingle();
 
@@ -2616,7 +2776,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("student_workouts")
       .select(
-        "id,student_id,workout_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,created_at))",
+        "id,student_id,workout_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,grip_footing_id,method_id,created_at))",
       )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
@@ -2650,7 +2810,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("workout_exercises")
       .select(
-        "id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercise_catalog_id,equipment_id,exercise_variation_id,exercise_catalog(name),exercise_variations(name),equipment_catalog(name),exercises(id,name,description,muscle_group,equipment,gif_url)",
+        "id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercise_catalog_id,equipment_id,grip_footing_id,method_id,exercise_variation_id,exercise_catalog(name),exercise_variations(name),equipment_catalog(name),grip_footing_catalog(name),method_catalog(name),exercises(id,name,description,muscle_group,equipment,gif_url)",
       )
       .eq("workout_id", workoutId)
       .order("order_index", { ascending: true });
@@ -2673,6 +2833,12 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       const equipment = Array.isArray(we.equipment_catalog)
         ? we.equipment_catalog[0]
         : we.equipment_catalog;
+      const gripFooting = Array.isArray((we as any).grip_footing_catalog)
+        ? (we as any).grip_footing_catalog[0]
+        : (we as any).grip_footing_catalog;
+      const method = Array.isArray((we as any).method_catalog)
+        ? (we as any).method_catalog[0]
+        : (we as any).method_catalog;
 
       const displayBaseName =
         catalog?.name ?? exercise?.name ?? "Exercício";
@@ -2686,10 +2852,14 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         exercise_catalog_id: we.exercise_catalog_id ?? null,
         exercise_variation_id: we.exercise_variation_id ?? null,
         equipment_id: we.equipment_id ?? null,
+        grip_footing_id: (we as any).grip_footing_id ?? null,
+        method_id: (we as any).method_id ?? null,
         name: displayName,
         exercise_name: displayBaseName,
         variation_name: variation?.name ?? null,
         equipment_name: equipment?.name ?? null,
+        grip_footing_name: gripFooting?.name ?? null,
+        method_name: method?.name ?? null,
         description: we.custom_description ?? exercise?.description,
         description_default: exercise?.description,
         custom_description: we.custom_description ?? null,

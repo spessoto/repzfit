@@ -1604,9 +1604,9 @@
                 </div>
 
                 <div class="catalog-panel">
-                  <h3>Variações</h3>
+                  <h3>Execuções</h3>
                   <div class="form-group">
-                    <label>Nova variação</label>
+                    <label>Nova execução</label>
                     <input type="text" id="novaVariacaoNome" placeholder="Ex: Inclinado, Unilateral" />
                   </div>
                   <div class="form-group">
@@ -1621,7 +1621,7 @@
                     <input
                       type="text"
                       id="variacoesBuscaExercicios"
-                      placeholder="Buscar variação"
+                      placeholder="Buscar execução"
                       oninput="filtrarVariacoesExercicios(this.value)"
                     />
                   </div>
@@ -1649,6 +1649,52 @@
                     />
                   </div>
                   <div id="equipmentCatalogBody" class="catalog-list-wrap">
+                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
+                  </div>
+                </div>
+
+                <div class="catalog-panel">
+                  <h3>Pegada/Pisada</h3>
+                  <div class="form-group">
+                    <label>Nova pegada/pisada</label>
+                    <input type="text" id="novaPegadaPisadaNome" placeholder="Ex: Pronada, Supinada, Afastada" />
+                  </div>
+                  <button class="btn btn-primary" onclick="criarPegadaPisadaCatalogo()">
+                    Cadastrar
+                  </button>
+                  <div class="form-group" style="margin-top: 12px">
+                    <label>Buscar</label>
+                    <input
+                      type="text"
+                      id="pegadasPisadasBuscaExercicios"
+                      placeholder="Buscar pegada/pisada"
+                      oninput="filtrarPegadasPisadasExercicios(this.value)"
+                    />
+                  </div>
+                  <div id="gripFootingCatalogBody" class="catalog-list-wrap">
+                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
+                  </div>
+                </div>
+
+                <div class="catalog-panel">
+                  <h3>Métodos</h3>
+                  <div class="form-group">
+                    <label>Novo método</label>
+                    <input type="text" id="novoMetodoNome" placeholder="Ex: Drop set, Bi-set, Rest-pause" />
+                  </div>
+                  <button class="btn btn-primary" onclick="criarMetodoCatalogo()">
+                    Cadastrar
+                  </button>
+                  <div class="form-group" style="margin-top: 12px">
+                    <label>Buscar</label>
+                    <input
+                      type="text"
+                      id="metodosBuscaExercicios"
+                      placeholder="Buscar método"
+                      oninput="filtrarMetodosExercicios(this.value)"
+                    />
+                  </div>
+                  <div id="methodCatalogBody" class="catalog-list-wrap">
                     <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
                   </div>
                 </div>
@@ -5249,10 +5295,14 @@
         const variacao = document.getElementById("novaVariacaoNome");
         const variacaoGif = document.getElementById("novaVariacaoGifUrl");
         const equipamento = document.getElementById("novoEquipamentoNome");
+        const pegadaPisada = document.getElementById("novaPegadaPisadaNome");
+        const metodo = document.getElementById("novoMetodoNome");
         if (catalogo) catalogo.value = "";
         if (variacao) variacao.value = "";
         if (variacaoGif) variacaoGif.value = "";
         if (equipamento) equipamento.value = "";
+        if (pegadaPisada) pegadaPisada.value = "";
+        if (metodo) metodo.value = "";
         document.getElementById("exerciciosAlert").innerHTML = "";
         exerciciosSimilaresCache = [];
       }
@@ -5260,6 +5310,8 @@
       let catalogoBuscaAtual = "";
       let variacaoBuscaAtual = "";
       let equipamentoBuscaAtual = "";
+      let pegadaPisadaBuscaAtual = "";
+      let metodoBuscaAtual = "";
 
       async function criarCatalogoExercicio() {
         const nome = document.getElementById("novoCatalogoNome")?.value?.trim();
@@ -5292,7 +5344,7 @@
         const nome = document.getElementById("novaVariacaoNome")?.value?.trim();
         const gifUrl = document.getElementById("novaVariacaoGifUrl")?.value?.trim();
         if (!nome) {
-          showAlert("exerciciosAlert", "Informe o nome da variação.", "error");
+          showAlert("exerciciosAlert", "Informe o nome da execução.", "error");
           return;
         }
 
@@ -5307,14 +5359,68 @@
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar variação.", "error");
+          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar execução.", "error");
           return;
         }
 
         document.getElementById("novaVariacaoNome").value = "";
         document.getElementById("novaVariacaoGifUrl").value = "";
-        showAlert("exerciciosAlert", "Variação cadastrada com sucesso.", "success");
+        showAlert("exerciciosAlert", "Execução cadastrada com sucesso.", "success");
         await carregarVariacoesExercicios();
+      }
+
+      async function criarPegadaPisadaCatalogo() {
+        const nome = document.getElementById("novaPegadaPisadaNome")?.value?.trim();
+        if (!nome) {
+          showAlert("exerciciosAlert", "Informe o nome da pegada/pisada.", "error");
+          return;
+        }
+
+        const response = await fetch(`${getApiBaseUrl()}/api/grip-footing-catalog`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ name: nome }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar pegada/pisada.", "error");
+          return;
+        }
+
+        document.getElementById("novaPegadaPisadaNome").value = "";
+        showAlert("exerciciosAlert", "Pegada/Pisada cadastrada com sucesso.", "success");
+        await carregarPegadasPisadasExercicios();
+      }
+
+      async function criarMetodoCatalogo() {
+        const nome = document.getElementById("novoMetodoNome")?.value?.trim();
+        if (!nome) {
+          showAlert("exerciciosAlert", "Informe o nome do método.", "error");
+          return;
+        }
+
+        const response = await fetch(`${getApiBaseUrl()}/api/method-catalog`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ name: nome }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar método.", "error");
+          return;
+        }
+
+        document.getElementById("novoMetodoNome").value = "";
+        showAlert("exerciciosAlert", "Método cadastrado com sucesso.", "success");
+        await carregarMetodosExercicios();
       }
 
       async function criarEquipamentoCatalogo() {
@@ -5419,7 +5525,7 @@
           const body = document.getElementById("exerciseVariationsBody");
           if (!body) return;
           if (!variacoes.length) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhuma variação encontrada.</span></div>';
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhuma execução encontrada.</span></div>';
             return;
           }
 
@@ -5428,7 +5534,7 @@
               (v) => `
                 <div class="catalog-row">
                   <div>
-                    <div class="catalog-row-title">${escapeHtml(v.name || "Variação")}</div>
+                    <div class="catalog-row-title">${escapeHtml(v.name || "Execução")}</div>
                     <div class="catalog-row-sub">${v.gif_url ? `GIF: ${escapeHtml(v.gif_url)}` : "Sem GIF"}</div>
                   </div>
                   <button class="btn btn-danger" onclick="excluirVariacaoExercicio('${escapeHtml(v.id)}','${escapeHtml(String(v.name || "")).replace(/'/g, "\\'")}')">Excluir</button>
@@ -5439,7 +5545,105 @@
         } catch (error) {
           const body = document.getElementById("exerciseVariationsBody");
           if (body) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar variações.</span></div>';
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar execuções.</span></div>';
+          }
+        }
+      }
+
+      async function carregarPegadasPisadasExercicios() {
+        try {
+          const searchParam = pegadaPisadaBuscaAtual
+            ? `?search=${encodeURIComponent(pegadaPisadaBuscaAtual)}&limit=80`
+            : "?limit=80";
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/grip-footing-catalog${searchParam}`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const itens = (await response.json()) || [];
+          const body = document.getElementById("gripFootingCatalogBody");
+          if (!body) return;
+          if (!itens.length) {
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhuma pegada/pisada encontrada.</span></div>';
+            return;
+          }
+
+          body.innerHTML = itens
+            .map(
+              (item) => `
+                <div class="catalog-row">
+                  <div>
+                    <div class="catalog-row-title">${escapeHtml(item.name || "Pegada/Pisada")}</div>
+                  </div>
+                  <button class="btn btn-danger" onclick="excluirPegadaPisadaExercicio('${escapeHtml(item.id)}','${escapeHtml(String(item.name || "")).replace(/'/g, "\\'")}')">Excluir</button>
+                </div>
+            `,
+            )
+            .join("");
+        } catch (error) {
+          const body = document.getElementById("gripFootingCatalogBody");
+          if (body) {
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar pegadas/pisadas.</span></div>';
+          }
+        }
+      }
+
+      async function carregarMetodosExercicios() {
+        try {
+          const searchParam = metodoBuscaAtual
+            ? `?search=${encodeURIComponent(metodoBuscaAtual)}&limit=80`
+            : "?limit=80";
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/method-catalog${searchParam}`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const itens = (await response.json()) || [];
+          const body = document.getElementById("methodCatalogBody");
+          if (!body) return;
+          if (!itens.length) {
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhum método encontrado.</span></div>';
+            return;
+          }
+
+          body.innerHTML = itens
+            .map(
+              (item) => `
+                <div class="catalog-row">
+                  <div>
+                    <div class="catalog-row-title">${escapeHtml(item.name || "Método")}</div>
+                  </div>
+                  <button class="btn btn-danger" onclick="excluirMetodoExercicio('${escapeHtml(item.id)}','${escapeHtml(String(item.name || "")).replace(/'/g, "\\'")}')">Excluir</button>
+                </div>
+            `,
+            )
+            .join("");
+        } catch (error) {
+          const body = document.getElementById("methodCatalogBody");
+          if (body) {
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar métodos.</span></div>';
           }
         }
       }
@@ -5498,6 +5702,8 @@
           carregarCatalogoExercicios(),
           carregarVariacoesExercicios(),
           carregarEquipamentosExercicios(),
+          carregarPegadasPisadasExercicios(),
+          carregarMetodosExercicios(),
         ]);
       }
 
@@ -5519,6 +5725,18 @@
         exerciciosFiltroTimeout = setTimeout(() => carregarEquipamentosExercicios(), 250);
       }
 
+      function filtrarPegadasPisadasExercicios(valor) {
+        pegadaPisadaBuscaAtual = (valor || "").trim();
+        if (exerciciosFiltroTimeout) clearTimeout(exerciciosFiltroTimeout);
+        exerciciosFiltroTimeout = setTimeout(() => carregarPegadasPisadasExercicios(), 250);
+      }
+
+      function filtrarMetodosExercicios(valor) {
+        metodoBuscaAtual = (valor || "").trim();
+        if (exerciciosFiltroTimeout) clearTimeout(exerciciosFiltroTimeout);
+        exerciciosFiltroTimeout = setTimeout(() => carregarMetodosExercicios(), 250);
+      }
+
       async function excluirCatalogoExercicio(id, nome) {
         if (!confirm(`Deseja excluir o exercício "${nome}"?`)) return;
         const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog/${id}`, {
@@ -5535,18 +5753,48 @@
       }
 
       async function excluirVariacaoExercicio(id, nome) {
-        if (!confirm(`Deseja excluir a variação "${nome}"?`)) return;
+        if (!confirm(`Deseja excluir a execução "${nome}"?`)) return;
         const response = await fetch(`${getApiBaseUrl()}/api/exercise-variations/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${authToken}` },
         });
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          showAlert("exerciciosAlert", err.message || "Erro ao excluir variação.", "error");
+          showAlert("exerciciosAlert", err.message || "Erro ao excluir execução.", "error");
           return;
         }
-        showAlert("exerciciosAlert", "Variação excluída.", "success");
+        showAlert("exerciciosAlert", "Execução excluída.", "success");
         await carregarVariacoesExercicios();
+      }
+
+      async function excluirPegadaPisadaExercicio(id, nome) {
+        if (!confirm(`Deseja excluir a pegada/pisada "${nome}"?`)) return;
+        const response = await fetch(`${getApiBaseUrl()}/api/grip-footing-catalog/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          showAlert("exerciciosAlert", err.message || "Erro ao excluir pegada/pisada.", "error");
+          return;
+        }
+        showAlert("exerciciosAlert", "Pegada/Pisada excluída.", "success");
+        await carregarPegadasPisadasExercicios();
+      }
+
+      async function excluirMetodoExercicio(id, nome) {
+        if (!confirm(`Deseja excluir o método "${nome}"?`)) return;
+        const response = await fetch(`${getApiBaseUrl()}/api/method-catalog/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          showAlert("exerciciosAlert", err.message || "Erro ao excluir método.", "error");
+          return;
+        }
+        showAlert("exerciciosAlert", "Método excluído.", "success");
+        await carregarMetodosExercicios();
       }
 
       async function excluirEquipamentoExercicio(id, nome) {
@@ -5643,24 +5891,45 @@
             <div id="excat_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
           </div>
 
+          <div id="exequip_wrapper_${index}" class="form-group" style="position:relative;">
+            <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+            <div id="exequip_tags_${index}" class="tag-container"></div>
+            <input type="text" id="exequip_search_${index}" placeholder="Digite para buscar equipamento..." autocomplete="off"
+                   oninput="buscarEquipamento(${index}, this.value)" onfocus="buscarEquipamento(${index}, this.value)" />
+            <input type="hidden" id="exequip_id_${index}" />
+            <input type="hidden" id="exequip_ids_${index}" />
+            <div id="exequip_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+          </div>
+
           <div id="exvar_wrapper_${index}" class="form-group" style="position:relative;">
-            <label>Variação <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+            <label>Execução <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
             <div id="exvar_tags_${index}" class="tag-container"></div>
-            <input type="text" id="exvar_search_${index}" placeholder="Digite para buscar variação..." autocomplete="off"
+            <input type="text" id="exvar_search_${index}" placeholder="Digite para buscar execução..." autocomplete="off"
                    oninput="buscarVariacao(${index}, this.value)" onfocus="buscarVariacao(${index}, this.value)" />
             <div id="exvar_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
           </div>
 
+          <div id="exgrip_wrapper_${index}" class="form-group" style="position:relative;">
+            <label>Pegada/Pisada <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+            <div id="exgrip_tags_${index}" class="tag-container"></div>
+            <input type="text" id="exgrip_search_${index}" placeholder="Digite para buscar pegada/pisada..." autocomplete="off"
+                   oninput="buscarPegadaPisada(${index}, this.value)" onfocus="buscarPegadaPisada(${index}, this.value)" />
+            <input type="hidden" id="exgrip_id_${index}" />
+            <input type="hidden" id="exgrip_ids_${index}" />
+            <div id="exgrip_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+          </div>
+
+          <div id="exmethod_wrapper_${index}" class="form-group" style="position:relative;">
+            <label>Método <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+            <div id="exmethod_tags_${index}" class="tag-container"></div>
+            <input type="text" id="exmethod_search_${index}" placeholder="Digite para buscar método..." autocomplete="off"
+                   oninput="buscarMetodo(${index}, this.value)" onfocus="buscarMetodo(${index}, this.value)" />
+            <input type="hidden" id="exmethod_id_${index}" />
+            <input type="hidden" id="exmethod_ids_${index}" />
+            <div id="exmethod_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+          </div>
+
           <div id="exmeta_wrapper_${index}" style="display:block;">
-            <div class="form-group" style="position:relative;margin-bottom:10px;">
-              <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-              <div id="exequip_tags_${index}" class="tag-container"></div>
-              <input type="text" id="exequip_search_${index}" placeholder="Digite para buscar equipamento..." autocomplete="off"
-                     oninput="buscarEquipamento(${index}, this.value)" onfocus="buscarEquipamento(${index}, this.value)" />
-              <input type="hidden" id="exequip_id_${index}" />
-              <input type="hidden" id="exequip_ids_${index}" />
-              <div id="exequip_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
-            </div>
             <div class="form-group">
               <label>Descrição para o aluno <small style="font-weight:400;color:#6b7280;">(editável)</small></label>
               <textarea id="exdesc_${index}" rows="2" placeholder="Carregando..."></textarea>
@@ -5699,11 +5968,15 @@
       // ── Estado in-memory para multi-seleção ──────────────────────────────────
       const exVarState = {};    // { [index]: [{id, name}] }
       const exEquipState = {};  // { [index]: [{id, name}] }
+      const exGripState = {};   // { [index]: [{id, name}] }
+      const exMethodState = {}; // { [index]: [{id, name}] }
 
       // Caches para seleção em cascata – Novo Treino
       let catalogoBuscaTimeout = {};
       let variacaoBuscaTimeout = {};
       let equipamentoBuscaTimeout = {};
+      let gripBuscaTimeout = {};
+      let methodBuscaTimeout = {};
 
       function renderVarTags(index) {
         const items = exVarState[index] || [];
@@ -5739,6 +6012,40 @@
       function removeEquipamentoItem(index, id) {
         exEquipState[index] = (exEquipState[index] || []).filter((i) => i.id !== id);
         renderEquipTags(index);
+      }
+
+      function renderGripTags(index) {
+        const items = exGripState[index] || [];
+        const el = document.getElementById(`exgrip_tags_${index}`);
+        if (el) {
+          el.innerHTML = items.map((item) =>
+            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removePegadaPisadaItem(${index},'${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+          ).join("");
+        }
+        document.getElementById(`exgrip_ids_${index}`).value = items.map((i) => i.id).join(",");
+        document.getElementById(`exgrip_id_${index}`).value = items[0]?.id || "";
+      }
+
+      function removePegadaPisadaItem(index, id) {
+        exGripState[index] = (exGripState[index] || []).filter((i) => i.id !== id);
+        renderGripTags(index);
+      }
+
+      function renderMethodTags(index) {
+        const items = exMethodState[index] || [];
+        const el = document.getElementById(`exmethod_tags_${index}`);
+        if (el) {
+          el.innerHTML = items.map((item) =>
+            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeMetodoItem(${index},'${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+          ).join("");
+        }
+        document.getElementById(`exmethod_ids_${index}`).value = items.map((i) => i.id).join(",");
+        document.getElementById(`exmethod_id_${index}`).value = items[0]?.id || "";
+      }
+
+      function removeMetodoItem(index, id) {
+        exMethodState[index] = (exMethodState[index] || []).filter((i) => i.id !== id);
+        renderMethodTags(index);
       }
 
       function updateIAButtonState(index) {
@@ -5786,14 +6093,23 @@
         document.getElementById(`excat_search_${index}`).value = catalogName;
         document.getElementById(`excat_id_${index}`).value = catalogId;
         document.getElementById(`excat_dropdown_${index}`).style.display = "none";
-        // Reset variação e equipamento
+        // Reset execução e equipamento
         exVarState[index] = [];
         exEquipState[index] = [];
+        exGripState[index] = [];
+        exMethodState[index] = [];
         renderVarTags(index);
         renderEquipTags(index);
+        renderGripTags(index);
+        renderMethodTags(index);
         document.getElementById(`exvar_search_${index}`).value = "";
         document.getElementById(`exequip_search_${index}`).value = "";
+        document.getElementById(`exgrip_search_${index}`).value = "";
+        document.getElementById(`exmethod_search_${index}`).value = "";
+        document.getElementById(`exequip_wrapper_${index}`).style.display = "block";
         document.getElementById(`exvar_wrapper_${index}`).style.display = "block";
+        document.getElementById(`exgrip_wrapper_${index}`).style.display = "block";
+        document.getElementById(`exmethod_wrapper_${index}`).style.display = "block";
         document.getElementById(`exmeta_wrapper_${index}`).style.display = "block";
         updateIAButtonState(index);
       }
@@ -5814,7 +6130,7 @@
             if (!res.ok) return;
             const items = await res.json();
             if (!items.length) {
-              dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Nenhuma variação encontrada.</div>';
+              dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Nenhuma execução encontrada.</div>';
               dropdown.style.display = "block";
               return;
             }
@@ -5827,7 +6143,7 @@
             `).join("");
             dropdown.style.display = "block";
           } catch (e) {
-            console.error("Erro ao buscar variação:", e);
+            console.error("Erro ao buscar execução:", e);
           }
         }, 300);
       }
@@ -5879,6 +6195,80 @@
         renderEquipTags(index);
       }
 
+      async function buscarPegadaPisada(index, termo) {
+        if (gripBuscaTimeout[index]) clearTimeout(gripBuscaTimeout[index]);
+        const dropdown = document.getElementById(`exgrip_dropdown_${index}`);
+        if (!dropdown) return;
+        const query = (termo || "").trim();
+        if (!query) { dropdown.style.display = "none"; return; }
+        gripBuscaTimeout[index] = setTimeout(async () => {
+          try {
+            const res = await fetch(
+              `${getApiBaseUrl()}/api/grip-footing-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.style.display = "none"; return; }
+            dropdown.innerHTML = items.map(item => `
+              <div class="autocomplete-item"
+                   onclick="selecionarPegadaPisadaItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
+                   onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                ${escapeHtml(item.name)}
+              </div>
+            `).join("");
+            dropdown.style.display = "block";
+          } catch (e) {}
+        }, 250);
+      }
+
+      function selecionarPegadaPisadaItem(index, gripId, gripName) {
+        document.getElementById(`exgrip_search_${index}`).value = "";
+        document.getElementById(`exgrip_dropdown_${index}`).style.display = "none";
+        if (!exGripState[index]) exGripState[index] = [];
+        if (!exGripState[index].find((i) => i.id === gripId)) {
+          exGripState[index].push({ id: gripId, name: gripName });
+        }
+        renderGripTags(index);
+      }
+
+      async function buscarMetodo(index, termo) {
+        if (methodBuscaTimeout[index]) clearTimeout(methodBuscaTimeout[index]);
+        const dropdown = document.getElementById(`exmethod_dropdown_${index}`);
+        if (!dropdown) return;
+        const query = (termo || "").trim();
+        if (!query) { dropdown.style.display = "none"; return; }
+        methodBuscaTimeout[index] = setTimeout(async () => {
+          try {
+            const res = await fetch(
+              `${getApiBaseUrl()}/api/method-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.style.display = "none"; return; }
+            dropdown.innerHTML = items.map(item => `
+              <div class="autocomplete-item"
+                   onclick="selecionarMetodoItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
+                   onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                ${escapeHtml(item.name)}
+              </div>
+            `).join("");
+            dropdown.style.display = "block";
+          } catch (e) {}
+        }, 250);
+      }
+
+      function selecionarMetodoItem(index, methodId, methodName) {
+        document.getElementById(`exmethod_search_${index}`).value = "";
+        document.getElementById(`exmethod_dropdown_${index}`).style.display = "none";
+        if (!exMethodState[index]) exMethodState[index] = [];
+        if (!exMethodState[index].find((i) => i.id === methodId)) {
+          exMethodState[index].push({ id: methodId, name: methodName });
+        }
+        renderMethodTags(index);
+      }
+
       async function gerarDescricaoExercicioIA(index) {
         const catalogId = document.getElementById(`excat_id_${index}`)?.value;
         const varItems = exVarState[index] || [];
@@ -5913,7 +6303,7 @@
 
       // Fechar dropdown ao clicar fora
       document.addEventListener("click", function (e) {
-        if (!e.target.matches('[id^="excat_search_"], [id^="tab_cat_search_"], [id^="exvar_search_"], [id^="exequip_search_"], [id^="tab_var_search_"], [id^="tab_equip_search_"]')) {
+        if (!e.target.matches('[id^="excat_search_"], [id^="tab_cat_search_"], [id^="exvar_search_"], [id^="exequip_search_"], [id^="exgrip_search_"], [id^="exmethod_search_"], [id^="tab_var_search_"], [id^="tab_equip_search_"], [id^="tab_grip_search_"], [id^="tab_method_search_"]')) {
           document
             .querySelectorAll(".autocomplete-dropdown")
             .forEach((dropdown) => {
@@ -5953,6 +6343,8 @@
           const variationIds = (document.getElementById(`exvarids_${i}`)?.value || "").split(",").filter(Boolean);
           const catalogId = document.getElementById(`excat_id_${i}`)?.value;
           const equipIds = (document.getElementById(`exequip_ids_${i}`)?.value || "").split(",").filter(Boolean);
+          const gripIds = (document.getElementById(`exgrip_ids_${i}`)?.value || "").split(",").filter(Boolean);
+          const methodIds = (document.getElementById(`exmethod_ids_${i}`)?.value || "").split(",").filter(Boolean);
           const series = Number(document.getElementById(`series_${i}`)?.value);
           const reps = Number(document.getElementById(`reps_${i}`)?.value);
           const peso = document.getElementById(`peso_${i}`)?.value;
@@ -5984,20 +6376,28 @@
 
           const variationLoop = variationIds.length ? variationIds : [null];
           const equipLoop = equipIds.length ? equipIds : [null];
+          const gripLoop = gripIds.length ? gripIds : [null];
+          const methodLoop = methodIds.length ? methodIds : [null];
           for (const variationId of variationLoop) {
             for (const equipId of equipLoop) {
-              exercises.push({
-                exercise_variation_id: variationId,
-                exercise_catalog_id: catalogId,
-                equipment_id: equipId,
-                target_sets: series,
-                target_reps: reps,
-                target_weight: peso ? parseFloat(peso) : null,
-                order_index: orderCounter,
-                rest_seconds: descanso ? parseInt(descanso) : null,
-                custom_description: customDesc || null,
-              });
-              orderCounter += 1;
+              for (const gripId of gripLoop) {
+                for (const methodId of methodLoop) {
+                  exercises.push({
+                    exercise_variation_id: variationId,
+                    exercise_catalog_id: catalogId,
+                    equipment_id: equipId,
+                    grip_footing_id: gripId,
+                    method_id: methodId,
+                    target_sets: series,
+                    target_reps: reps,
+                    target_weight: peso ? parseFloat(peso) : null,
+                    order_index: orderCounter,
+                    rest_seconds: descanso ? parseInt(descanso) : null,
+                    custom_description: customDesc || null,
+                  });
+                  orderCounter += 1;
+                }
+              }
             }
           }
         }
@@ -6178,24 +6578,45 @@
                           <div id="tab_cat_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
                         </div>
 
+                        <div id="tab_equip_wrapper_${treino.id}" class="form-group" style="margin-bottom:8px; position:relative;">
+                          <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                          <div id="tab_equip_tags_${treino.id}" class="tag-container"></div>
+                          <input type="text" id="tab_equip_search_${treino.id}" placeholder="Digite para buscar equipamento..." autocomplete="off"
+                                 oninput="buscarEquipamentoEdicao('${treino.id}', this.value)" onfocus="buscarEquipamentoEdicao('${treino.id}', this.value)" />
+                          <input type="hidden" id="tab_equip_id_${treino.id}" />
+                          <input type="hidden" id="tab_equip_ids_${treino.id}" />
+                          <div id="tab_equip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                        </div>
+
                         <div id="tab_var_wrapper_${treino.id}" class="form-group" style="margin-bottom:8px; position:relative;">
-                          <label>Variação <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                          <label>Execução <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
                           <div id="tab_var_tags_${treino.id}" class="tag-container"></div>
-                          <input type="text" id="tab_var_search_${treino.id}" placeholder="Digite para buscar variação..." autocomplete="off"
+                          <input type="text" id="tab_var_search_${treino.id}" placeholder="Digite para buscar execução..." autocomplete="off"
                                  oninput="buscarVariacaoEdicao('${treino.id}', this.value)" onfocus="buscarVariacaoEdicao('${treino.id}', this.value)" />
                           <div id="tab_var_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
                         </div>
 
+                        <div id="tab_grip_wrapper_${treino.id}" class="form-group" style="margin-bottom:8px; position:relative;">
+                          <label>Pegada/Pisada <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                          <div id="tab_grip_tags_${treino.id}" class="tag-container"></div>
+                          <input type="text" id="tab_grip_search_${treino.id}" placeholder="Digite para buscar pegada/pisada..." autocomplete="off"
+                                 oninput="buscarPegadaPisadaEdicao('${treino.id}', this.value)" onfocus="buscarPegadaPisadaEdicao('${treino.id}', this.value)" />
+                          <input type="hidden" id="tab_grip_id_${treino.id}" />
+                          <input type="hidden" id="tab_grip_ids_${treino.id}" />
+                          <div id="tab_grip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                        </div>
+
+                        <div id="tab_method_wrapper_${treino.id}" class="form-group" style="margin-bottom:8px; position:relative;">
+                          <label>Método <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                          <div id="tab_method_tags_${treino.id}" class="tag-container"></div>
+                          <input type="text" id="tab_method_search_${treino.id}" placeholder="Digite para buscar método..." autocomplete="off"
+                                 oninput="buscarMetodoEdicao('${treino.id}', this.value)" onfocus="buscarMetodoEdicao('${treino.id}', this.value)" />
+                          <input type="hidden" id="tab_method_id_${treino.id}" />
+                          <input type="hidden" id="tab_method_ids_${treino.id}" />
+                          <div id="tab_method_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                        </div>
+
                         <div id="tab_meta_wrapper_${treino.id}" style="display:block; margin-bottom:8px;">
-                          <div class="form-group" style="position:relative;margin-bottom:8px;">
-                            <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-                            <div id="tab_equip_tags_${treino.id}" class="tag-container"></div>
-                            <input type="text" id="tab_equip_search_${treino.id}" placeholder="Digite para buscar equipamento..." autocomplete="off"
-                                   oninput="buscarEquipamentoEdicao('${treino.id}', this.value)" onfocus="buscarEquipamentoEdicao('${treino.id}', this.value)" />
-                            <input type="hidden" id="tab_equip_id_${treino.id}" />
-                            <input type="hidden" id="tab_equip_ids_${treino.id}" />
-                            <div id="tab_equip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
-                          </div>
                           <div class="form-group">
                             <label>Descrição para o aluno <small style="font-weight:400;color:#6b7280;">(editável)</small></label>
                             <textarea id="tab_desc_${treino.id}" rows="2" placeholder="Descrição gerada pela IA..."></textarea>
@@ -6425,8 +6846,12 @@
       const catalogoEdicaoBuscaTimeout = {};
       const variacaoEdicaoBuscaTimeout = {};
       const equipamentoEdicaoBuscaTimeout = {};
+      const gripEdicaoBuscaTimeout = {};
+      const methodEdicaoBuscaTimeout = {};
       const tabVarState = {};
       const tabEquipState = {};
+      const tabGripState = {};
+      const tabMethodState = {};
 
       function renderTabVarTags(workoutId) {
         const items = tabVarState[workoutId] || [];
@@ -6462,6 +6887,40 @@
       function removeTabEquipItem(workoutId, id) {
         tabEquipState[workoutId] = (tabEquipState[workoutId] || []).filter((i) => i.id !== id);
         renderTabEquipTags(workoutId);
+      }
+
+      function renderTabGripTags(workoutId) {
+        const items = tabGripState[workoutId] || [];
+        const el = document.getElementById(`tab_grip_tags_${workoutId}`);
+        if (el) el.innerHTML = items.map((item) =>
+          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabGripItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+        ).join("");
+        const first = document.getElementById(`tab_grip_id_${workoutId}`);
+        if (first) first.value = items[0]?.id || "";
+        const all = document.getElementById(`tab_grip_ids_${workoutId}`);
+        if (all) all.value = items.map((i) => i.id).join(",");
+      }
+
+      function removeTabGripItem(workoutId, id) {
+        tabGripState[workoutId] = (tabGripState[workoutId] || []).filter((i) => i.id !== id);
+        renderTabGripTags(workoutId);
+      }
+
+      function renderTabMethodTags(workoutId) {
+        const items = tabMethodState[workoutId] || [];
+        const el = document.getElementById(`tab_method_tags_${workoutId}`);
+        if (el) el.innerHTML = items.map((item) =>
+          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabMethodItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+        ).join("");
+        const first = document.getElementById(`tab_method_id_${workoutId}`);
+        if (first) first.value = items[0]?.id || "";
+        const all = document.getElementById(`tab_method_ids_${workoutId}`);
+        if (all) all.value = items.map((i) => i.id).join(",");
+      }
+
+      function removeTabMethodItem(workoutId, id) {
+        tabMethodState[workoutId] = (tabMethodState[workoutId] || []).filter((i) => i.id !== id);
+        renderTabMethodTags(workoutId);
       }
 
       function updateIAButtonStateEdicao(workoutId) {
@@ -6513,14 +6972,28 @@
         if (catDropdown) catDropdown.style.display = "none";
         tabVarState[workoutId] = [];
         tabEquipState[workoutId] = [];
+        tabGripState[workoutId] = [];
+        tabMethodState[workoutId] = [];
         renderTabVarTags(workoutId);
         renderTabEquipTags(workoutId);
+        renderTabGripTags(workoutId);
+        renderTabMethodTags(workoutId);
         const varSearch = document.getElementById(`tab_var_search_${workoutId}`);
         if (varSearch) varSearch.value = "";
         const equipSearch = document.getElementById(`tab_equip_search_${workoutId}`);
         if (equipSearch) equipSearch.value = "";
+        const gripSearch = document.getElementById(`tab_grip_search_${workoutId}`);
+        if (gripSearch) gripSearch.value = "";
+        const methodSearch = document.getElementById(`tab_method_search_${workoutId}`);
+        if (methodSearch) methodSearch.value = "";
+        const equipWrapper = document.getElementById(`tab_equip_wrapper_${workoutId}`);
+        if (equipWrapper) equipWrapper.style.display = "block";
         const varWrapper = document.getElementById(`tab_var_wrapper_${workoutId}`);
         if (varWrapper) varWrapper.style.display = "block";
+        const gripWrapper = document.getElementById(`tab_grip_wrapper_${workoutId}`);
+        if (gripWrapper) gripWrapper.style.display = "block";
+        const methodWrapper = document.getElementById(`tab_method_wrapper_${workoutId}`);
+        if (methodWrapper) methodWrapper.style.display = "block";
         const metaWrapper = document.getElementById(`tab_meta_wrapper_${workoutId}`);
         if (metaWrapper) metaWrapper.style.display = "block";
         updateIAButtonStateEdicao(workoutId);
@@ -6541,7 +7014,7 @@
             if (!res.ok) return;
             const items = await res.json();
             if (!items.length) {
-              dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhuma variação encontrada.</div>';
+              dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhuma execução encontrada.</div>';
               dropdown.style.display = "block";
               return;
             }
@@ -6610,6 +7083,84 @@
         renderTabEquipTags(workoutId);
       }
 
+      async function buscarPegadaPisadaEdicao(workoutId, termo) {
+        if (gripEdicaoBuscaTimeout[workoutId]) clearTimeout(gripEdicaoBuscaTimeout[workoutId]);
+        const dropdown = document.getElementById(`tab_grip_dropdown_${workoutId}`);
+        if (!dropdown) return;
+        const query = (termo || "").trim();
+        if (!query) { dropdown.style.display = "none"; return; }
+        gripEdicaoBuscaTimeout[workoutId] = setTimeout(async () => {
+          try {
+            const res = await fetch(
+              `${getApiBaseUrl()}/api/grip-footing-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.style.display = "none"; return; }
+            dropdown.innerHTML = items.map(item => `
+              <div class="autocomplete-item"
+                   onclick="selecionarPegadaPisadaEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
+                   onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                ${escapeHtml(item.name)}
+              </div>
+            `).join("");
+            dropdown.style.display = "block";
+          } catch (e) {}
+        }, 250);
+      }
+
+      function selecionarPegadaPisadaEdicaoItem(workoutId, gripId, gripName) {
+        const search = document.getElementById(`tab_grip_search_${workoutId}`);
+        if (search) search.value = "";
+        const dropdown = document.getElementById(`tab_grip_dropdown_${workoutId}`);
+        if (dropdown) dropdown.style.display = "none";
+        if (!tabGripState[workoutId]) tabGripState[workoutId] = [];
+        if (!tabGripState[workoutId].find((i) => i.id === gripId)) {
+          tabGripState[workoutId].push({ id: gripId, name: gripName });
+        }
+        renderTabGripTags(workoutId);
+      }
+
+      async function buscarMetodoEdicao(workoutId, termo) {
+        if (methodEdicaoBuscaTimeout[workoutId]) clearTimeout(methodEdicaoBuscaTimeout[workoutId]);
+        const dropdown = document.getElementById(`tab_method_dropdown_${workoutId}`);
+        if (!dropdown) return;
+        const query = (termo || "").trim();
+        if (!query) { dropdown.style.display = "none"; return; }
+        methodEdicaoBuscaTimeout[workoutId] = setTimeout(async () => {
+          try {
+            const res = await fetch(
+              `${getApiBaseUrl()}/api/method-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.style.display = "none"; return; }
+            dropdown.innerHTML = items.map(item => `
+              <div class="autocomplete-item"
+                   onclick="selecionarMetodoEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
+                   onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                ${escapeHtml(item.name)}
+              </div>
+            `).join("");
+            dropdown.style.display = "block";
+          } catch (e) {}
+        }, 250);
+      }
+
+      function selecionarMetodoEdicaoItem(workoutId, methodId, methodName) {
+        const search = document.getElementById(`tab_method_search_${workoutId}`);
+        if (search) search.value = "";
+        const dropdown = document.getElementById(`tab_method_dropdown_${workoutId}`);
+        if (dropdown) dropdown.style.display = "none";
+        if (!tabMethodState[workoutId]) tabMethodState[workoutId] = [];
+        if (!tabMethodState[workoutId].find((i) => i.id === methodId)) {
+          tabMethodState[workoutId].push({ id: methodId, name: methodName });
+        }
+        renderTabMethodTags(workoutId);
+      }
+
       async function gerarDescricaoExercicioIAEdicao(workoutId) {
         const catalogId = document.getElementById(`tab_cat_id_${workoutId}`)?.value;
         const varItems = tabVarState[workoutId] || [];
@@ -6646,6 +7197,8 @@
         const variationIds = (document.getElementById(`tab_add_var_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
         const catalogId = document.getElementById(`tab_cat_id_${workoutId}`)?.value;
         const equipIds = (document.getElementById(`tab_equip_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
+        const gripIds = (document.getElementById(`tab_grip_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
+        const methodIds = (document.getElementById(`tab_method_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
         const targetSets = Number(
           document.getElementById(`tab_add_sets_${workoutId}`)?.value || 0,
         );
@@ -6682,35 +7235,43 @@
           let localOrder = Number.isFinite(orderIndex) ? orderIndex : 0;
           const variationLoop = variationIds.length ? variationIds : [null];
           const equipLoop = equipIds.length ? equipIds : [null];
+          const gripLoop = gripIds.length ? gripIds : [null];
+          const methodLoop = methodIds.length ? methodIds : [null];
           for (const variationId of variationLoop) {
             for (const equipId of equipLoop) {
-              const payload = {
-                exercise_variation_id: variationId,
-                exercise_catalog_id: catalogId,
-                equipment_id: equipId,
-                target_sets: targetSets,
-                target_reps: targetReps,
-                target_weight: weightRaw === "" ? null : Number(weightRaw),
-                order_index: localOrder,
-                rest_seconds: restRaw === "" ? null : Number(restRaw),
-                custom_description: customDesc || null,
-              };
-              localOrder += 1;
-              const response = await fetch(
-                `${getApiBaseUrl()}/api/workouts/${workoutId}/exercises`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${authToken}`,
-                  },
-                  body: JSON.stringify(payload),
-                },
-              );
+              for (const gripId of gripLoop) {
+                for (const methodId of methodLoop) {
+                  const payload = {
+                    exercise_variation_id: variationId,
+                    exercise_catalog_id: catalogId,
+                    equipment_id: equipId,
+                    grip_footing_id: gripId,
+                    method_id: methodId,
+                    target_sets: targetSets,
+                    target_reps: targetReps,
+                    target_weight: weightRaw === "" ? null : Number(weightRaw),
+                    order_index: localOrder,
+                    rest_seconds: restRaw === "" ? null : Number(restRaw),
+                    custom_description: customDesc || null,
+                  };
+                  localOrder += 1;
+                  const response = await fetch(
+                    `${getApiBaseUrl()}/api/workouts/${workoutId}/exercises`,
+                    {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${authToken}`,
+                      },
+                      body: JSON.stringify(payload),
+                    },
+                  );
 
-              if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.message || "Erro ao adicionar exercício");
+                  if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.message || "Erro ao adicionar exercício");
+                  }
+                }
               }
             }
           }
@@ -6722,9 +7283,18 @@
           const varIds = document.getElementById(`tab_add_var_ids_${workoutId}`);
           const varSearch = document.getElementById(`tab_var_search_${workoutId}`);
           const equipSearch = document.getElementById(`tab_equip_search_${workoutId}`);
+          const gripSearch = document.getElementById(`tab_grip_search_${workoutId}`);
+          const methodSearch = document.getElementById(`tab_method_search_${workoutId}`);
           const equipHidden = document.getElementById(`tab_equip_id_${workoutId}`);
           const equipIdsHidden = document.getElementById(`tab_equip_ids_${workoutId}`);
+          const gripHidden = document.getElementById(`tab_grip_id_${workoutId}`);
+          const gripIdsHidden = document.getElementById(`tab_grip_ids_${workoutId}`);
+          const methodHidden = document.getElementById(`tab_method_id_${workoutId}`);
+          const methodIdsHidden = document.getElementById(`tab_method_ids_${workoutId}`);
+          const equipWrapper = document.getElementById(`tab_equip_wrapper_${workoutId}`);
           const varWrapper = document.getElementById(`tab_var_wrapper_${workoutId}`);
+          const gripWrapper = document.getElementById(`tab_grip_wrapper_${workoutId}`);
+          const methodWrapper = document.getElementById(`tab_method_wrapper_${workoutId}`);
           const metaWrapper = document.getElementById(`tab_meta_wrapper_${workoutId}`);
           if (catSearch) catSearch.value = "";
           if (catId) catId.value = "";
@@ -6732,13 +7302,26 @@
           if (varIds) varIds.value = "";
           if (varSearch) varSearch.value = "";
           if (equipSearch) equipSearch.value = "";
+          if (gripSearch) gripSearch.value = "";
+          if (methodSearch) methodSearch.value = "";
           if (equipHidden) equipHidden.value = "";
           if (equipIdsHidden) equipIdsHidden.value = "";
+          if (gripHidden) gripHidden.value = "";
+          if (gripIdsHidden) gripIdsHidden.value = "";
+          if (methodHidden) methodHidden.value = "";
+          if (methodIdsHidden) methodIdsHidden.value = "";
           tabVarState[workoutId] = [];
           tabEquipState[workoutId] = [];
+          tabGripState[workoutId] = [];
+          tabMethodState[workoutId] = [];
           renderTabVarTags(workoutId);
           renderTabEquipTags(workoutId);
+          renderTabGripTags(workoutId);
+          renderTabMethodTags(workoutId);
+          if (equipWrapper) equipWrapper.style.display = "block";
           if (varWrapper) varWrapper.style.display = "block";
+          if (gripWrapper) gripWrapper.style.display = "block";
+          if (methodWrapper) methodWrapper.style.display = "block";
           if (metaWrapper) metaWrapper.style.display = "block";
 
           const nextOrderInput = document.getElementById(`tab_next_order_${workoutId}`);
