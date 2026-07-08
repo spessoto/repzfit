@@ -1924,23 +1924,27 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .uuid()
       .parse((request.params as { id?: string }).id);
 
-    const { data: used, error: usedErr } = await supabaseAdmin
-      .from("workout_exercises")
-      .select("id")
-      .eq("exercise_variation_id", id)
-      .limit(1);
-    if (usedErr) throw app.httpErrors.badRequest(usedErr.message);
-    if ((used ?? []).length > 0) {
-      throw app.httpErrors.badRequest(
-        "Variation is already used in workouts and cannot be removed.",
+    const { data: variation, error: variationErr } = await supabaseAdmin
+      .from("exercise_variations")
+      .select("id,personal_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (variationErr) throw app.httpErrors.badRequest(variationErr.message);
+    if (!variation) throw app.httpErrors.notFound("Variation not found.");
+
+    // Permite excluir variações próprias e variações base (personal_id null)
+    // visíveis para o personal autenticado.
+    if (variation.personal_id && variation.personal_id !== personalId) {
+      throw app.httpErrors.forbidden(
+        "You are not allowed to remove this variation.",
       );
     }
 
     const { error } = await supabaseAdmin
       .from("exercise_variations")
       .delete()
-      .eq("id", id)
-      .eq("personal_id", personalId);
+      .eq("id", id);
 
     if (error) throw app.httpErrors.badRequest(error.message);
     return { success: true };

@@ -2629,7 +2629,7 @@
             localStorage.removeItem("repz_admin_token");
             localStorage.setItem("repz_token", authToken);
             console.log("Login bem-sucedido!");
-            loadApp();
+            window.location.href = "https://app.ezpersonal.com.br/personal/alunos/";
           } else {
             if (loginBtn) {
               loginBtn.disabled = false;
