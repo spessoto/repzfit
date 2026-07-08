@@ -353,6 +353,89 @@ function buildFriendlyStartPrompt(studentName: string): string {
   return `Oi ${studentName}! Tudo bem? 💪\n\nQuer começar seu treino agora?\n1️⃣ *Sim, bora treinar!*\n2️⃣ *Deixar para depois*`;
 }
 
+async function promptWorkoutSelection(params: {
+  app: FastifyInstance;
+  instanceName: string;
+  whatsapp: string;
+  student: { id: string; name: string };
+  includeGreeting?: boolean;
+  introText?: string;
+}) {
+  const workouts = await getStudentAssignedWorkouts(params.student.id);
+
+  if (!workouts.length) {
+    await logBotAnomaly(params.app, {
+      severity: "warn",
+      category: "configuration",
+      code: "student_without_assigned_workout_on_start",
+      message: "Aluno tentou iniciar treino mas não possui treino atribuído.",
+      whatsapp_number: params.whatsapp,
+      student_id: params.student.id,
+      current_state: "IDLE",
+    });
+
+    const response = await safeCoachReply(
+      params.app,
+      `O aluno ${params.student.name} quer treinar mas não tem treino atribuído. Responda de forma motivadora mas explique que ele precisa falar com o personal para atribuir um treino.`,
+      "Não encontrei treino atribuído para você agora. Fala com seu personal que eu te ajudo assim que ele liberar! 🔥",
+    );
+
+    await sendTextMessage({
+      instanceName: params.instanceName,
+      number: params.whatsapp,
+      text: response,
+    });
+
+    await updateState(params.whatsapp, {
+      current_state: "IDLE",
+      last_input_attempt: null,
+    });
+    return;
+  }
+
+  const optionsText = workouts
+    .map((workout, index) => `${index + 1}️⃣ *${workout.name}*`)
+    .join("\n");
+
+  const lastWorkout = await getLastCompletedWorkout(params.student.id);
+  const lastText = lastWorkout
+    ? `\n\nÚltimo treino executado: *${lastWorkout.workoutName}* (${new Date(lastWorkout.date + "T00:00:00").toLocaleDateString("pt-BR")})`
+    : "";
+
+  let greeting = "";
+  if (params.includeGreeting) {
+    greeting = await safeCoachReply(
+      params.app,
+      `Cumprimente o aluno ${params.student.name} em 1 linha, com tom motivador e direto, sem enrolação.`,
+      `Fala, ${params.student.name}! Bora treinar hoje? 💪`,
+    );
+  }
+
+  const intro =
+    params.introText ??
+    "Você tem estes treinos cadastrados. Qual deles você quer iniciar?";
+
+  const parts = [
+    greeting,
+    intro,
+    `${optionsText}${lastText}`,
+    "Responda com o *número* do treino.",
+  ].filter(Boolean);
+
+  await sendTextMessage({
+    instanceName: params.instanceName,
+    number: params.whatsapp,
+    text: parts.join("\n\n"),
+  });
+
+  await updateState(params.whatsapp, {
+    current_state: "AWAITING_WORKOUT_SELECTION",
+    last_input_attempt: `workout_options:${workouts
+      .map((workout) => workout.id)
+      .join("|")}`,
+  });
+}
+
 function toInputExcerpt(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const cleaned = String(raw).replace(/\s+/g, " ").trim();
@@ -1935,75 +2018,12 @@ export async function processIncomingMessage(input: IncomingMessage) {
         return;
       }
     } else {
-      const workouts = await getStudentAssignedWorkouts(student.id);
-
-      if (!workouts.length) {
-        await logBotAnomaly(input.app, {
-          severity: "warn",
-          category: "configuration",
-          code: "student_without_assigned_workout_on_start",
-          message: "Aluno tentou iniciar treino mas não possui treino atribuído.",
-          whatsapp_number: whatsapp,
-          student_id: student.id,
-          current_state: currentState.current_state,
-          input_excerpt: inputExcerpt,
-        });
-
-        const response = await safeCoachReply(
-          input.app,
-          `O aluno ${student.name} quer treinar mas não tem treino atribuído. Responda de forma motivadora mas explique que ele precisa falar com o personal para atribuir um treino.`,
-          "Não encontrei treino atribuído para você agora. Fala com seu personal que eu te ajudo assim que ele liberar! 🔥",
-        );
-
-        await sendTextMessage({
-          instanceName: input.instance,
-          number: whatsapp,
-          text: response,
-        });
-        return;
-      }
-
-      if (workouts.length === 1) {
-        const workout = workouts[0];
-        const welcomeMessage = await safeCoachReply(
-          input.app,
-          `Saude o aluno ${student.name} de forma animada (1 linha) e pergunte se ele está pronto para começar o treino "${workout.name}". Seja breve e motivador.`,
-          `Bora, ${student.name}! Pronto para começar o treino "${workout.name}"? 💪`,
-        );
-
-        await sendTextMessage({
-          instanceName: input.instance,
-          number: whatsapp,
-          text: `${welcomeMessage}\n\nResponda:\n1️⃣ *Sim, bora!*\n2️⃣ Agora não`,
-        });
-
-        await updateState(whatsapp, {
-          current_state: "AWAITING_TRAINING_START",
-          last_input_attempt: `selected_workout:${workout.id}`,
-        });
-        return;
-      }
-
-      const lastWorkout = await getLastCompletedWorkout(student.id);
-      const optionsText = workouts
-        .map((workout, index) => `${index + 1}️⃣ *${workout.name}*`)
-        .join("\n");
-
-      const lastText = lastWorkout
-        ? `\n\nÚltimo treino executado: *${lastWorkout.workoutName}* (${new Date(lastWorkout.date + "T00:00:00").toLocaleDateString("pt-BR")})`
-        : "\n\nAinda não encontrei treino executado anteriormente.";
-
-      await sendTextMessage({
+      await promptWorkoutSelection({
+        app: input.app,
         instanceName: input.instance,
-        number: whatsapp,
-        text: `Você tem mais de um treino cadastrado. Qual você quer fazer hoje?\n\n${optionsText}${lastText}\n\nResponda com o *número* do treino.`,
-      });
-
-      await updateState(whatsapp, {
-        current_state: "AWAITING_WORKOUT_SELECTION",
-        last_input_attempt: `workout_options:${workouts
-          .map((workout) => workout.id)
-          .join("|")}`,
+        whatsapp,
+        student: { id: student.id, name: student.name },
+        includeGreeting: true,
       });
       return;
     }
@@ -2020,77 +2040,14 @@ export async function processIncomingMessage(input: IncomingMessage) {
   const state = await getOrCreateState(whatsapp, student.id);
 
   if (state.current_state === "IDLE") {
-    if (isConfirmIntent(effectiveInput)) {
-      const workouts = await getStudentAssignedWorkouts(student.id);
-
-      if (!workouts.length) {
-        const response = await safeCoachReply(
-          input.app,
-          `O aluno ${student.name} quer treinar mas não tem treino atribuído. Responda de forma motivadora mas explique que ele precisa falar com o personal para atribuir um treino.`,
-          "Não encontrei treino atribuído para você agora. Fala com seu personal que eu te ajudo assim que ele liberar! 🔥",
-        );
-
-        await sendTextMessage({
-          instanceName: input.instance,
-          number: whatsapp,
-          text: response,
-        });
-        return;
-      }
-
-      if (workouts.length === 1) {
-        const workout = workouts[0];
-        const welcomeMessage = await safeCoachReply(
-          input.app,
-          `Saude o aluno ${student.name} de forma animada (1 linha) e pergunte se ele está pronto para começar o treino "${workout.name}". Seja breve e motivador.`,
-          `Bora, ${student.name}! Pronto para começar o treino "${workout.name}"? 💪`,
-        );
-
-        await sendTextMessage({
-          instanceName: input.instance,
-          number: whatsapp,
-          text: `${welcomeMessage}\n\nResponda:\n1️⃣ *Sim, bora!*\n2️⃣ Agora não`,
-        });
-
-        await updateState(whatsapp, {
-          current_state: "AWAITING_TRAINING_START",
-          last_input_attempt: `selected_workout:${workout.id}`,
-        });
-        return;
-      }
-
-      const lastWorkout = await getLastCompletedWorkout(student.id);
-      const optionsText = workouts
-        .map((workout, index) => `${index + 1}️⃣ *${workout.name}*`)
-        .join("\n");
-
-      const lastText = lastWorkout
-        ? `\n\nÚltimo treino executado: *${lastWorkout.workoutName}* (${new Date(lastWorkout.date + "T00:00:00").toLocaleDateString("pt-BR")})`
-        : "\n\nAinda não encontrei treino executado anteriormente.";
-
-      await sendTextMessage({
-        instanceName: input.instance,
-        number: whatsapp,
-        text: `Você tem mais de um treino cadastrado. Qual você quer fazer hoje?\n\n${optionsText}${lastText}\n\nResponda com o *número* do treino.`,
-      });
-
-      await updateState(whatsapp, {
-        current_state: "AWAITING_WORKOUT_SELECTION",
-        last_input_attempt: `workout_options:${workouts
-          .map((workout) => workout.id)
-          .join("|")}`,
-      });
-      return;
-    }
-
-    if (isCancelIntent(effectiveInput)) {
-      await sendTextMessage({
-        instanceName: input.instance,
-        number: whatsapp,
-        text: `Fechado, ${student.name}! Quando quiser começar, me manda *1* e eu te guio no treino. 💪`,
-      });
-      return;
-    }
+    await promptWorkoutSelection({
+      app: input.app,
+      instanceName: input.instance,
+      whatsapp,
+      student: { id: student.id, name: student.name },
+      includeGreeting: true,
+    });
+    return;
   }
 
   // === FLUXO DE ESTADOS ===
@@ -2193,16 +2150,10 @@ export async function processIncomingMessage(input: IncomingMessage) {
       return;
     }
 
-    const welcomeMessage = await safeCoachReply(
-      input.app,
-      `Saude o aluno ${student.name} de forma animada (1 linha) e pergunte se ele está pronto para começar o treino "${selectedWorkout.name}". Seja breve e motivador.`,
-      `Bora, ${student.name}! Pronto para começar o treino "${selectedWorkout.name}"? 💪`,
-    );
-
     await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: `${welcomeMessage}\n\nResponda:\n1️⃣ *Sim, bora!*\n2️⃣ Agora não`,
+      text: `Treino escolhido: *${selectedWorkout.name}* ✅\n\nConfirma?\n1️⃣ *Sim, bora!*\n2️⃣ *Trocar treino*`,
     });
 
     await updateState(whatsapp, {
@@ -2348,14 +2299,13 @@ export async function processIncomingMessage(input: IncomingMessage) {
     }
 
     if (isCancelIntent(effectiveInput)) {
-      await sendTextMessage({
+      await promptWorkoutSelection({
+        app: input.app,
         instanceName: input.instance,
-        number: whatsapp,
-        text: "Sem problemas! Quando quiser treinar, é só me chamar! 💪",
-      });
-      await updateState(whatsapp, {
-        current_state: "IDLE",
-        last_input_attempt: null,
+        whatsapp,
+        student: { id: student.id, name: student.name },
+        includeGreeting: false,
+        introText: "Perfeito! Vamos trocar de treino. Qual você quer iniciar?",
       });
       return;
     }
@@ -3307,13 +3257,7 @@ export async function processExpiredRestTimers(
         await fireExpiredRest(app, state, instanceName);
       } else {
         // No per_rep, o descanso pode terminar enquanto o aluno ainda informa reps/carga/PSE.
-        // Notifica o fim do descanso e limpa rest_end_at para evitar repeticao em cada poll.
-        await sendTextMessage({
-          instanceName,
-          number: state.whatsapp_number,
-          text: "✅ Fim do descanso! Se ainda nao terminou de me passar os dados desta serie, pode enviar agora para liberar a proxima. 💪",
-        });
-
+        // Apenas limpa rest_end_at para evitar repetição em cada poll.
         await updateState(state.whatsapp_number, {
           rest_end_at: null,
         });
