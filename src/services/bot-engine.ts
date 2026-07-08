@@ -40,11 +40,15 @@ type WorkoutExercise = {
   exercise_catalog_id?: string | null;
   exercise_variation_id?: string | null;
   equipment_id?: string | null;
+  grip_footing_id?: string | null;
+  method_id?: string | null;
   exercise_name: string;
   variation_name?: string | null;
   muscle_group: string | null;
   equipment: string | null;
   equipment_name?: string | null;
+  grip_footing_name?: string | null;
+  method_name?: string | null;
   description: string | null;
   custom_description: string | null;
   target_sets: number;
@@ -273,7 +277,12 @@ async function isTrainingStartIntent(
 function formatExerciseDetails(ex: WorkoutExercise): string {
   const lines: string[] = [];
   if (ex.muscle_group) lines.push(`💪 Músculo: ${ex.muscle_group}`);
-  if (ex.equipment) lines.push(`🏋️ Equipamento: ${ex.equipment}`);
+  if (ex.variation_name) lines.push(`🎯 Execução: ${ex.variation_name}`);
+  if (ex.equipment_name || ex.equipment)
+    lines.push(`🏋️ Equipamento: ${ex.equipment_name ?? ex.equipment}`);
+  if (ex.grip_footing_name)
+    lines.push(`🤲 Pegada/Pisada: ${ex.grip_footing_name}`);
+  if (ex.method_name) lines.push(`🧩 Método: ${ex.method_name}`);
   if (ex.description) lines.push(`📝 ${ex.description}`);
   const weight = ex.target_weight ? ` com ${ex.target_weight}kg` : "";
   lines.push(`📊 Meta: ${ex.target_sets}x${ex.target_reps}${weight}`);
@@ -708,6 +717,8 @@ async function getWorkoutExercises(
       exercise_catalog_id,
       exercise_variation_id,
       equipment_id,
+      grip_footing_id,
+      method_id,
       target_sets,
       target_reps,
       target_weight,
@@ -717,6 +728,8 @@ async function getWorkoutExercises(
       exercise_catalog ( name ),
       exercise_variations ( name ),
       equipment_catalog ( name ),
+      grip_footing_catalog ( name ),
+      method_catalog ( name ),
       exercises (
         name,
         muscle_group,
@@ -746,6 +759,12 @@ function mapWorkoutExerciseRow(item: any): WorkoutExercise {
   const equipment = Array.isArray(item.equipment_catalog)
     ? item.equipment_catalog[0]
     : item.equipment_catalog;
+  const gripFooting = Array.isArray(item.grip_footing_catalog)
+    ? item.grip_footing_catalog[0]
+    : item.grip_footing_catalog;
+  const method = Array.isArray(item.method_catalog)
+    ? item.method_catalog[0]
+    : item.method_catalog;
 
   const baseName = catalog?.name ?? item.exercises?.name ?? "Exercício";
   const variationName = variation?.name ?? null;
@@ -759,11 +778,15 @@ function mapWorkoutExerciseRow(item: any): WorkoutExercise {
     exercise_catalog_id: item.exercise_catalog_id ?? null,
     exercise_variation_id: item.exercise_variation_id ?? null,
     equipment_id: item.equipment_id ?? null,
+    grip_footing_id: item.grip_footing_id ?? null,
+    method_id: item.method_id ?? null,
     exercise_name: exerciseName,
     variation_name: variationName,
     muscle_group: item.exercises?.muscle_group ?? null,
     equipment: equipment?.name ?? item.exercises?.equipment ?? null,
     equipment_name: equipment?.name ?? null,
+    grip_footing_name: gripFooting?.name ?? null,
+    method_name: method?.name ?? null,
     description: item.custom_description ?? item.exercises?.description ?? null,
     custom_description: item.custom_description ?? null,
     target_sets: item.target_sets,
@@ -1063,8 +1086,15 @@ function buildExerciseSelectionMenu(
     .map((id, i) => {
       const det = tracking.exercise_details[id];
       const muscle = det.muscle ? ` (${det.muscle})` : "";
-      const equipment = det.equipment ? ` | ${det.equipment}` : "";
-      return `${i + 1}️⃣ *${det.name}*${muscle}${equipment} — ${det.sets}×${det.reps}`;
+      const extra = [
+        det.execution ? `Execução: ${det.execution}` : null,
+        det.equipment ? `Equip.: ${det.equipment}` : null,
+        det.grip_footing ? `Peg./Pis.: ${det.grip_footing}` : null,
+        det.method ? `Método: ${det.method}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+      return `${i + 1}️⃣ *${det.name}*${muscle} — ${det.sets}×${det.reps}${extra ? `\n   ${extra}` : ""}`;
     })
     .join("\n");
 
@@ -1085,6 +1115,9 @@ type SessionTrackingData = {
       name: string;
       muscle: string | null;
       equipment: string | null;
+      execution: string | null;
+      grip_footing: string | null;
+      method: string | null;
       description: string | null;
       sets: number;
       reps: number;
@@ -2256,6 +2289,9 @@ export async function processIncomingMessage(input: IncomingMessage) {
               name: e.exercise_name,
               muscle: e.muscle_group,
               equipment: e.equipment,
+              execution: e.variation_name ?? null,
+              grip_footing: e.grip_footing_name ?? null,
+              method: e.method_name ?? null,
               description: e.description,
               sets: e.target_sets,
               reps: e.target_reps,
@@ -2380,7 +2416,15 @@ export async function processIncomingMessage(input: IncomingMessage) {
       const remainingList = tracking.remaining_ids
         .map((id, i) => {
           const det = tracking!.exercise_details[id];
-          return `${i + 1}️⃣ *${det.name}*${det.muscle ? ` (${det.muscle})` : ""} — ${det.sets}×${det.reps}`;
+          const extra = [
+            det.execution ? `Execução: ${det.execution}` : null,
+            det.equipment ? `Equip.: ${det.equipment}` : null,
+            det.grip_footing ? `Peg./Pis.: ${det.grip_footing}` : null,
+            det.method ? `Método: ${det.method}` : null,
+          ]
+            .filter(Boolean)
+            .join(" | ");
+          return `${i + 1}️⃣ *${det.name}*${det.muscle ? ` (${det.muscle})` : ""} — ${det.sets}×${det.reps}${extra ? `\n   ${extra}` : ""}`;
         })
         .join("\n");
 
@@ -2525,8 +2569,12 @@ export async function processIncomingMessage(input: IncomingMessage) {
       id: selectedExerciseId,
       exercise_id: selectedExerciseId,
       exercise_name: det.name,
+      variation_name: det.execution ?? null,
       muscle_group: det.muscle,
       equipment: det.equipment,
+      equipment_name: det.equipment,
+      grip_footing_name: det.grip_footing ?? null,
+      method_name: det.method ?? null,
       description: det.description,
       custom_description: null,
       target_sets: det.sets,
@@ -3139,7 +3187,7 @@ async function fireExpiredRest(
     const { data: exRow } = await supabaseAdmin
       .from("workout_exercises")
       .select(
-        "target_sets,target_reps,target_weight,order_index,exercise_id,custom_description,exercises(name,muscle_group,equipment,description)",
+        "target_sets,target_reps,target_weight,order_index,exercise_id,exercise_catalog_id,exercise_variation_id,equipment_id,grip_footing_id,method_id,custom_description,exercise_catalog(name),exercise_variations(name),equipment_catalog(name),grip_footing_catalog(name),method_catalog(name),exercises(name,muscle_group,equipment,description)",
       )
       .eq("id", nextExerciseId)
       .single();
@@ -3164,16 +3212,46 @@ async function fireExpiredRest(
     }
 
     const ex = exRow as any;
+    const catalog = Array.isArray(ex.exercise_catalog)
+      ? ex.exercise_catalog[0]
+      : ex.exercise_catalog;
+    const variation = Array.isArray(ex.exercise_variations)
+      ? ex.exercise_variations[0]
+      : ex.exercise_variations;
+    const equipment = Array.isArray(ex.equipment_catalog)
+      ? ex.equipment_catalog[0]
+      : ex.equipment_catalog;
+    const gripFooting = Array.isArray(ex.grip_footing_catalog)
+      ? ex.grip_footing_catalog[0]
+      : ex.grip_footing_catalog;
+    const method = Array.isArray(ex.method_catalog)
+      ? ex.method_catalog[0]
+      : ex.method_catalog;
     const exercise = Array.isArray(ex.exercises)
       ? ex.exercises[0]
       : ex.exercises;
 
+    const baseName = catalog?.name ?? exercise?.name ?? "Exercício";
+    const variationName = variation?.name ?? null;
+    const exerciseName = variationName
+      ? `${baseName} - ${variationName}`
+      : baseName;
+
     const nextExercise: WorkoutExercise = {
       id: nextExerciseId,
       exercise_id: ex.exercise_id,
-      exercise_name: exercise?.name ?? "Exercício",
+      exercise_catalog_id: ex.exercise_catalog_id ?? null,
+      exercise_variation_id: ex.exercise_variation_id ?? null,
+      equipment_id: ex.equipment_id ?? null,
+      grip_footing_id: ex.grip_footing_id ?? null,
+      method_id: ex.method_id ?? null,
+      exercise_name: exerciseName,
+      variation_name: variationName,
       muscle_group: exercise?.muscle_group ?? null,
-      equipment: exercise?.equipment ?? null,
+      equipment: equipment?.name ?? exercise?.equipment ?? null,
+      equipment_name: equipment?.name ?? null,
+      grip_footing_name: gripFooting?.name ?? null,
+      method_name: method?.name ?? null,
       description: ex.custom_description ?? exercise?.description ?? null,
       custom_description: ex.custom_description ?? null,
       target_sets: ex.target_sets,
