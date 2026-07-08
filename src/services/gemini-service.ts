@@ -8,6 +8,28 @@ type GeminiMessage = {
   parts: Array<{ text: string }>;
 };
 
+const MAX_EXERCISE_DESCRIPTION_CHARS = 150;
+
+export function normalizeExerciseAIDescription(
+  text: string,
+  maxChars = MAX_EXERCISE_DESCRIPTION_CHARS,
+): string {
+  const compact = String(text ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (compact.length <= maxChars) return compact;
+
+  const sliced = compact.slice(0, maxChars);
+  const lastSpace = sliced.lastIndexOf(" ");
+  const safeCut = lastSpace >= Math.floor(maxChars * 0.6) ? lastSpace : maxChars;
+
+  return sliced
+    .slice(0, safeCut)
+    .trim()
+    .replace(/[,:;\-\s]+$/, "");
+}
+
 /**
  * Gera uma resposta personalizada usando Gemini Flash-Lite Latest
  * com personalidade de coach motivador e empático
@@ -111,13 +133,19 @@ export async function generateExerciseDescription(params: {
 
   const muscleGroupList = muscleGroups.map((mg) => `- ${mg.name}`).join("\n");
 
-  const prompt = `Você é especialista em musculação. Escreva uma breve descrição técnica (máximo 3 linhas) de como executar este exercício e identifique o grupo muscular principal.
+  const prompt = `Você é especialista em musculação. Escreva uma descrição técnica curta, clara e objetiva para o aluno executar este exercício com segurança.
 
 Exercício: ${exerciseName}
 Variação: ${variationName}
 
 Responda APENAS com JSON no formato exato abaixo (sem texto extra):
-{"description":"descreva aqui a execução em 1-3 linhas","muscleGroup":"nome do grupo muscular"}
+{"description":"texto com no máximo 150 caracteres","muscleGroup":"nome do grupo muscular"}
+
+Regras obrigatórias para o campo description:
+- Máximo de 150 caracteres
+- Linguagem simples e direta
+- Frase única, sem enrolação
+- Foco na execução principal
 
 Grupos musculares disponíveis (use exatamente um da lista):
 ${muscleGroupList}`;
@@ -164,7 +192,7 @@ ${muscleGroupList}`;
   );
 
   return {
-    description: (parsed.description ?? "").trim(),
+    description: normalizeExerciseAIDescription(parsed.description ?? ""),
     muscleGroupId: matched?.id ?? null,
     muscleGroupName: matched?.name ?? (mgName || null),
   };

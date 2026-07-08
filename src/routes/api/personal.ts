@@ -4,7 +4,10 @@ import { z } from "zod";
 
 import { env } from "../../config/env.js";
 import { supabaseAdmin } from "../../config/supabase.js";
-import { generateExerciseDescription } from "../../services/gemini-service.js";
+import {
+  generateExerciseDescription,
+  normalizeExerciseAIDescription,
+} from "../../services/gemini-service.js";
 import {
   ensureEvolutionWebhook,
   ensureEvolutionInstance,
@@ -1740,7 +1743,9 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     if (cached && (cached as any).description) {
       return {
-        description: (cached as any).description as string,
+        description: normalizeExerciseAIDescription(
+          (cached as any).description as string,
+        ),
         muscle_group_name: (cached as any).muscle_groups?.name ?? null,
         cached: true,
       };
@@ -1798,7 +1803,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     }
 
     return {
-      description: result.description,
+      description: normalizeExerciseAIDescription(result.description),
       muscle_group_name: result.muscleGroupName,
       cached: false,
     };
