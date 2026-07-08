@@ -950,6 +950,134 @@
         padding: 12px;
       }
 
+      .student-insights-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+
+      .student-insights-tab {
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .student-insights-tab.active {
+        border-color: #024d3a;
+        background: rgba(115, 213, 55, 0.18);
+        color: #024d3a;
+      }
+
+      .student-insights-panel {
+        display: none;
+      }
+
+      .student-insights-panel.active {
+        display: block;
+      }
+
+      .sessions-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+
+      .student-report-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 12px;
+      }
+
+      .student-report-box {
+        border: 1px solid #dbe2ea;
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 12px;
+      }
+
+      .student-report-box h4 {
+        margin-bottom: 8px;
+        color: #1f2937;
+      }
+
+      .student-calendar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        gap: 8px;
+      }
+
+      .student-calendar-grid {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .student-calendar-grid th,
+      .student-calendar-grid td {
+        text-align: center;
+        padding: 6px 2px;
+        font-size: 12px;
+      }
+
+      .student-calendar-grid th {
+        color: #64748b;
+        font-weight: 700;
+      }
+
+      .student-calendar-day {
+        display: inline-flex;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        align-items: center;
+        justify-content: center;
+        color: #334155;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+      }
+
+      .student-calendar-day.trained {
+        background: rgba(115, 213, 55, 0.24);
+        border-color: rgba(2, 77, 58, 0.35);
+        color: #024d3a;
+        font-weight: 700;
+      }
+
+      .student-report-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .student-report-list li {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px dashed #d1d5db;
+        font-size: 13px;
+      }
+
+      .student-report-list li:last-child {
+        border-bottom: none;
+      }
+
+      .student-report-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
       @media (max-width: 1024px) {
         .app-shell {
           grid-template-columns: 1fr;
@@ -1029,6 +1157,11 @@
         }
 
         .editor-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .student-report-grid,
+        .student-report-metrics {
           grid-template-columns: 1fr;
         }
 
@@ -1411,10 +1544,32 @@
             </div>
 
             <div class="card">
-              <h3 style="margin-bottom: 10px; color: #374151">
-                Treinos Realizados
-              </h3>
-              <div id="studentEditorSessions"></div>
+              <div class="student-insights-tabs">
+                <button
+                  id="studentHistoryTabButton"
+                  class="student-insights-tab active"
+                  onclick="openStudentInsightsTab('history')"
+                >
+                  Treinos Realizados
+                </button>
+                <button
+                  id="studentReportTabButton"
+                  class="student-insights-tab"
+                  onclick="openStudentInsightsTab('report')"
+                >
+                  Relatório do Aluno
+                </button>
+              </div>
+
+              <div id="studentInsightsHistoryPanel" class="student-insights-panel active">
+                <div id="studentEditorSessions"></div>
+              </div>
+
+              <div id="studentInsightsReportPanel" class="student-insights-panel">
+                <div id="studentEditorReport">
+                  <p style="color:#6b7280;">Selecione a aba de relatório para carregar os dados.</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2208,6 +2363,13 @@
       let currentStudentAvailableWorkouts = [];
       let selectedWorkoutForStudent = null;
       let workoutSearchTimeout = null;
+      let studentSessionsAll = [];
+      let studentSessionsCurrentPage = 1;
+      const STUDENT_SESSIONS_PAGE_SIZE = 5;
+      let studentInsightsActiveTab = "history";
+      let studentReportData = null;
+      let studentReportCalendarYear = new Date().getFullYear();
+      let studentReportCalendarMonth = new Date().getMonth();
       let loginPasswordVisible = false;
       let exerciciosBuscaAtual = "";
       let exerciciosFiltroTimeout = null;
@@ -3164,6 +3326,11 @@
           currentStudentAssignedWorkoutIds = (data.workouts || [])
             .map((w) => w?.id)
             .filter((id) => typeof id === "string");
+          studentInsightsActiveTab = "history";
+          studentReportData = null;
+          studentReportCalendarYear = new Date().getFullYear();
+          studentReportCalendarMonth = new Date().getMonth();
+          openStudentInsightsTab("history");
           renderStudentWorkoutsEditor(data.workouts || []);
           renderAvailableWorkoutsForStudent(data.available_workouts || []);
           renderStudentSessionsEditor(data.completed_sessions || []);
@@ -3255,7 +3422,10 @@
                   "pt-BR",
                 )
               : "Sem validade";
-            const trackingMode = workout.assignment_tracking_mode || "per_rep";
+            const trackingMode =
+              workout.assignment_tracking_mode === "per_rep"
+                ? "per_exercise"
+                : workout.assignment_tracking_mode || "per_exercise";
             return `
               <details class="workout-card workout-accordion">
                 <summary>
@@ -3286,7 +3456,6 @@
                     <div class="form-group full">
                       <label>Modo de acompanhamento</label>
                       <select id="w_tracking_${workout.id}">
-                        <option value="per_rep" ${trackingMode === "per_rep" ? "selected" : ""}>A cada repetição (série por série)</option>
                         <option value="per_exercise" ${trackingMode === "per_exercise" ? "selected" : ""}>A cada exercício</option>
                         <option value="per_workout" ${trackingMode === "per_workout" ? "selected" : ""}>A cada treino (PSE geral ao encerrar)</option>
                         <option value="none" ${trackingMode === "none" ? "selected" : ""}>Sem acompanhamento</option>
@@ -3489,7 +3658,7 @@
               document.getElementById(`w_until_${workoutId}`).value || null,
             tracking_mode:
               document.getElementById(`w_tracking_${workoutId}`)?.value ||
-              "per_rep",
+              "per_exercise",
           };
 
           const workoutResp = await fetch(
@@ -3722,15 +3891,65 @@
         }
       }
 
+      function openStudentInsightsTab(tab) {
+        const nextTab = tab === "report" ? "report" : "history";
+        studentInsightsActiveTab = nextTab;
+
+        const historyButton = document.getElementById("studentHistoryTabButton");
+        const reportButton = document.getElementById("studentReportTabButton");
+        const historyPanel = document.getElementById("studentInsightsHistoryPanel");
+        const reportPanel = document.getElementById("studentInsightsReportPanel");
+
+        historyButton?.classList.toggle("active", nextTab === "history");
+        reportButton?.classList.toggle("active", nextTab === "report");
+        historyPanel?.classList.toggle("active", nextTab === "history");
+        reportPanel?.classList.toggle("active", nextTab === "report");
+
+        if (nextTab === "report") {
+          carregarRelatorioAluno();
+        }
+      }
+
       function renderStudentSessionsEditor(sessions) {
+        studentSessionsAll = Array.isArray(sessions) ? sessions : [];
+        studentSessionsCurrentPage = 1;
+        renderStudentSessionsCurrentPage();
+      }
+
+      function changeStudentSessionsPage(nextPage) {
+        const totalPages = Math.max(
+          1,
+          Math.ceil(studentSessionsAll.length / STUDENT_SESSIONS_PAGE_SIZE),
+        );
+        studentSessionsCurrentPage = Math.min(
+          totalPages,
+          Math.max(1, nextPage),
+        );
+        renderStudentSessionsCurrentPage();
+      }
+
+      function renderStudentSessionsCurrentPage() {
         const root = document.getElementById("studentEditorSessions");
-        if (!sessions || sessions.length === 0) {
+        if (!root) return;
+
+        if (!studentSessionsAll || studentSessionsAll.length === 0) {
           root.innerHTML =
             '<p style="color:#6b7280;">Nenhum treino realizado ainda.</p>';
           return;
         }
 
-        root.innerHTML = sessions
+        const totalPages = Math.max(
+          1,
+          Math.ceil(studentSessionsAll.length / STUDENT_SESSIONS_PAGE_SIZE),
+        );
+        const page = Math.min(studentSessionsCurrentPage, totalPages);
+        const startIndex = (page - 1) * STUDENT_SESSIONS_PAGE_SIZE;
+        const pageRows = studentSessionsAll.slice(
+          startIndex,
+          startIndex + STUDENT_SESSIONS_PAGE_SIZE,
+        );
+
+        const cardsHtml = pageRows
           .map((session) => {
             const date = session.date
               ? new Date(session.date).toLocaleDateString("pt-BR")
@@ -3751,6 +3970,370 @@
             `;
           })
           .join("");
+
+        root.innerHTML = `
+          ${cardsHtml}
+          <div class="sessions-pagination">
+            <span style="color:#64748b;font-size:12px;">
+              Mostrando ${startIndex + 1}-${Math.min(startIndex + STUDENT_SESSIONS_PAGE_SIZE, studentSessionsAll.length)} de ${studentSessionsAll.length} treinos
+            </span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="btn btn-secondary" ${page <= 1 ? "disabled" : ""} onclick="changeStudentSessionsPage(${page - 1})">Anterior</button>
+              <span style="color:#334155;font-size:12px;">Página ${page} de ${totalPages}</span>
+              <button class="btn btn-secondary" ${page >= totalPages ? "disabled" : ""} onclick="changeStudentSessionsPage(${page + 1})">Próxima</button>
+            </div>
+          </div>
+        `;
+      }
+
+      async function carregarRelatorioAluno() {
+        if (!currentEditingStudentId) return;
+
+        const root = document.getElementById("studentEditorReport");
+        if (!root) return;
+
+        if (studentReportData) {
+          renderRelatorioAluno(studentReportData);
+          return;
+        }
+
+        root.innerHTML = '<p style="color:#6b7280;">Carregando relatório...</p>';
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/students/${currentEditingStudentId}/report`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
+
+          if (response.status === 401 || response.status === 403) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || `HTTP ${response.status}`);
+          }
+
+          studentReportData = await response.json();
+          renderRelatorioAluno(studentReportData);
+        } catch (error) {
+          root.innerHTML = `<p style="color:#ef4444;">${escapeHtml(error?.message || "Erro ao carregar relatório")}</p>`;
+        }
+      }
+
+      function renderRelatorioAluno(report) {
+        const root = document.getElementById("studentEditorReport");
+        if (!root) return;
+
+        const trainedDays = Array.isArray(report?.trained_days)
+          ? report.trained_days
+          : [];
+        const muscleGroups = Array.isArray(report?.muscle_groups)
+          ? report.muscle_groups
+          : [];
+        const topOver = Array.isArray(report?.top_over_target)
+          ? report.top_over_target
+          : [];
+        const topUnder = Array.isArray(report?.top_under_target)
+          ? report.top_under_target
+          : [];
+        const weightTimeline = Array.isArray(report?.weight_timeline)
+          ? report.weight_timeline
+          : [];
+
+        root.innerHTML = `
+          <div class="student-report-grid">
+            <div class="student-report-box">
+              <h4>Calendário de treinos</h4>
+              <div id="studentReportCalendar"></div>
+            </div>
+            <div class="student-report-box">
+              <h4>Grupos musculares mais treinados</h4>
+              <div id="studentReportRadar"></div>
+            </div>
+          </div>
+
+          <div class="student-report-metrics" style="margin-top:12px;">
+            <div class="student-report-box">
+              <h4>Top 5 acima da carga recomendada</h4>
+              <ul class="student-report-list" id="studentTopOverList"></ul>
+            </div>
+            <div class="student-report-box">
+              <h4>Top 5 abaixo da carga recomendada</h4>
+              <ul class="student-report-list" id="studentTopUnderList"></ul>
+            </div>
+          </div>
+
+          <div class="student-report-box" style="margin-top:12px;">
+            <h4>Evolução de peso do aluno</h4>
+            <div id="studentWeightTimeline"></div>
+          </div>
+        `;
+
+        renderStudentReportCalendar(trainedDays);
+        renderStudentReportRadar(muscleGroups);
+        renderStudentOverUnderList("studentTopOverList", topOver, true);
+        renderStudentOverUnderList("studentTopUnderList", topUnder, false);
+        renderStudentWeightTimeline(weightTimeline);
+      }
+
+      function changeStudentReportCalendarMonth(step) {
+        studentReportCalendarMonth += step;
+        if (studentReportCalendarMonth < 0) {
+          studentReportCalendarMonth = 11;
+          studentReportCalendarYear -= 1;
+        } else if (studentReportCalendarMonth > 11) {
+          studentReportCalendarMonth = 0;
+          studentReportCalendarYear += 1;
+        }
+
+        if (studentReportData) {
+          renderStudentReportCalendar(studentReportData.trained_days || []);
+        }
+      }
+
+      function renderStudentReportCalendar(trainedDays) {
+        const root = document.getElementById("studentReportCalendar");
+        if (!root) return;
+
+        const trainedSet = new Set(
+          (trainedDays || []).map((day) => String(day).slice(0, 10)),
+        );
+        const weekDays = ["D", "S", "T", "Q", "Q", "S", "S"];
+        const monthLabel = new Date(
+          studentReportCalendarYear,
+          studentReportCalendarMonth,
+          1,
+        ).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+        const firstDay = new Date(
+          studentReportCalendarYear,
+          studentReportCalendarMonth,
+          1,
+        );
+        const lastDay = new Date(
+          studentReportCalendarYear,
+          studentReportCalendarMonth + 1,
+          0,
+        );
+
+        const startWeekday = firstDay.getDay();
+        const totalDays = lastDay.getDate();
+        const cells = [];
+
+        for (let i = 0; i < startWeekday; i += 1) {
+          cells.push('<td></td>');
+        }
+
+        for (let day = 1; day <= totalDays; day += 1) {
+          const dateKey = `${studentReportCalendarYear}-${String(
+            studentReportCalendarMonth + 1,
+          ).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const trained = trainedSet.has(dateKey);
+          cells.push(
+            `<td><span class="student-calendar-day ${trained ? "trained" : ""}">${day}</span></td>`,
+          );
+        }
+
+        while (cells.length % 7 !== 0) {
+          cells.push('<td></td>');
+        }
+
+        const rows = [];
+        for (let i = 0; i < cells.length; i += 7) {
+          rows.push(`<tr>${cells.slice(i, i + 7).join("")}</tr>`);
+        }
+
+        root.innerHTML = `
+          <div class="student-calendar-header">
+            <button class="btn btn-secondary" onclick="changeStudentReportCalendarMonth(-1)">◀</button>
+            <strong style="text-transform:capitalize;">${escapeHtml(monthLabel)}</strong>
+            <button class="btn btn-secondary" onclick="changeStudentReportCalendarMonth(1)">▶</button>
+          </div>
+          <table class="student-calendar-grid">
+            <thead>
+              <tr>${weekDays.map((day) => `<th>${day}</th>`).join("")}</tr>
+            </thead>
+            <tbody>
+              ${rows.join("")}
+            </tbody>
+          </table>
+        `;
+      }
+
+      function renderStudentReportRadar(muscleGroups) {
+        const root = document.getElementById("studentReportRadar");
+        if (!root) return;
+
+        const data = (muscleGroups || []).filter(
+          (item) => Number(item?.sessions ?? 0) > 0,
+        );
+
+        if (data.length === 0) {
+          root.innerHTML =
+            '<p style="color:#6b7280;">Sem dados suficientes para o gráfico de teia.</p>';
+          return;
+        }
+
+        const width = 320;
+        const height = 320;
+        const cx = width / 2;
+        const cy = height / 2;
+        const radius = 110;
+        const maxValue = Math.max(...data.map((d) => Number(d.sessions || 0)), 1);
+        const steps = 4;
+
+        const gridPolygons = [];
+        for (let step = 1; step <= steps; step += 1) {
+          const scale = step / steps;
+          const points = data
+            .map((_, idx) => {
+              const angle = (Math.PI * 2 * idx) / data.length - Math.PI / 2;
+              const x = cx + Math.cos(angle) * radius * scale;
+              const y = cy + Math.sin(angle) * radius * scale;
+              return `${x.toFixed(1)},${y.toFixed(1)}`;
+            })
+            .join(" ");
+          gridPolygons.push(
+            `<polygon points="${points}" fill="none" stroke="#e2e8f0" stroke-width="1" />`,
+          );
+        }
+
+        const axes = data
+          .map((item, idx) => {
+            const angle = (Math.PI * 2 * idx) / data.length - Math.PI / 2;
+            const x = cx + Math.cos(angle) * radius;
+            const y = cy + Math.sin(angle) * radius;
+            const lx = cx + Math.cos(angle) * (radius + 22);
+            const ly = cy + Math.sin(angle) * (radius + 22);
+            return `
+              <line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#cbd5e1" stroke-width="1" />
+              <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="11" text-anchor="middle" fill="#475569">${escapeHtml(item.name)}</text>
+            `;
+          })
+          .join("");
+
+        const dataPoints = data
+          .map((item, idx) => {
+            const angle = (Math.PI * 2 * idx) / data.length - Math.PI / 2;
+            const value = Number(item.sessions || 0) / maxValue;
+            const x = cx + Math.cos(angle) * radius * value;
+            const y = cy + Math.sin(angle) * radius * value;
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          })
+          .join(" ");
+
+        root.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}" width="100%" height="300" role="img" aria-label="Gráfico de teia por grupos musculares">
+            ${gridPolygons.join("")}
+            ${axes}
+            <polygon points="${dataPoints}" fill="rgba(2, 77, 58, 0.22)" stroke="#024d3a" stroke-width="2" />
+          </svg>
+        `;
+      }
+
+      function renderStudentOverUnderList(listId, rows, isOver) {
+        const list = document.getElementById(listId);
+        if (!list) return;
+
+        if (!rows || rows.length === 0) {
+          list.innerHTML =
+            '<li><span style="color:#6b7280;">Sem registros suficientes.</span></li>';
+          return;
+        }
+
+        list.innerHTML = rows
+          .map((item) => {
+            const sign = isOver ? "+" : "-";
+            return `
+              <li>
+                <span>${escapeHtml(item.exercise_name || "Exercício")}</span>
+                <span style="white-space:nowrap;color:${isOver ? "#065f46" : "#b91c1c"};font-weight:700;">
+                  ${sign}${Number(item.avg_diff_kg || 0).toFixed(2)}kg
+                </span>
+              </li>
+            `;
+          })
+          .join("");
+      }
+
+      function renderStudentWeightTimeline(weightTimeline) {
+        const root = document.getElementById("studentWeightTimeline");
+        if (!root) return;
+
+        if (!weightTimeline || weightTimeline.length === 0) {
+          root.innerHTML =
+            '<p style="color:#6b7280;">Sem histórico de peso para o período.</p>';
+          return;
+        }
+
+        const points = weightTimeline
+          .map((item) => ({
+            date: String(item.date || "").slice(0, 10),
+            weight: Number(item.weight_kg || 0),
+          }))
+          .filter((item) => item.date && Number.isFinite(item.weight) && item.weight > 0)
+          .sort((a, b) => a.date.localeCompare(b.date));
+
+        if (points.length === 0) {
+          root.innerHTML =
+            '<p style="color:#6b7280;">Sem histórico de peso para o período.</p>';
+          return;
+        }
+
+        const width = 820;
+        const height = 250;
+        const padding = { top: 20, right: 20, bottom: 35, left: 40 };
+        const minWeight = Math.min(...points.map((p) => p.weight));
+        const maxWeight = Math.max(...points.map((p) => p.weight));
+        const weightRange = Math.max(1, maxWeight - minWeight);
+        const n = points.length;
+
+        const toX = (index) => {
+          if (n === 1) return (width - padding.left - padding.right) / 2 + padding.left;
+          return (
+            padding.left +
+            (index / (n - 1)) * (width - padding.left - padding.right)
+          );
+        };
+
+        const toY = (weight) => {
+          const ratio = (weight - minWeight) / weightRange;
+          return height - padding.bottom - ratio * (height - padding.top - padding.bottom);
+        };
+
+        const polyline = points
+          .map((p, index) => `${toX(index).toFixed(1)},${toY(p.weight).toFixed(1)}`)
+          .join(" ");
+
+        const circles = points
+          .map(
+            (p, index) => `
+              <circle cx="${toX(index).toFixed(1)}" cy="${toY(p.weight).toFixed(1)}" r="4" fill="#024d3a">
+                <title>${new Date(p.date).toLocaleDateString("pt-BR")}: ${p.weight.toFixed(1)}kg</title>
+              </circle>
+            `,
+          )
+          .join("");
+
+        const first = points[0];
+        const last = points[points.length - 1];
+
+        root.innerHTML = `
+          <div style="margin-bottom:8px;color:#475569;font-size:13px;">
+            ${escapeHtml(new Date(first.date).toLocaleDateString("pt-BR"))} (${first.weight.toFixed(1)}kg) → ${escapeHtml(new Date(last.date).toLocaleDateString("pt-BR"))} (${last.weight.toFixed(1)}kg)
+          </div>
+          <svg viewBox="0 0 ${width} ${height}" width="100%" height="260" role="img" aria-label="Gráfico temporal do peso do aluno">
+            <line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" stroke="#cbd5e1" />
+            <line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}" stroke="#cbd5e1" />
+            <polyline points="${polyline}" fill="none" stroke="#024d3a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            ${circles}
+            <text x="${padding.left}" y="${height - 10}" font-size="11" fill="#64748b">${escapeHtml(new Date(first.date).toLocaleDateString("pt-BR"))}</text>
+            <text x="${width - padding.right}" y="${height - 10}" font-size="11" text-anchor="end" fill="#64748b">${escapeHtml(new Date(last.date).toLocaleDateString("pt-BR"))}</text>
+          </svg>
+        `;
       }
 
       async function carregarAdminPersonals() {

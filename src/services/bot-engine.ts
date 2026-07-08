@@ -2780,7 +2780,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
             current_state: "COLLECTING_REPS",
             rest_end_at: restEndAt,
           });
-          restStartNotice = `\n\n⏱ Descanso iniciado: *${restSeconds}s*. Enquanto isso, você pode mandar as repetições quando estiver pronto.`;
+          restStartNotice = `\n\n⏱ Descanso iniciado: *${restSeconds}s*.`;
         }
       }
 

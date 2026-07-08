@@ -347,6 +347,12 @@ function isMissingStudentFieldError(error: any): boolean {
   );
 }
 
+function isMissingWeightLogsTableError(error: any): boolean {
+  const msg = String(error?.message ?? "").toLowerCase();
+  const code = String(error?.code ?? "");
+  return code === "42p01" || msg.includes("student_weight_logs");
+}
+
 function isWhatsappUniqueViolation(error: any): boolean {
   const code = String(error?.code ?? "");
   const msg = String(error?.message ?? "").toLowerCase();
@@ -1056,6 +1062,38 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.notFound("Student not found");
     }
 
+    if (
+      typeof payload.weight_kg === "number" &&
+      Number.isFinite(payload.weight_kg) &&
+      Number(payload.weight_kg) > 0
+    ) {
+      const today = new Date().toISOString().slice(0, 10);
+      const { error: weightLogError } = await client
+        .from("student_weight_logs")
+        .upsert(
+          {
+            student_id: id,
+            date: today,
+            weight_kg: Number(payload.weight_kg),
+            source: "manual",
+          },
+          {
+            onConflict: "student_id,date",
+            ignoreDuplicates: false,
+          },
+        );
+
+      if (weightLogError && !isMissingWeightLogsTableError(weightLogError)) {
+        app.log.warn(
+          {
+            studentId: id,
+            error: weightLogError.message,
+          },
+          "Falha ao registrar histórico de peso do aluno",
+        );
+      }
+    }
+
     return normalizeStudentRow(data);
   });
 
@@ -1191,6 +1229,274 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
             : s.workouts?.name,
         };
       }),
+    };
+  });
+
+  app.get("/students/:id/report", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+    const client = getRlsClient(token);
+
+    const { data: student, error: studentError } = await client
+      .from("students")
+      .select("id,name,weight_kg,created_at")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (studentError) {
+      throw app.httpErrors.badRequest(studentError.message);
+    }
+
+    if (!student) {
+      throw app.httpErrors.notFound("Student not found");
+    }
+
+    const { data: completedSessions, error: completedSessionsError } =
+      await client
+        .from("daily_sessions")
+        .select("id,date")
+        .eq("student_id", id)
+        .eq("status", "completed")
+        .order("date", { ascending: false })
+        .limit(500);
+
+    if (completedSessionsError) {
+      throw app.httpErrors.badRequest(completedSessionsError.message);
+    }
+
+    const trainedDaySet = new Set<string>();
+    const completedSessionIds = (completedSessions ?? [])
+      .map((row: any) => {
+        const rawDate = String(row?.date ?? "").slice(0, 10);
+        if (rawDate) {
+          trainedDaySet.add(rawDate);
+        }
+        return String(row?.id ?? "");
+      })
+      .filter(Boolean);
+
+    let setLogs: any[] = [];
+    if (completedSessionIds.length > 0) {
+      const { data: setLogsData, error: setLogsError } = await client
+        .from("set_logs")
+        .select("session_id,workout_exercise_id,weight_used,daily_sessions(date)")
+        .in("session_id", completedSessionIds)
+        .limit(20000);
+
+      if (setLogsError) {
+        throw app.httpErrors.badRequest(setLogsError.message);
+      }
+
+      setLogs = setLogsData ?? [];
+    }
+
+    const workoutExerciseIds = Array.from(
+      new Set(
+        setLogs
+          .map((log: any) => String(log?.workout_exercise_id ?? ""))
+          .filter(Boolean),
+      ),
+    );
+
+    const workoutExerciseById = new Map<
+      string,
+      { targetWeight: number; exerciseName: string; muscleGroup: string }
+    >();
+
+    if (workoutExerciseIds.length > 0) {
+      let workoutExercisesResult: any = await client
+        .from("workout_exercises")
+        .select(
+          "id,target_weight,exercise_catalog(name),exercise_variations(name,exercise_catalog(name),muscle_groups(name)),exercises(name,muscle_group)",
+        )
+        .in("id", workoutExerciseIds)
+        .limit(10000);
+
+      if (workoutExercisesResult.error) {
+        workoutExercisesResult = await client
+          .from("workout_exercises")
+          .select("id,target_weight,exercises(name,muscle_group)")
+          .in("id", workoutExerciseIds)
+          .limit(10000);
+      }
+
+      const { data: workoutExercises, error: workoutExercisesError } =
+        workoutExercisesResult;
+
+      if (workoutExercisesError) {
+        throw app.httpErrors.badRequest(workoutExercisesError.message);
+      }
+
+      for (const row of workoutExercises ?? []) {
+        const variation = Array.isArray(row?.exercise_variations)
+          ? row.exercise_variations[0]
+          : row?.exercise_variations;
+        const catalog = Array.isArray(row?.exercise_catalog)
+          ? row.exercise_catalog[0]
+          : row?.exercise_catalog;
+        const legacyExercise = Array.isArray(row?.exercises)
+          ? row.exercises[0]
+          : row?.exercises;
+        const variationCatalog = Array.isArray(variation?.exercise_catalog)
+          ? variation.exercise_catalog[0]
+          : variation?.exercise_catalog;
+        const variationMuscleGroup = Array.isArray(variation?.muscle_groups)
+          ? variation.muscle_groups[0]
+          : variation?.muscle_groups;
+
+        const baseName =
+          String(
+            catalog?.name ?? variationCatalog?.name ?? legacyExercise?.name,
+          ).trim() || "Exercício";
+        const variationName = String(variation?.name ?? "").trim();
+        const exerciseName = variationName
+          ? `${baseName} - ${variationName}`
+          : baseName;
+        const muscleGroup =
+          String(
+            variationMuscleGroup?.name ?? legacyExercise?.muscle_group ?? "",
+          ).trim() || "Não informado";
+
+        workoutExerciseById.set(String(row?.id), {
+          targetWeight: Number(row?.target_weight ?? 0),
+          exerciseName,
+          muscleGroup,
+        });
+      }
+    }
+
+    const muscleGroupCount = new Map<string, number>();
+    const overTargetByExercise = new Map<
+      string,
+      { exercise_name: string; sets: number; total_diff_kg: number }
+    >();
+    const underTargetByExercise = new Map<
+      string,
+      { exercise_name: string; sets: number; total_diff_kg: number }
+    >();
+
+    for (const log of setLogs) {
+      const workoutExerciseId = String(log?.workout_exercise_id ?? "");
+      const exerciseMeta = workoutExerciseById.get(workoutExerciseId);
+      if (!exerciseMeta) {
+        continue;
+      }
+
+      const groupName = exerciseMeta.muscleGroup;
+      muscleGroupCount.set(groupName, (muscleGroupCount.get(groupName) ?? 0) + 1);
+
+      const usedWeight = Number(log?.weight_used ?? 0);
+      const targetWeight = Number(exerciseMeta.targetWeight ?? 0);
+      if (!Number.isFinite(usedWeight) || !Number.isFinite(targetWeight) || targetWeight <= 0) {
+        continue;
+      }
+
+      const delta = usedWeight - targetWeight;
+      if (delta > 0) {
+        const current = overTargetByExercise.get(exerciseMeta.exerciseName) ?? {
+          exercise_name: exerciseMeta.exerciseName,
+          sets: 0,
+          total_diff_kg: 0,
+        };
+        current.sets += 1;
+        current.total_diff_kg += delta;
+        overTargetByExercise.set(exerciseMeta.exerciseName, current);
+      } else if (delta < 0) {
+        const current = underTargetByExercise.get(exerciseMeta.exerciseName) ?? {
+          exercise_name: exerciseMeta.exerciseName,
+          sets: 0,
+          total_diff_kg: 0,
+        };
+        current.sets += 1;
+        current.total_diff_kg += Math.abs(delta);
+        underTargetByExercise.set(exerciseMeta.exerciseName, current);
+      }
+    }
+
+    const topOverTarget = Array.from(overTargetByExercise.values())
+      .map((item) => ({
+        ...item,
+        avg_diff_kg: item.sets > 0 ? item.total_diff_kg / item.sets : 0,
+      }))
+      .sort((a, b) => b.total_diff_kg - a.total_diff_kg)
+      .slice(0, 5)
+      .map((item) => ({
+        ...item,
+        total_diff_kg: Number(item.total_diff_kg.toFixed(2)),
+        avg_diff_kg: Number(item.avg_diff_kg.toFixed(2)),
+      }));
+
+    const topUnderTarget = Array.from(underTargetByExercise.values())
+      .map((item) => ({
+        ...item,
+        avg_diff_kg: item.sets > 0 ? item.total_diff_kg / item.sets : 0,
+      }))
+      .sort((a, b) => b.total_diff_kg - a.total_diff_kg)
+      .slice(0, 5)
+      .map((item) => ({
+        ...item,
+        total_diff_kg: Number(item.total_diff_kg.toFixed(2)),
+        avg_diff_kg: Number(item.avg_diff_kg.toFixed(2)),
+      }));
+
+    const muscleGroups = Array.from(muscleGroupCount.entries())
+      .map(([name, sessions]) => ({ name, sessions }))
+      .sort((a, b) => b.sessions - a.sessions);
+
+    let weightTimeline: Array<{ date: string; weight_kg: number }> = [];
+    const weightLogsResult = await client
+      .from("student_weight_logs")
+      .select("date,weight_kg,created_at")
+      .eq("student_id", id)
+      .order("date", { ascending: true })
+      .order("created_at", { ascending: true })
+      .limit(2000);
+
+    if (weightLogsResult.error) {
+      if (!isMissingWeightLogsTableError(weightLogsResult.error)) {
+        throw app.httpErrors.badRequest(weightLogsResult.error.message);
+      }
+    } else {
+      const byDate = new Map<string, number>();
+      for (const row of weightLogsResult.data ?? []) {
+        const date = String(row?.date ?? "").slice(0, 10);
+        const weight = Number(row?.weight_kg ?? 0);
+        if (date && Number.isFinite(weight) && weight > 0) {
+          byDate.set(date, weight);
+        }
+      }
+
+      weightTimeline = Array.from(byDate.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, weight_kg]) => ({
+          date,
+          weight_kg: Number(weight_kg.toFixed(2)),
+        }));
+    }
+
+    if (weightTimeline.length === 0 && Number(student.weight_kg) > 0) {
+      const fallbackDate = new Date().toISOString().slice(0, 10);
+      weightTimeline.push({
+        date: fallbackDate,
+        weight_kg: Number(Number(student.weight_kg).toFixed(2)),
+      });
+    }
+
+    return {
+      student: {
+        id: student.id,
+        name: student.name,
+        current_weight_kg:
+          student.weight_kg == null ? null : Number(student.weight_kg),
+      },
+      trained_days: Array.from(trainedDaySet).sort((a, b) => a.localeCompare(b)),
+      muscle_groups: muscleGroups,
+      top_over_target: topOverTarget,
+      top_under_target: topUnderTarget,
+      weight_timeline: weightTimeline,
     };
   });
 
