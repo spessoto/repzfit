@@ -6,6 +6,20 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-13] – Seed completo da base de exercícios (v1.1.3)
+
+### Adicionado
+- Script de seed `scripts/seed-exercises-xlsx.ts` para popular a base normalizada diretamente da planilha `src/exercicios seed 150.xlsx`.
+- Mapeamento explícito das colunas da planilha para `muscle_groups`, `exercise_catalog`, `equipment_catalog`, `exercise_variations`, `grip_footing_catalog` e `method_catalog`.
+
+### Operação de banco executada
+- Base de exercícios populada do zero a partir da planilha de 150 linhas, respeitando os títulos de coluna.
+
+### Migrações relevantes
+- Nenhuma migration adicional foi necessária para esta carga de seed.
+
+---
+
 ## [2026-07-13] – Reorganização completa da base de exercícios (v1.1.2)
 
 ### Adicionado
