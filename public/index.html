@@ -6731,6 +6731,156 @@
       }
 
       let exerciciosDoTreino = [];
+      const exGroupState = {};
+      const grupoMuscularBuscaTimeout = {};
+
+      function getNovoTreinoState(index) {
+        if (!exGroupState[index]) {
+          exGroupState[index] = {
+            groupId: "",
+            groupName: "",
+            exerciseId: "",
+            exerciseName: "",
+          };
+        }
+        return exGroupState[index];
+      }
+
+      function getNovoTreinoRows(index, field) {
+        const state = getNovoTreinoState(index);
+        const variationIds = (exVarState[index] || []).map((item) => item.id);
+        const rows = tabComboTreeState.rows || [];
+
+        return rows.filter((row) => {
+          if (field !== "group" && state.groupId && row.muscle_group_id !== state.groupId) {
+            return false;
+          }
+          if (field !== "exercise" && state.exerciseId && row.exercise_catalog_id !== state.exerciseId) {
+            return false;
+          }
+          if ((field === "equipment" || field === "grip" || field === "method") && variationIds.length) {
+            return variationIds.includes(row.exercise_variation_id);
+          }
+          return true;
+        });
+      }
+
+      async function carregarTreeNovoTreino() {
+        return carregarComboTreeEdicao();
+      }
+
+      function limparEstadoNovoTreino(index) {
+        delete exGroupState[index];
+        exVarState[index] = [];
+        exEquipState[index] = [];
+        exGripState[index] = [];
+        exMethodState[index] = [];
+        renderVarTags(index);
+        renderEquipTags(index);
+        renderGripTags(index);
+        renderMethodTags(index);
+      }
+
+      function resetNovoTreinoDependentes(index, fromField) {
+        const clearInput = (id) => {
+          const el = document.getElementById(id);
+          if (el) el.value = "";
+        };
+
+        const hideDropdown = (id) => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = "none";
+        };
+
+        if (fromField === "group") {
+          clearInput(`excat_search_${index}`);
+          clearInput(`excat_id_${index}`);
+          clearInput(`exvar_search_${index}`);
+          clearInput(`exequip_search_${index}`);
+          clearInput(`exgrip_search_${index}`);
+          clearInput(`exmethod_search_${index}`);
+          clearInput(`exvarid_${index}`);
+          clearInput(`exvarids_${index}`);
+          clearInput(`exequip_id_${index}`);
+          clearInput(`exequip_ids_${index}`);
+          clearInput(`exgrip_id_${index}`);
+          clearInput(`exgrip_ids_${index}`);
+          clearInput(`exmethod_id_${index}`);
+          clearInput(`exmethod_ids_${index}`);
+          limparEstadoNovoTreino(index);
+        }
+
+        if (fromField === "exercise") {
+          clearInput(`exvar_search_${index}`);
+          clearInput(`exequip_search_${index}`);
+          clearInput(`exgrip_search_${index}`);
+          clearInput(`exmethod_search_${index}`);
+          clearInput(`exvarid_${index}`);
+          clearInput(`exvarids_${index}`);
+          clearInput(`exequip_id_${index}`);
+          clearInput(`exequip_ids_${index}`);
+          clearInput(`exgrip_id_${index}`);
+          clearInput(`exgrip_ids_${index}`);
+          clearInput(`exmethod_id_${index}`);
+          clearInput(`exmethod_ids_${index}`);
+          exVarState[index] = [];
+          exEquipState[index] = [];
+          exGripState[index] = [];
+          exMethodState[index] = [];
+          renderVarTags(index);
+          renderEquipTags(index);
+          renderGripTags(index);
+          renderMethodTags(index);
+        }
+
+        if (fromField === "variation") {
+          clearInput(`exequip_search_${index}`);
+          clearInput(`exgrip_search_${index}`);
+          clearInput(`exmethod_search_${index}`);
+          clearInput(`exequip_id_${index}`);
+          clearInput(`exequip_ids_${index}`);
+          clearInput(`exgrip_id_${index}`);
+          clearInput(`exgrip_ids_${index}`);
+          clearInput(`exmethod_id_${index}`);
+          clearInput(`exmethod_ids_${index}`);
+          exEquipState[index] = [];
+          exGripState[index] = [];
+          exMethodState[index] = [];
+          renderEquipTags(index);
+          renderGripTags(index);
+          renderMethodTags(index);
+        }
+
+        if (fromField === "equipment") {
+          clearInput(`exgrip_search_${index}`);
+          clearInput(`exmethod_search_${index}`);
+          clearInput(`exgrip_id_${index}`);
+          clearInput(`exgrip_ids_${index}`);
+          clearInput(`exmethod_id_${index}`);
+          clearInput(`exmethod_ids_${index}`);
+          exGripState[index] = [];
+          exMethodState[index] = [];
+          renderGripTags(index);
+          renderMethodTags(index);
+        }
+
+        if (fromField === "grip") {
+          clearInput(`exmethod_search_${index}`);
+          clearInput(`exmethod_id_${index}`);
+          clearInput(`exmethod_ids_${index}`);
+          exMethodState[index] = [];
+          renderMethodTags(index);
+        }
+
+        hideDropdown(`exmg_dropdown_${index}`);
+        hideDropdown(`excat_dropdown_${index}`);
+        hideDropdown(`exvar_dropdown_${index}`);
+        hideDropdown(`exequip_dropdown_${index}`);
+        hideDropdown(`exgrip_dropdown_${index}`);
+        hideDropdown(`exmethod_dropdown_${index}`);
+
+        updateIAButtonState(index);
+      }
 
       function adicionarExercicioAoTreino() {
         const container = document.getElementById("exerciciosContainer");
@@ -6746,18 +6896,34 @@
             ×
           </button>
 
-          <div class="form-group" style="position: relative;">
-            <label>Exercício *</label>
-            <input
-              type="text"
-              id="excat_search_${index}"
-              placeholder="Digite para buscar exercício..."
-              autocomplete="off"
-              oninput="buscarCatalogo(${index}, this.value)"
-              onfocus="buscarCatalogo(${index}, this.value)"
-            />
-            <input type="hidden" id="excat_id_${index}" />
-            <div id="excat_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+          <div class="workout-add-grid">
+            <div class="form-group" style="position: relative;">
+              <label>Grupo muscular *</label>
+              <input
+                type="text"
+                id="exmg_search_${index}"
+                placeholder="Clique para ver os grupos..."
+                autocomplete="off"
+                oninput="buscarGrupoMuscular(${index}, this.value)"
+                onfocus="buscarGrupoMuscular(${index}, this.value)"
+              />
+              <input type="hidden" id="exmg_id_${index}" />
+              <div id="exmg_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+            </div>
+
+            <div class="form-group" style="position: relative;">
+              <label>Exercício *</label>
+              <input
+                type="text"
+                id="excat_search_${index}"
+                placeholder="Selecione o grupo muscular primeiro..."
+                autocomplete="off"
+                oninput="buscarCatalogo(${index}, this.value)"
+                onfocus="buscarCatalogo(${index}, this.value)"
+              />
+              <input type="hidden" id="excat_id_${index}" />
+              <div id="excat_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+            </div>
           </div>
 
           <div id="exequip_wrapper_${index}" class="form-group" style="position:relative;">
@@ -6841,11 +7007,56 @@
       const exMethodState = {}; // { [index]: [{id, name}] }
 
       // Caches para seleção em cascata – Novo Treino
+      let grupoMuscularBuscaTimeout = {};
       let catalogoBuscaTimeout = {};
       let variacaoBuscaTimeout = {};
       let equipamentoBuscaTimeout = {};
       let gripBuscaTimeout = {};
       let methodBuscaTimeout = {};
+
+      async function buscarGrupoMuscular(index, termo) {
+        if (grupoMuscularBuscaTimeout[index]) clearTimeout(grupoMuscularBuscaTimeout[index]);
+        const dropdown = document.getElementById(`exmg_dropdown_${index}`);
+        if (!dropdown) return;
+        const query = normalizeSearchComparable(termo || "");
+        grupoMuscularBuscaTimeout[index] = setTimeout(async () => {
+          try {
+            await carregarTreeNovoTreino();
+            const options = uniqueComboOptions(
+              getNovoTreinoRows(index, "group"),
+              (row) => row.muscle_group_id,
+              (row) => row.muscle_group_name || "Grupo muscular",
+            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+
+            renderComboDropdown(dropdown, options, (item) => `
+              <div class="autocomplete-item"
+                   onclick="selecionarGrupoMuscular(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
+                   onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                <strong>${escapeHtml(item.label)}</strong>
+              </div>
+            `);
+          } catch (e) {
+            dropdown.style.display = "none";
+          }
+        }, 200);
+      }
+
+      function selecionarGrupoMuscular(index, groupId, groupName) {
+        const search = document.getElementById(`exmg_search_${index}`);
+        const hidden = document.getElementById(`exmg_id_${index}`);
+        const dropdown = document.getElementById(`exmg_dropdown_${index}`);
+        if (search) search.value = groupName;
+        if (hidden) hidden.value = groupId;
+        if (dropdown) dropdown.style.display = "none";
+
+        const state = getNovoTreinoState(index);
+        state.groupId = groupId;
+        state.groupName = groupName;
+        state.exerciseId = "";
+        state.exerciseName = "";
+
+        resetNovoTreinoDependentes(index, "group");
+      }
 
       function renderVarTags(index) {
         const items = exVarState[index] || [];
@@ -6928,53 +7139,53 @@
         if (catalogoBuscaTimeout[index]) clearTimeout(catalogoBuscaTimeout[index]);
         const dropdown = document.getElementById(`excat_dropdown_${index}`);
         if (!dropdown) return;
-        const query = (termo || "").trim();
-        if (!query) { dropdown.style.display = "none"; return; }
+        const state = getNovoTreinoState(index);
+        if (!state.groupId) {
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um grupo muscular primeiro.</div>';
+          dropdown.style.display = "block";
+          return;
+        }
+        const query = normalizeSearchComparable(termo || "");
         catalogoBuscaTimeout[index] = setTimeout(async () => {
           try {
-            const res = await fetch(
-              `${getApiBaseUrl()}/api/exercise-catalog?search=${encodeURIComponent(query)}&limit=20`,
-              { headers: { Authorization: `Bearer ${authToken}` } },
-            );
-            if (res.status === 401) { handleUnauthorized(); return; }
-            if (!res.ok) return;
-            const items = await res.json();
-            if (!items.length) {
-              dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Nenhum exercício encontrado.</div>';
-              dropdown.style.display = "block";
-              return;
-            }
-            dropdown.innerHTML = items.map(item => `
+            await carregarTreeNovoTreino();
+            const options = uniqueComboOptions(
+              getNovoTreinoRows(index, "exercise"),
+              (row) => row.exercise_catalog_id,
+              (row) => row.exercise_catalog_name || "Exercício",
+            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+
+            renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
-                   onclick="selecionarCatalogo(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
+                   onclick="selecionarCatalogo(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}', '${escapeHtml(item.row.muscle_group_id || "")}', '${escapeHtml(item.row.muscle_group_name || "").replace(/'/g, "\\'")}')"
                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
-                <strong>${escapeHtml(item.name)}</strong>
+                <strong>${escapeHtml(item.label)}</strong>
+                ${item.row.exercise_notes ? `<div style="font-size:12px;color:#6b7280;">${escapeHtml(item.row.exercise_notes)}</div>` : ""}
               </div>
-            `).join("");
-            dropdown.style.display = "block";
+            `);
           } catch (e) {
-            console.error("Erro ao buscar catálogo:", e);
+            dropdown.style.display = "none";
           }
         }, 300);
       }
 
-      async function selecionarCatalogo(index, catalogId, catalogName) {
+      async function selecionarCatalogo(index, catalogId, catalogName, groupId, groupName) {
         document.getElementById(`excat_search_${index}`).value = catalogName;
         document.getElementById(`excat_id_${index}`).value = catalogId;
         document.getElementById(`excat_dropdown_${index}`).style.display = "none";
+        const groupSearch = document.getElementById(`exmg_search_${index}`);
+        const groupHidden = document.getElementById(`exmg_id_${index}`);
+        if (groupId && groupSearch) groupSearch.value = groupName || groupSearch.value;
+        if (groupId && groupHidden) groupHidden.value = groupId;
+        const state = getNovoTreinoState(index);
+        state.exerciseId = catalogId;
+        state.exerciseName = catalogName;
+        if (groupId) {
+          state.groupId = groupId;
+          state.groupName = groupName || state.groupName;
+        }
         // Reset execução e equipamento
-        exVarState[index] = [];
-        exEquipState[index] = [];
-        exGripState[index] = [];
-        exMethodState[index] = [];
-        renderVarTags(index);
-        renderEquipTags(index);
-        renderGripTags(index);
-        renderMethodTags(index);
-        document.getElementById(`exvar_search_${index}`).value = "";
-        document.getElementById(`exequip_search_${index}`).value = "";
-        document.getElementById(`exgrip_search_${index}`).value = "";
-        document.getElementById(`exmethod_search_${index}`).value = "";
+        resetNovoTreinoDependentes(index, "exercise");
         document.getElementById(`exequip_wrapper_${index}`).style.display = "block";
         document.getElementById(`exvar_wrapper_${index}`).style.display = "block";
         document.getElementById(`exgrip_wrapper_${index}`).style.display = "block";
@@ -6987,32 +7198,31 @@
         if (variacaoBuscaTimeout[index]) clearTimeout(variacaoBuscaTimeout[index]);
         const dropdown = document.getElementById(`exvar_dropdown_${index}`);
         if (!dropdown) return;
-        const query = (termo || "").trim();
-        if (!query) { dropdown.style.display = "none"; return; }
+        const state = getNovoTreinoState(index);
+        if (!state.exerciseId) {
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exercício primeiro.</div>';
+          dropdown.style.display = "block";
+          return;
+        }
+        const query = normalizeSearchComparable(termo || "");
         variacaoBuscaTimeout[index] = setTimeout(async () => {
           try {
-            const res = await fetch(
-              `${getApiBaseUrl()}/api/exercise-variations?search=${encodeURIComponent(query)}&limit=20`,
-              { headers: { Authorization: `Bearer ${authToken}` } },
-            );
-            if (res.status === 401) { handleUnauthorized(); return; }
-            if (!res.ok) return;
-            const items = await res.json();
-            if (!items.length) {
-              dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Nenhuma execução encontrada.</div>';
-              dropdown.style.display = "block";
-              return;
-            }
-            dropdown.innerHTML = items.map(item => `
+            await carregarTreeNovoTreino();
+            const options = uniqueComboOptions(
+              getNovoTreinoRows(index, "variation"),
+              (row) => row.exercise_variation_id,
+              (row) => row.exercise_variation_name || "Execução",
+            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+
+            renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
-                   onclick="selecionarVariacaoItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
+                   onclick="selecionarVariacaoItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
-                <strong>${escapeHtml(item.name)}</strong>
+                <strong>${escapeHtml(item.label)}</strong>
               </div>
-            `).join("");
-            dropdown.style.display = "block";
+            `);
           } catch (e) {
-            console.error("Erro ao buscar execução:", e);
+            dropdown.style.display = "none";
           }
         }, 300);
       }
@@ -7031,25 +7241,29 @@
         if (equipamentoBuscaTimeout[index]) clearTimeout(equipamentoBuscaTimeout[index]);
         const dropdown = document.getElementById(`exequip_dropdown_${index}`);
         if (!dropdown) return;
-        const query = (termo || "").trim();
-        if (!query) { dropdown.style.display = "none"; return; }
+        const state = getNovoTreinoState(index);
+        if (!state.exerciseId) {
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exercício primeiro.</div>';
+          dropdown.style.display = "block";
+          return;
+        }
+        const query = normalizeSearchComparable(termo || "");
         equipamentoBuscaTimeout[index] = setTimeout(async () => {
           try {
-            const res = await fetch(
-              `${getApiBaseUrl()}/api/equipment-catalog?search=${encodeURIComponent(query)}&limit=20`,
-              { headers: { Authorization: `Bearer ${authToken}` } },
-            );
-            if (!res.ok) return;
-            const items = await res.json();
-            if (!items.length) { dropdown.style.display = "none"; return; }
-            dropdown.innerHTML = items.map(item => `
+            await carregarTreeNovoTreino();
+            const options = uniqueComboOptions(
+              getNovoTreinoRows(index, "equipment"),
+              (row) => row.equipment_id,
+              (row) => row.equipment_name || "Equipamento",
+            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+
+            renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
-                   onclick="selecionarEquipamentoItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
+                   onclick="selecionarEquipamentoItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
-                ${escapeHtml(item.name)}
+                ${escapeHtml(item.label)}
               </div>
-            `).join("");
-            dropdown.style.display = "block";
+            `);
           } catch (e) {}
         }, 250);
       }
@@ -7068,25 +7282,29 @@
         if (gripBuscaTimeout[index]) clearTimeout(gripBuscaTimeout[index]);
         const dropdown = document.getElementById(`exgrip_dropdown_${index}`);
         if (!dropdown) return;
-        const query = (termo || "").trim();
-        if (!query) { dropdown.style.display = "none"; return; }
+        const state = getNovoTreinoState(index);
+        if (!state.exerciseId) {
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exercício primeiro.</div>';
+          dropdown.style.display = "block";
+          return;
+        }
+        const query = normalizeSearchComparable(termo || "");
         gripBuscaTimeout[index] = setTimeout(async () => {
           try {
-            const res = await fetch(
-              `${getApiBaseUrl()}/api/grip-footing-catalog?search=${encodeURIComponent(query)}&limit=20`,
-              { headers: { Authorization: `Bearer ${authToken}` } },
-            );
-            if (!res.ok) return;
-            const items = await res.json();
-            if (!items.length) { dropdown.style.display = "none"; return; }
-            dropdown.innerHTML = items.map(item => `
+            await carregarTreeNovoTreino();
+            const options = uniqueComboOptions(
+              getNovoTreinoRows(index, "grip"),
+              (row) => row.grip_footing_id,
+              (row) => row.grip_footing_name || "Pegada/Pisada",
+            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+
+            renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
-                   onclick="selecionarPegadaPisadaItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
+                   onclick="selecionarPegadaPisadaItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
-                ${escapeHtml(item.name)}
+                ${escapeHtml(item.label)}
               </div>
-            `).join("");
-            dropdown.style.display = "block";
+            `);
           } catch (e) {}
         }, 250);
       }
@@ -7105,25 +7323,29 @@
         if (methodBuscaTimeout[index]) clearTimeout(methodBuscaTimeout[index]);
         const dropdown = document.getElementById(`exmethod_dropdown_${index}`);
         if (!dropdown) return;
-        const query = (termo || "").trim();
-        if (!query) { dropdown.style.display = "none"; return; }
+        const state = getNovoTreinoState(index);
+        if (!state.exerciseId) {
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exercício primeiro.</div>';
+          dropdown.style.display = "block";
+          return;
+        }
+        const query = normalizeSearchComparable(termo || "");
         methodBuscaTimeout[index] = setTimeout(async () => {
           try {
-            const res = await fetch(
-              `${getApiBaseUrl()}/api/method-catalog?search=${encodeURIComponent(query)}&limit=20`,
-              { headers: { Authorization: `Bearer ${authToken}` } },
-            );
-            if (!res.ok) return;
-            const items = await res.json();
-            if (!items.length) { dropdown.style.display = "none"; return; }
-            dropdown.innerHTML = items.map(item => `
+            await carregarTreeNovoTreino();
+            const options = uniqueComboOptions(
+              getNovoTreinoRows(index, "method"),
+              (row) => row.method_id,
+              (row) => row.method_name || "Método",
+            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+
+            renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
-                   onclick="selecionarMetodoItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
+                   onclick="selecionarMetodoItem(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
-                ${escapeHtml(item.name)}
+                ${escapeHtml(item.label)}
               </div>
-            `).join("");
-            dropdown.style.display = "block";
+            `);
           } catch (e) {}
         }, 250);
       }
@@ -7172,7 +7394,7 @@
 
       // Fechar dropdown ao clicar fora
       document.addEventListener("click", function (e) {
-        if (!e.target.matches('[id^="excat_search_"], [id^="tab_mg_search_"], [id^="tab_cat_search_"], [id^="exvar_search_"], [id^="exequip_search_"], [id^="exgrip_search_"], [id^="exmethod_search_"], [id^="tab_var_search_"], [id^="tab_equip_search_"], [id^="tab_grip_search_"], [id^="tab_method_search_"]')) {
+        if (!e.target.matches('[id^="exmg_search_"], [id^="excat_search_"], [id^="tab_mg_search_"], [id^="tab_cat_search_"], [id^="exvar_search_"], [id^="exequip_search_"], [id^="exgrip_search_"], [id^="exmethod_search_"], [id^="tab_var_search_"], [id^="tab_equip_search_"], [id^="tab_grip_search_"], [id^="tab_method_search_"]')) {
           document
             .querySelectorAll(".autocomplete-dropdown")
             .forEach((dropdown) => {
@@ -7193,6 +7415,7 @@
         document.getElementById("treinoDataInicio").value = "";
         document.getElementById("exerciciosContainer").innerHTML = "";
         exerciciosDoTreino = [];
+        Object.keys(exGroupState).forEach((key) => delete exGroupState[key]);
         document.getElementById("treinosAlert").innerHTML = "";
       }
 

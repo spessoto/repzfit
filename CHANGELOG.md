@@ -6,6 +6,13 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-13] – Correção do dropdown de grupo muscular no treino (v1.1.5)
+
+### Corrigido
+- O campo de grupo muscular voltou a aparecer no formulário de criação de treino.
+- O dropdown de grupo muscular agora abre ao clicar no campo e lista as opções disponíveis mesmo sem digitação.
+- A seleção em cascata do treino segue iniciando por grupo muscular antes de filtrar exercício, execução e demais campos.
+
 ## [2026-07-13] – Editor de treino em cascata por base original (v1.1.4)
 
 ### Alterado
