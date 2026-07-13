@@ -6,6 +6,39 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-13] – Financeiro, importação XLS e reset de base de exercícios
+
+### Adicionado
+
+#### Financeiro
+- Nova aba Financeiro no painel do personal com indicadores do mês: valor recebido, total de alunos, pendentes/atrasados e próximos do vencimento.
+- Listas de alunos em atraso e alunos próximos do vencimento.
+- Novos campos no aluno: monthly_fee (valor da mensalidade) e payment_day (dia de pagamento).
+- Histórico mensal de recebimentos por aluno (mês/ano) com controle de status Recebido.
+- Endpoint GET /api/finance/dashboard para consolidado financeiro do personal.
+- Endpoints GET /api/students/:id/payments e PATCH /api/students/:id/payments/:referenceMonth para leitura e atualização de recebimentos.
+
+#### Exercícios
+- Botão Importar XLS no catálogo de exercícios para cadastro em massa.
+- Botão Baixar Modelo XLS para download de planilha padrão de importação.
+- Endpoint GET /api/exercise-catalog/import-template para geração do modelo XLSX.
+- Endpoint POST /api/exercise-catalog/import-xls para importação em massa com opção de reset prévio.
+- Botão Zerar Minha Base no módulo de exercícios.
+- Endpoint POST /api/exercise-catalog/reset-base para limpeza segura da base própria do personal.
+
+### Alterado
+- GIF passou a ficar vinculado apenas ao exercício base; removido do cadastro de execuções/variações.
+- Payload de criação/edição de treino ajustado para não enviar IDs opcionais como null quando não selecionados.
+- Validação de criação de treino ajustada para aceitar IDs opcionais nulos no backend, evitando erro de tipo em campos opcionais.
+
+### Corrigido
+- Correção do erro ao criar treino com campos opcionais vazios (ex.: equipment_id), que retornava invalid_type/expected string/received null.
+
+### Migrações relevantes
+- supabase/migrations/202607130001_add_financial_control.sql
+
+---
+
 ## [2026-07-07] – Modelo normalizado de exercícios, nova base, GIF e descrição customizada
 
 ### Adicionado

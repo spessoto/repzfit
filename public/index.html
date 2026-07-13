@@ -1078,6 +1078,108 @@
         gap: 12px;
       }
 
+      .finance-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .finance-metric-card {
+        border: 1px solid #dbe2ea;
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .finance-metric-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 700;
+      }
+
+      .finance-metric-card strong {
+        color: #0f172a;
+        font-size: 22px;
+      }
+
+      .finance-list-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .finance-student-list {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #ffffff;
+        overflow: hidden;
+      }
+
+      .finance-student-item {
+        padding: 10px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        display: grid;
+        gap: 4px;
+      }
+
+      .finance-student-item:last-child {
+        border-bottom: none;
+      }
+
+      .finance-student-name {
+        font-weight: 700;
+        color: #1f2937;
+      }
+
+      .finance-student-meta {
+        color: #475569;
+        font-size: 13px;
+      }
+
+      .student-payment-history {
+        border-top: 1px solid #e5e7eb;
+        padding-top: 14px;
+      }
+
+      .payment-history-list {
+        border: 1px solid #dbe2ea;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      .payment-history-row {
+        display: grid;
+        grid-template-columns: 1.1fr 0.8fr 0.8fr;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid #edf2f7;
+        background: #ffffff;
+      }
+
+      .payment-history-row:last-child {
+        border-bottom: none;
+      }
+
+      .payment-history-row strong {
+        color: #1f2937;
+      }
+
+      .payment-history-row small {
+        color: #64748b;
+      }
+
+      .payment-history-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: #334155;
+      }
+
       @media (max-width: 1024px) {
         .app-shell {
           grid-template-columns: 1fr;
@@ -1161,8 +1263,13 @@
         }
 
         .student-report-grid,
-        .student-report-metrics {
+        .student-report-metrics,
+        .finance-list-grid {
           grid-template-columns: 1fr;
+        }
+
+        .finance-metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .catalog-manager-grid {
@@ -1224,6 +1331,14 @@
 
         .card table {
           min-width: 640px;
+        }
+
+        .finance-metrics {
+          grid-template-columns: 1fr;
+        }
+
+        .payment-history-row {
+          grid-template-columns: 1fr;
         }
       }
 
@@ -1343,6 +1458,14 @@
             >
               <span class="tab-icon" aria-hidden="true">●</span>
               <span class="tab-label">Alunos</span>
+            </button>
+            <button
+              id="financeiroTabButton"
+              class="tab"
+              onclick="navigatePersonalPage('financeiro')"
+            >
+              <span class="tab-icon" aria-hidden="true">$</span>
+              <span class="tab-label">Financeiro</span>
             </button>
             <button
               id="exerciciosTabButton"
@@ -1469,6 +1592,47 @@
             </div>
           </div>
 
+          <div id="financeiroTab" class="tab-content">
+            <div class="card">
+              <h2>Dashboard Financeiro</h2>
+              <div id="financeiroAlert"></div>
+              <p style="color:#6b7280; margin-bottom:12px;" id="financeiroReferenceMonth">
+                Carregando dados financeiros...
+              </p>
+              <div class="finance-metrics" id="financeiroMetrics">
+                <div class="finance-metric-card">
+                  <span class="finance-metric-label">Quanto ganhou no mês</span>
+                  <strong id="financeMetricEarned">R$ 0,00</strong>
+                </div>
+                <div class="finance-metric-card">
+                  <span class="finance-metric-label">Total de alunos</span>
+                  <strong id="financeMetricStudents">0</strong>
+                </div>
+                <div class="finance-metric-card">
+                  <span class="finance-metric-label">Pendentes / em atraso</span>
+                  <strong id="financeMetricPending">0</strong>
+                </div>
+                <div class="finance-metric-card">
+                  <span class="finance-metric-label">Próximos do vencimento</span>
+                  <strong id="financeMetricUpcoming">0</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="finance-list-grid">
+                <div>
+                  <h3 style="margin-bottom:10px; color:#1f2937;">Alunos em atraso</h3>
+                  <div id="financeiroOverdueList"></div>
+                </div>
+                <div>
+                  <h3 style="margin-bottom:10px; color:#1f2937;">Alunos próximos ao vencimento</h3>
+                  <div id="financeiroUpcomingList"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div id="alunoEditorTab" class="tab-content">
             <div class="card" style="margin-bottom: 16px">
               <div
@@ -1525,11 +1689,39 @@
                   <label>Altura (cm)</label>
                   <input type="number" id="editAlunoAltura" min="0" step="0.1" />
                 </div>
+                <div class="form-group">
+                  <label>Valor mensalidade (R$)</label>
+                  <input
+                    type="number"
+                    id="editAlunoMensalidade"
+                    min="0"
+                    step="0.01"
+                    placeholder="Ex: 250"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Dia de pagamento</label>
+                  <input
+                    type="number"
+                    id="editAlunoDiaPagamento"
+                    min="1"
+                    max="31"
+                    step="1"
+                    placeholder="Ex: 10"
+                  />
+                </div>
               </div>
               <div style="margin-top: 12px">
                 <button class="btn btn-primary" onclick="salvarAlunoEdicao()">
                   Salvar dados do aluno
                 </button>
+              </div>
+
+              <div class="student-payment-history" style="margin-top:16px;">
+                <h4 style="margin-bottom:10px; color:#374151;">Controle de pagamentos (mês/ano)</h4>
+                <div id="studentEditorPaymentsHistory">
+                  <p style="color:#6b7280;">Carregando histórico de pagamentos...</p>
+                </div>
               </div>
             </div>
 
@@ -1589,6 +1781,30 @@
                   <button class="btn btn-primary" onclick="criarCatalogoExercicio()">
                     Cadastrar
                   </button>
+                  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                    <button class="btn btn-secondary" type="button" onclick="baixarModeloXlsCatalogo()">
+                      Baixar Modelo XLS
+                    </button>
+                    <button class="btn btn-secondary" type="button" onclick="abrirImportacaoXlsCatalogo()">
+                      Importar XLS
+                    </button>
+                    <button class="btn btn-danger" type="button" onclick="resetarBaseExercicios()">
+                      Zerar Minha Base
+                    </button>
+                  </div>
+                  <div class="form-group" style="margin-top: 10px">
+                    <label style="display:flex; align-items:center; gap:8px; font-weight:500;">
+                      <input type="checkbox" id="importCatalogoResetCheckbox" />
+                      Zerar base atual antes da importação
+                    </label>
+                    <input
+                      type="file"
+                      id="catalogoImportXlsInput"
+                      accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      style="display:none"
+                      onchange="importarCatalogoExerciciosXls(event)"
+                    />
+                  </div>
                   <div class="form-group" style="margin-top: 12px">
                     <label>Buscar</label>
                     <input
@@ -1608,10 +1824,6 @@
                   <div class="form-group">
                     <label>Nova execução</label>
                     <input type="text" id="novaVariacaoNome" placeholder="Ex: Inclinado, Unilateral" />
-                  </div>
-                  <div class="form-group">
-                    <label>GIF (opcional)</label>
-                    <input type="url" id="novaVariacaoGifUrl" placeholder="https://.../variacao.gif" />
                   </div>
                   <button class="btn btn-primary" onclick="criarVariacaoExercicio()">
                     Cadastrar
@@ -2512,6 +2724,7 @@
       let exerciciosTotalPaginas = 1;
       const PERSONAL_PAGES = [
         "alunos",
+        "financeiro",
         "exercicios",
         "treinos",
         "configuracoes",
@@ -2526,12 +2739,14 @@
       function setAdminModeUI(enabled) {
         const personalTabs = [
           "alunosTabButton",
+          "financeiroTabButton",
           "exerciciosTabButton",
           "treinosTabButton",
           "configuracoesTabButton",
         ];
         const personalPanels = [
           "alunosTab",
+          "financeiroTab",
           "exerciciosTab",
           "treinosTab",
           "configuracoesTab",
@@ -2967,6 +3182,11 @@
           return;
         }
 
+        if (safePage === "financeiro") {
+          await carregarFinanceiroDashboard();
+          return;
+        }
+
         if (safePage === "exercicios") {
           await carregarExercicios();
           return;
@@ -3002,6 +3222,7 @@
         document.getElementById(tab + "Tab").classList.add("active");
 
         if (tab === "alunos") carregarAlunos();
+        if (tab === "financeiro") carregarFinanceiroDashboard();
         if (tab === "exercicios") carregarExercicios();
         if (tab === "treinos") carregarTreinosAluno();
         if (tab === "admin") carregarAdminPersonals();
@@ -3368,6 +3589,10 @@
             student.weight_kg ?? "";
           document.getElementById("editAlunoAltura").value =
             student.height_cm ?? "";
+          document.getElementById("editAlunoMensalidade").value =
+            student.monthly_fee ?? "";
+          document.getElementById("editAlunoDiaPagamento").value =
+            student.payment_day ?? "";
 
           currentStudentAssignedWorkoutIds = (data.workouts || [])
             .map((w) => w?.id)
@@ -3380,6 +3605,10 @@
           renderStudentWorkoutsEditor(data.workouts || []);
           renderAvailableWorkoutsForStudent(data.available_workouts || []);
           renderStudentSessionsEditor(data.completed_sessions || []);
+          renderHistoricoPagamentosAluno(
+            data.payment_history || [],
+            student.payment_day,
+          );
         } catch (error) {
           console.error("Erro ao carregar detalhes do aluno:", error);
           showAlert(
@@ -3412,6 +3641,14 @@
               document.getElementById("editAlunoAltura").value === ""
                 ? null
                 : Number(document.getElementById("editAlunoAltura").value),
+            monthly_fee:
+              document.getElementById("editAlunoMensalidade").value === ""
+                ? null
+                : Number(document.getElementById("editAlunoMensalidade").value),
+            payment_day:
+              document.getElementById("editAlunoDiaPagamento").value === ""
+                ? null
+                : Number(document.getElementById("editAlunoDiaPagamento").value),
           };
 
           const response = await fetch(
@@ -3441,6 +3678,8 @@
             "Aluno atualizado com sucesso",
             "success",
           );
+          await carregarPagamentosAlunoEdicao();
+          await carregarFinanceiroDashboard(false);
           carregarAlunos();
           carregarAlunosSelect();
         } catch (error) {
@@ -3449,6 +3688,252 @@
             error.message || "Erro ao atualizar aluno",
             "error",
           );
+        }
+      }
+
+      function formatCurrencyBRL(value) {
+        const amount = Number(value || 0);
+        return amount.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+          minimumFractionDigits: 2,
+        });
+      }
+
+      function formatReferenceMonthLabel(referenceMonth) {
+        if (!referenceMonth || !/^\d{4}-\d{2}$/.test(referenceMonth)) {
+          return "-";
+        }
+
+        const [year, month] = referenceMonth.split("-").map(Number);
+        return new Date(year, month - 1, 1).toLocaleDateString("pt-BR", {
+          month: "long",
+          year: "numeric",
+        });
+      }
+
+      function formatDateLabel(dateValue) {
+        if (!dateValue) return "-";
+        const parsed = new Date(dateValue);
+        if (Number.isNaN(parsed.getTime())) return "-";
+        return parsed.toLocaleDateString("pt-BR");
+      }
+
+      function renderFinanceStudentList(rows, mode) {
+        if (!Array.isArray(rows) || rows.length === 0) {
+          return '<p style="color:#6b7280;">Nenhum aluno nesta lista.</p>';
+        }
+
+        return `
+          <div class="finance-student-list">
+            ${rows
+              .map((row) => {
+                const dueDate = formatDateLabel(row?.due_date);
+                const amount = formatCurrencyBRL(row?.monthly_fee);
+                const secondary =
+                  mode === "overdue"
+                    ? `${row?.days_overdue || 0} dia(s) em atraso`
+                    : `vence em ${row?.days_until_due || 0} dia(s)`;
+
+                return `
+                  <div class="finance-student-item">
+                    <span class="finance-student-name">${escapeHtml(row?.name || "Aluno")}</span>
+                    <span class="finance-student-meta">Vencimento: ${escapeHtml(dueDate)} | Mensalidade: ${escapeHtml(amount)}</span>
+                    <span class="finance-student-meta">${escapeHtml(secondary)}</span>
+                  </div>
+                `;
+              })
+              .join("")}
+          </div>
+        `;
+      }
+
+      async function carregarFinanceiroDashboard(showErrors = true) {
+        if (isAdminSession) return;
+
+        try {
+          const response = await fetch(`${getApiBaseUrl()}/api/finance/dashboard`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+
+          if (response.status === 401 || response.status === 403) {
+            handleUnauthorized();
+            return;
+          }
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(payload.message || "Erro ao carregar dashboard financeiro");
+          }
+
+          const indicators = payload.indicators || {};
+          const referenceMonth = payload.reference_month || "";
+
+          const refLabel = formatReferenceMonthLabel(referenceMonth);
+          const referenceEl = document.getElementById("financeiroReferenceMonth");
+          if (referenceEl) {
+            referenceEl.textContent = `Referência: ${refLabel}`;
+          }
+
+          const earnedEl = document.getElementById("financeMetricEarned");
+          const studentsEl = document.getElementById("financeMetricStudents");
+          const pendingEl = document.getElementById("financeMetricPending");
+          const upcomingEl = document.getElementById("financeMetricUpcoming");
+
+          if (earnedEl) {
+            earnedEl.textContent = formatCurrencyBRL(indicators.earned_amount || 0);
+          }
+          if (studentsEl) {
+            studentsEl.textContent = String(indicators.students_count || 0);
+          }
+          if (pendingEl) {
+            pendingEl.textContent = String(indicators.pending_count || 0);
+          }
+          if (upcomingEl) {
+            upcomingEl.textContent = String(indicators.upcoming_due_count || 0);
+          }
+
+          const overdueRoot = document.getElementById("financeiroOverdueList");
+          const upcomingRoot = document.getElementById("financeiroUpcomingList");
+          if (overdueRoot) {
+            overdueRoot.innerHTML = renderFinanceStudentList(
+              payload.overdue_students || [],
+              "overdue",
+            );
+          }
+          if (upcomingRoot) {
+            upcomingRoot.innerHTML = renderFinanceStudentList(
+              payload.upcoming_due_students || [],
+              "upcoming",
+            );
+          }
+        } catch (error) {
+          if (showErrors) {
+            showAlert(
+              "financeiroAlert",
+              error?.message || "Erro ao carregar dashboard financeiro",
+              "error",
+            );
+          }
+        }
+      }
+
+      function renderHistoricoPagamentosAluno(history, paymentDay) {
+        const root = document.getElementById("studentEditorPaymentsHistory");
+        if (!root) return;
+
+        if (!Array.isArray(history) || history.length === 0) {
+          root.innerHTML =
+            '<p style="color:#6b7280;">Sem meses disponíveis para controle.</p>';
+          return;
+        }
+
+        root.innerHTML = `
+          <div class="payment-history-list">
+            ${history
+              .slice()
+              .reverse()
+              .map((row) => {
+                const referenceMonth = String(row?.reference_month || "");
+                const monthLabel = formatReferenceMonthLabel(referenceMonth);
+                const dueDate = row?.due_date ? formatDateLabel(row.due_date) : "Sem dia definido";
+                const receivedAt = row?.received_at
+                  ? `Recebido em ${formatDateLabel(row.received_at)}`
+                  : "Ainda não recebido";
+
+                return `
+                  <div class="payment-history-row">
+                    <div>
+                      <strong style="text-transform:capitalize;">${escapeHtml(monthLabel)}</strong><br />
+                      <small>Vencimento: ${escapeHtml(dueDate)}</small>
+                    </div>
+                    <div>
+                      <small>${escapeHtml(receivedAt)}</small>
+                    </div>
+                    <label class="payment-history-toggle">
+                      <input
+                        type="checkbox"
+                        ${row?.received ? "checked" : ""}
+                        onchange="atualizarStatusRecebimentoAluno('${referenceMonth}', this.checked)"
+                      />
+                      Recebido
+                    </label>
+                  </div>
+                `;
+              })
+              .join("")}
+          </div>
+        `;
+      }
+
+      async function carregarPagamentosAlunoEdicao() {
+        if (!currentEditingStudentId) return;
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/students/${currentEditingStudentId}/payments`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
+
+          if (response.status === 401 || response.status === 403) {
+            handleUnauthorized();
+            return;
+          }
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(payload.message || "Erro ao carregar pagamentos");
+          }
+
+          renderHistoricoPagamentosAluno(
+            payload.history || [],
+            payload.student?.payment_day,
+          );
+        } catch (error) {
+          const root = document.getElementById("studentEditorPaymentsHistory");
+          if (root) {
+            root.innerHTML = `<p style="color:#ef4444;">${escapeHtml(error?.message || "Erro ao carregar pagamentos")}</p>`;
+          }
+        }
+      }
+
+      async function atualizarStatusRecebimentoAluno(referenceMonth, received) {
+        if (!currentEditingStudentId || !referenceMonth) return;
+
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/students/${currentEditingStudentId}/payments/${encodeURIComponent(referenceMonth)}`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify({ received: Boolean(received) }),
+            },
+          );
+
+          if (response.status === 401 || response.status === 403) {
+            handleUnauthorized();
+            return;
+          }
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(payload.message || "Erro ao atualizar pagamento");
+          }
+
+          await carregarPagamentosAlunoEdicao();
+          await carregarFinanceiroDashboard(false);
+        } catch (error) {
+          showAlert(
+            "studentEditorAlert",
+            error?.message || "Erro ao atualizar pagamento",
+            "error",
+          );
+          await carregarPagamentosAlunoEdicao();
         }
       }
 
@@ -5293,13 +5778,11 @@
       function limparFormularioExercicio() {
         const catalogo = document.getElementById("novoCatalogoNome");
         const variacao = document.getElementById("novaVariacaoNome");
-        const variacaoGif = document.getElementById("novaVariacaoGifUrl");
         const equipamento = document.getElementById("novoEquipamentoNome");
         const pegadaPisada = document.getElementById("novaPegadaPisadaNome");
         const metodo = document.getElementById("novoMetodoNome");
         if (catalogo) catalogo.value = "";
         if (variacao) variacao.value = "";
-        if (variacaoGif) variacaoGif.value = "";
         if (equipamento) equipamento.value = "";
         if (pegadaPisada) pegadaPisada.value = "";
         if (metodo) metodo.value = "";
@@ -5340,9 +5823,143 @@
         await carregarCatalogoExercicios();
       }
 
+      function abrirImportacaoXlsCatalogo() {
+        const input = document.getElementById("catalogoImportXlsInput");
+        if (!input) return;
+        input.value = "";
+        input.click();
+      }
+
+      async function baixarModeloXlsCatalogo() {
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/exercise-catalog/import-template`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
+
+          if (response.status === 401 || response.status === 403) {
+            handleUnauthorized();
+            return;
+          }
+
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.message || "Erro ao baixar modelo XLS");
+          }
+
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "modelo-importacao-exercicios.xlsx";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          showAlert(
+            "exerciciosAlert",
+            error?.message || "Erro ao baixar modelo XLS",
+            "error",
+          );
+        }
+      }
+
+      async function importarCatalogoExerciciosXls(event) {
+        const file = event?.target?.files?.[0];
+        if (!file) return;
+
+        const fileName = String(file.name || "").toLowerCase();
+        if (!fileName.endsWith(".xls") && !fileName.endsWith(".xlsx")) {
+          showAlert("exerciciosAlert", "Selecione um arquivo .xls ou .xlsx", "error");
+          return;
+        }
+
+        const resetExisting = Boolean(
+          document.getElementById("importCatalogoResetCheckbox")?.checked,
+        );
+
+        try {
+          showAlert("exerciciosAlert", "Importando planilha de exercícios...", "success");
+
+          const fileBase64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error("Falha ao ler arquivo"));
+            reader.readAsDataURL(file);
+          });
+
+          const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog/import-xls`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              filename: file.name,
+              file_base64: String(fileBase64 || ""),
+              reset_existing: resetExisting,
+            }),
+          });
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(payload.message || "Erro ao importar exercícios");
+          }
+
+          showAlert(
+            "exerciciosAlert",
+            `Importação concluída. ${payload.imported_count || 0} novos exercício(s), ${payload.skipped_existing_count || 0} já existentes.`,
+            "success",
+          );
+
+          await carregarCatalogoExercicios();
+          await carregarVariacoesExercicios();
+        } catch (error) {
+          showAlert(
+            "exerciciosAlert",
+            error?.message || "Erro ao importar planilha",
+            "error",
+          );
+        }
+      }
+
+      async function resetarBaseExercicios() {
+        if (!confirm("Deseja realmente zerar sua base de exercícios e execuções? Esta ação não pode ser desfeita.")) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog/reset-base`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ confirm: true }),
+          });
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(payload.message || "Erro ao resetar base de exercícios");
+          }
+
+          showAlert("exerciciosAlert", "Base de exercícios zerada com sucesso.", "success");
+          await carregarCatalogoExercicios();
+          await carregarVariacoesExercicios();
+        } catch (error) {
+          showAlert(
+            "exerciciosAlert",
+            error?.message || "Erro ao resetar base de exercícios",
+            "error",
+          );
+        }
+      }
+
       async function criarVariacaoExercicio() {
         const nome = document.getElementById("novaVariacaoNome")?.value?.trim();
-        const gifUrl = document.getElementById("novaVariacaoGifUrl")?.value?.trim();
         if (!nome) {
           showAlert("exerciciosAlert", "Informe o nome da execução.", "error");
           return;
@@ -5354,7 +5971,7 @@
             "Content-Type": "application/json",
             Authorization: `Bearer ${authToken}`,
           },
-          body: JSON.stringify({ name: nome, gif_url: gifUrl || null }),
+          body: JSON.stringify({ name: nome }),
         });
 
         if (!response.ok) {
@@ -5364,7 +5981,6 @@
         }
 
         document.getElementById("novaVariacaoNome").value = "";
-        document.getElementById("novaVariacaoGifUrl").value = "";
         showAlert("exerciciosAlert", "Execução cadastrada com sucesso.", "success");
         await carregarVariacoesExercicios();
       }
@@ -5535,7 +6151,6 @@
                 <div class="catalog-row">
                   <div>
                     <div class="catalog-row-title">${escapeHtml(v.name || "Execução")}</div>
-                    <div class="catalog-row-sub">${v.gif_url ? `GIF: ${escapeHtml(v.gif_url)}` : "Sem GIF"}</div>
                   </div>
                   <button class="btn btn-danger" onclick="excluirVariacaoExercicio('${escapeHtml(v.id)}','${escapeHtml(String(v.name || "")).replace(/'/g, "\\'")}')">Excluir</button>
                 </div>
@@ -6383,11 +6998,11 @@
               for (const gripId of gripLoop) {
                 for (const methodId of methodLoop) {
                   exercises.push({
-                    exercise_variation_id: variationId,
-                    exercise_catalog_id: catalogId,
-                    equipment_id: equipId,
-                    grip_footing_id: gripId,
-                    method_id: methodId,
+                    ...(variationId ? { exercise_variation_id: variationId } : {}),
+                    ...(catalogId ? { exercise_catalog_id: catalogId } : {}),
+                    ...(equipId ? { equipment_id: equipId } : {}),
+                    ...(gripId ? { grip_footing_id: gripId } : {}),
+                    ...(methodId ? { method_id: methodId } : {}),
                     target_sets: series,
                     target_reps: reps,
                     target_weight: peso ? parseFloat(peso) : null,
@@ -7242,11 +7857,11 @@
               for (const gripId of gripLoop) {
                 for (const methodId of methodLoop) {
                   const payload = {
-                    exercise_variation_id: variationId,
-                    exercise_catalog_id: catalogId,
-                    equipment_id: equipId,
-                    grip_footing_id: gripId,
-                    method_id: methodId,
+                    ...(variationId ? { exercise_variation_id: variationId } : {}),
+                    ...(catalogId ? { exercise_catalog_id: catalogId } : {}),
+                    ...(equipId ? { equipment_id: equipId } : {}),
+                    ...(gripId ? { grip_footing_id: gripId } : {}),
+                    ...(methodId ? { method_id: methodId } : {}),
                     target_sets: targetSets,
                     target_reps: targetReps,
                     target_weight: weightRaw === "" ? null : Number(weightRaw),

@@ -1,5 +1,6 @@
 ﻿import { createClient } from "@supabase/supabase-js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import XLSX from "xlsx";
 import { z } from "zod";
 
 import { env } from "../../config/env.js";
@@ -31,6 +32,12 @@ const NullableNumberInput = z.union([
   z.literal(""),
 ]);
 
+const NullablePaymentDayInput = z.union([
+  z.number().int().min(1).max(31),
+  z.null(),
+  z.literal(""),
+]);
+
 const StudentPatchSchema = z
   .object({
     name: z.string().min(1).max(255).trim().optional(),
@@ -48,11 +55,17 @@ const StudentPatchSchema = z
       .optional(),
     weight_kg: NullableNumberInput.optional(),
     height_cm: NullableNumberInput.optional(),
+    monthly_fee: NullableNumberInput.optional(),
+    payment_day: NullablePaymentDayInput.optional(),
     is_active: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided",
   });
+
+const StudentPaymentUpdateSchema = z.object({
+  received: z.boolean(),
+});
 
 const ExerciseCreateSchema = z.object({
   name: z.string().min(1).max(255).trim(),
@@ -76,6 +89,18 @@ const ExercisePatchSchema = z
     message: "At least one field must be provided",
   });
 
+const ExerciseCatalogImportXlsSchema = z.object({
+  filename: z.string().max(255).optional(),
+  file_base64: z.string().min(30),
+  reset_existing: z.boolean().optional(),
+});
+
+const ExerciseCatalogResetSchema = z.object({
+  confirm: z.boolean(),
+});
+
+const NullableUuidInput = z.union([z.string().uuid(), z.null()]);
+
 const ExerciseGifUploadUrlSchema = z.object({
   filename: z.string().max(255).optional(),
   content_type: z.string().max(120).optional(),
@@ -96,11 +121,11 @@ const WorkoutCreateSchema = z.object({
       z
         .object({
           exercise_id: z.string().uuid().optional(),
-          exercise_variation_id: z.string().uuid().optional(),
-          exercise_catalog_id: z.string().uuid().optional(),
-          equipment_id: z.string().uuid().optional(),
-          grip_footing_id: z.string().uuid().optional(),
-          method_id: z.string().uuid().optional(),
+          exercise_variation_id: NullableUuidInput.optional(),
+          exercise_catalog_id: NullableUuidInput.optional(),
+          equipment_id: NullableUuidInput.optional(),
+          grip_footing_id: NullableUuidInput.optional(),
+          method_id: NullableUuidInput.optional(),
           custom_description: z
             .union([z.string().max(2000), z.null(), z.literal("")])
             .optional(),
@@ -129,11 +154,11 @@ const WorkoutCreateSchema = z.object({
 
 const WorkoutExerciseCreateSchema = z.object({
   exercise_id: z.string().uuid().optional(),
-  exercise_variation_id: z.string().uuid().optional(),
-  exercise_catalog_id: z.string().uuid().optional(),
-  equipment_id: z.string().uuid().optional(),
-  grip_footing_id: z.string().uuid().optional(),
-  method_id: z.string().uuid().optional(),
+  exercise_variation_id: NullableUuidInput.optional(),
+  exercise_catalog_id: NullableUuidInput.optional(),
+  equipment_id: NullableUuidInput.optional(),
+  grip_footing_id: NullableUuidInput.optional(),
+  method_id: NullableUuidInput.optional(),
   target_sets: z.number().int().positive().max(100),
   target_reps: z.number().int().positive().max(1000),
   target_weight: z.number().nonnegative().max(1000).optional(),
@@ -221,7 +246,7 @@ const PersonalProfilePatchSchema = z
   });
 
 const STUDENTS_SELECT_FULL =
-  "id,personal_id,name,email,whatsapp_number,blood_type,weight_kg,height_cm,is_active,created_at";
+  "id,personal_id,name,email,whatsapp_number,blood_type,weight_kg,height_cm,monthly_fee,payment_day,is_active,created_at";
 const STUDENTS_SELECT_BASE =
   "id,personal_id,name,whatsapp_number,is_active,created_at";
 const PERSONAL_SELECT_FULL =
@@ -349,8 +374,16 @@ function isMissingStudentFieldError(error: any): boolean {
     msg.includes("email") ||
     msg.includes("blood_type") ||
     msg.includes("weight_kg") ||
-    msg.includes("height_cm")
+    msg.includes("height_cm") ||
+    msg.includes("monthly_fee") ||
+    msg.includes("payment_day")
   );
+}
+
+function isMissingStudentPaymentsTableError(error: any): boolean {
+  const msg = String(error?.message ?? "").toLowerCase();
+  const code = String(error?.code ?? "");
+  return code === "42p01" || msg.includes("student_payment_records");
 }
 
 function isMissingWeightLogsTableError(error: any): boolean {
@@ -376,7 +409,145 @@ function normalizeStudentRow(row: any) {
     blood_type: row?.blood_type ?? null,
     weight_kg: row?.weight_kg ?? null,
     height_cm: row?.height_cm ?? null,
+    monthly_fee: row?.monthly_fee ?? null,
+    payment_day: row?.payment_day ?? null,
   };
+}
+
+function formatMonthReference(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function formatMonthReferenceDate(date: Date): string {
+  return `${formatMonthReference(date)}-01`;
+}
+
+function parseMonthReference(raw: string): Date | null {
+  if (!/^\d{4}-\d{2}$/.test(raw)) {
+    return null;
+  }
+
+  const [yearRaw, monthRaw] = raw.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month)) {
+    return null;
+  }
+
+  if (month < 1 || month > 12) {
+    return null;
+  }
+
+  return new Date(year, month - 1, 1);
+}
+
+function buildMonthWindow(monthsBack: number, monthsForward: number): Date[] {
+  const now = new Date();
+  const months: Date[] = [];
+
+  for (let offset = -monthsBack; offset <= monthsForward; offset += 1) {
+    months.push(new Date(now.getFullYear(), now.getMonth() + offset, 1));
+  }
+
+  return months;
+}
+
+function buildDueDate(referenceMonthDate: Date, paymentDay: number): Date {
+  const year = referenceMonthDate.getFullYear();
+  const month = referenceMonthDate.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const dueDay = Math.max(1, Math.min(lastDay, Number(paymentDay) || 1));
+  return new Date(year, month, dueDay);
+}
+
+function toDateOnlyString(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function diffInDays(from: Date, to: Date): number {
+  const fromMidnight = new Date(
+    from.getFullYear(),
+    from.getMonth(),
+    from.getDate(),
+  );
+  const toMidnight = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  const msPerDay = 1000 * 60 * 60 * 24;
+  return Math.floor((toMidnight.getTime() - fromMidnight.getTime()) / msPerDay);
+}
+
+type StudentPaymentHistoryRow = {
+  reference_month: string;
+  due_date: string | null;
+  received: boolean;
+  received_at: string | null;
+};
+
+async function buildStudentPaymentHistory(
+  client: ReturnType<typeof getRlsClient>,
+  studentId: string,
+  paymentDay: number | null | undefined,
+): Promise<StudentPaymentHistoryRow[]> {
+  const monthDates = buildMonthWindow(6, 5);
+  const referenceMonthDates = monthDates.map(formatMonthReferenceDate);
+
+  const { data: records, error } = await client
+    .from("student_payment_records")
+    .select("reference_month,received,received_at")
+    .eq("student_id", studentId)
+    .in("reference_month", referenceMonthDates);
+
+  if (error) {
+    if (isMissingStudentPaymentsTableError(error)) {
+      return monthDates.map((monthDate) => ({
+        reference_month: formatMonthReference(monthDate),
+        due_date:
+          typeof paymentDay === "number" && paymentDay > 0
+            ? toDateOnlyString(buildDueDate(monthDate, paymentDay))
+            : null,
+        received: false,
+        received_at: null,
+      }));
+    }
+
+    throw error;
+  }
+
+  const byReference = new Map<
+    string,
+    {
+      received: boolean;
+      received_at: string | null;
+    }
+  >();
+
+  for (const record of records ?? []) {
+    const referenceMonth = String(record?.reference_month ?? "").slice(0, 7);
+    if (!referenceMonth) continue;
+
+    byReference.set(referenceMonth, {
+      received: Boolean(record?.received),
+      received_at:
+        typeof record?.received_at === "string" ? record.received_at : null,
+    });
+  }
+
+  return monthDates.map((monthDate) => {
+    const referenceMonth = formatMonthReference(monthDate);
+    const record = byReference.get(referenceMonth);
+
+    return {
+      reference_month: referenceMonth,
+      due_date:
+        typeof paymentDay === "number" && paymentDay > 0
+          ? toDateOnlyString(buildDueDate(monthDate, paymentDay))
+          : null,
+      received: record?.received ?? false,
+      received_at: record?.received_at ?? null,
+    };
+  });
 }
 
 function isMissingPersonalFieldError(error: any): boolean {
@@ -420,6 +591,32 @@ function tokenizeSearchTerm(input: string): string[] {
     .split(" ")
     .map((term) => term.trim())
     .filter(Boolean);
+}
+
+function decodeBase64Payload(input: string): Buffer {
+  const trimmed = String(input || "").trim();
+  const dataPart = trimmed.includes(",") ? trimmed.split(",").slice(-1)[0] : trimmed;
+  return Buffer.from(dataPart, "base64");
+}
+
+function extractExerciseNameFromRow(row: Record<string, unknown>): string {
+  const aliases = [
+    "Exercício",
+    "Exercicio",
+    "Nome Exercício",
+    "Nome do Exercício",
+    "Nome",
+    "exercise",
+    "name",
+  ];
+
+  for (const alias of aliases) {
+    if (row[alias] == null) continue;
+    const value = String(row[alias] ?? "").trim();
+    if (value) return value;
+  }
+
+  return "";
 }
 
 function resolveExerciseTags(tags: unknown): string[] {
@@ -693,8 +890,8 @@ async function resolveWorkoutExerciseReference(params: {
   app: FastifyInstance;
   personalId: string;
   exerciseId?: string;
-  exerciseVariationId?: string;
-  exerciseCatalogId?: string;
+  exerciseVariationId?: string | null;
+  exerciseCatalogId?: string | null;
 }) {
   const { app, personalId, exerciseId, exerciseVariationId, exerciseCatalogId } = params;
 
@@ -788,6 +985,102 @@ async function resolveWorkoutExerciseReference(params: {
   return {
     exerciseId,
     exerciseVariationId: linkedVariation?.id ?? null,
+  };
+}
+
+async function resetPersonalExerciseBase(personalId: string) {
+  const { data: workouts, error: workoutsError } = await supabaseAdmin
+    .from("workouts")
+    .select("id")
+    .eq("personal_id", personalId);
+  if (workoutsError) throw workoutsError;
+
+  const workoutIds = (workouts ?? []).map((row: any) => row.id).filter(Boolean);
+
+  if (workoutIds.length > 0) {
+    const { error: clearWorkoutRefsError } = await supabaseAdmin
+      .from("workout_exercises")
+      .update({
+        exercise_catalog_id: null,
+        exercise_variation_id: null,
+        equipment_id: null,
+        grip_footing_id: null,
+        method_id: null,
+      })
+      .in("workout_id", workoutIds);
+
+    if (clearWorkoutRefsError) {
+      throw clearWorkoutRefsError;
+    }
+  }
+
+  const { data: ownCatalogRows, error: ownCatalogRowsError } = await supabaseAdmin
+    .from("exercise_catalog")
+    .select("id")
+    .eq("personal_id", personalId);
+  if (ownCatalogRowsError) {
+    throw ownCatalogRowsError;
+  }
+
+  const ownCatalogIds = (ownCatalogRows ?? []).map((row: any) => row.id).filter(Boolean);
+
+  if (ownCatalogIds.length > 0) {
+    const { error: clearComboByCatalogError } = await supabaseAdmin
+      .from("exercise_combo_cache")
+      .delete()
+      .in("exercise_catalog_id", ownCatalogIds);
+    if (clearComboByCatalogError) {
+      throw clearComboByCatalogError;
+    }
+  }
+
+  const { data: ownVariationRows, error: ownVariationRowsError } = await supabaseAdmin
+    .from("exercise_variations")
+    .select("id")
+    .eq("personal_id", personalId);
+  if (ownVariationRowsError) {
+    throw ownVariationRowsError;
+  }
+
+  const ownVariationIds = (ownVariationRows ?? []).map((row: any) => row.id).filter(Boolean);
+
+  if (ownVariationIds.length > 0) {
+    const { error: clearComboByVariationError } = await supabaseAdmin
+      .from("exercise_combo_cache")
+      .delete()
+      .in("exercise_variation_id", ownVariationIds);
+    if (clearComboByVariationError) {
+      throw clearComboByVariationError;
+    }
+  }
+
+  const { error: deleteOwnVariationsError } = await supabaseAdmin
+    .from("exercise_variations")
+    .delete()
+    .eq("personal_id", personalId);
+  if (deleteOwnVariationsError) {
+    throw deleteOwnVariationsError;
+  }
+
+  const { error: deleteOwnCatalogError } = await supabaseAdmin
+    .from("exercise_catalog")
+    .delete()
+    .eq("personal_id", personalId);
+  if (deleteOwnCatalogError) {
+    throw deleteOwnCatalogError;
+  }
+
+  const { error: deleteOwnLegacyExercisesError } = await supabaseAdmin
+    .from("exercises")
+    .delete()
+    .eq("personal_id", personalId);
+  if (deleteOwnLegacyExercisesError) {
+    throw deleteOwnLegacyExercisesError;
+  }
+
+  return {
+    removed_catalog_count: ownCatalogIds.length,
+    removed_variations_count: ownVariationIds.length,
   };
 }
 
@@ -1019,10 +1312,19 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     if (payload.blood_type === "") payload.blood_type = null;
     if (payload.weight_kg === "") payload.weight_kg = null;
     if (payload.height_cm === "") payload.height_cm = null;
+    if (payload.monthly_fee === "") payload.monthly_fee = null;
+    if (payload.payment_day === "") payload.payment_day = null;
 
     if (
       Object.keys(payload).some((k) =>
-        ["email", "blood_type", "weight_kg", "height_cm"].includes(k),
+        [
+          "email",
+          "blood_type",
+          "weight_kg",
+          "height_cm",
+          "monthly_fee",
+          "payment_day",
+        ].includes(k),
       )
     ) {
       const { error: writeProbeError } = await client
@@ -1034,6 +1336,8 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         delete payload.blood_type;
         delete payload.weight_kg;
         delete payload.height_cm;
+        delete payload.monthly_fee;
+        delete payload.payment_day;
       }
     }
 
@@ -1103,6 +1407,272 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return normalizeStudentRow(data);
   });
 
+  app.get("/students/:id/payments", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+    const client = getRlsClient(token);
+
+    let studentResult = await client
+      .from("students")
+      .select(STUDENTS_SELECT_FULL)
+      .eq("id", id)
+      .maybeSingle();
+
+    if (
+      studentResult.error &&
+      isMissingStudentFieldError(studentResult.error)
+    ) {
+      studentResult = await client
+        .from("students")
+        .select(STUDENTS_SELECT_BASE)
+        .eq("id", id)
+        .maybeSingle();
+    }
+
+    const { data: studentRaw, error: studentError } = studentResult;
+
+    if (studentError) {
+      throw app.httpErrors.badRequest(studentError.message);
+    }
+
+    if (!studentRaw) {
+      throw app.httpErrors.notFound("Student not found");
+    }
+
+    const student = normalizeStudentRow(studentRaw);
+
+    try {
+      const history = await buildStudentPaymentHistory(
+        client,
+        id,
+        student.payment_day,
+      );
+
+      return {
+        student: {
+          id: student.id,
+          monthly_fee: student.monthly_fee,
+          payment_day: student.payment_day,
+        },
+        history,
+      };
+    } catch (error: any) {
+      throw app.httpErrors.badRequest(error?.message || "Erro ao carregar pagamentos");
+    }
+  });
+
+  app.patch("/students/:id/payments/:referenceMonth", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const parsed = StudentPaymentUpdateSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+    const referenceMonthRaw = String(
+      (request.params as { referenceMonth?: string }).referenceMonth ?? "",
+    );
+    const referenceMonthDate = parseMonthReference(referenceMonthRaw);
+
+    if (!referenceMonthDate) {
+      throw app.httpErrors.badRequest(
+        "referenceMonth must follow YYYY-MM format",
+      );
+    }
+
+    const client = getRlsClient(token);
+    const { data: student, error: studentError } = await client
+      .from("students")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (studentError) {
+      throw app.httpErrors.badRequest(studentError.message);
+    }
+
+    if (!student) {
+      throw app.httpErrors.notFound("Student not found");
+    }
+
+    const upsertPayload = {
+      student_id: id,
+      reference_month: formatMonthReferenceDate(referenceMonthDate),
+      received: parsed.data.received,
+      received_at: parsed.data.received ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: upsertError } = await client
+      .from("student_payment_records")
+      .upsert(upsertPayload, {
+        onConflict: "student_id,reference_month",
+        ignoreDuplicates: false,
+      });
+
+    if (upsertError) {
+      if (isMissingStudentPaymentsTableError(upsertError)) {
+        throw app.httpErrors.badRequest(
+          "A tabela de pagamentos ainda não foi criada. Aplique as migrations financeiras.",
+        );
+      }
+
+      throw app.httpErrors.badRequest(upsertError.message);
+    }
+
+    return {
+      student_id: id,
+      reference_month: formatMonthReference(referenceMonthDate),
+      received: parsed.data.received,
+      received_at: upsertPayload.received_at,
+    };
+  });
+
+  app.get("/finance/dashboard", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const client = getRlsClient(token);
+
+    let studentsResult: any = await client
+      .from("students")
+      .select(STUDENTS_SELECT_FULL)
+      .order("name", { ascending: true });
+
+    if (studentsResult.error && isMissingStudentFieldError(studentsResult.error)) {
+      studentsResult = await client
+        .from("students")
+        .select(STUDENTS_SELECT_BASE)
+        .order("name", { ascending: true });
+    }
+
+    const { data: studentsData, error: studentsError } = studentsResult;
+    if (studentsError) {
+      throw app.httpErrors.badRequest(studentsError.message);
+    }
+
+    const students = (studentsData ?? []).map(normalizeStudentRow);
+    const activeStudents = students.filter((student: any) => student.is_active !== false);
+    const billableStudents = activeStudents.filter(
+      (student: any) =>
+        Number(student.monthly_fee) > 0 &&
+        Number.isInteger(Number(student.payment_day)) &&
+        Number(student.payment_day) >= 1 &&
+        Number(student.payment_day) <= 31,
+    );
+
+    const now = new Date();
+    const currentMonthDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthReference = formatMonthReference(currentMonthDate);
+
+    const studentIds = billableStudents
+      .map((student: any) => String(student.id || ""))
+      .filter(Boolean);
+
+    const paymentMap = new Map<
+      string,
+      {
+        received: boolean;
+        received_at: string | null;
+      }
+    >();
+
+    if (studentIds.length > 0) {
+      const { data: records, error: recordsError } = await client
+        .from("student_payment_records")
+        .select("student_id,reference_month,received,received_at")
+        .eq("reference_month", formatMonthReferenceDate(currentMonthDate))
+        .in("student_id", studentIds);
+
+      if (recordsError && !isMissingStudentPaymentsTableError(recordsError)) {
+        throw app.httpErrors.badRequest(recordsError.message);
+      }
+
+      for (const record of records ?? []) {
+        const studentId = String(record?.student_id ?? "");
+        if (!studentId) continue;
+
+        paymentMap.set(studentId, {
+          received: Boolean(record?.received),
+          received_at:
+            typeof record?.received_at === "string" ? record.received_at : null,
+        });
+      }
+    }
+
+    let earnedAmount = 0;
+    const overdueStudents: any[] = [];
+    const pendingStudents: any[] = [];
+    const upcomingDueStudents: any[] = [];
+
+    for (const student of billableStudents) {
+      const studentId = String(student.id);
+      const monthlyFee = Number(student.monthly_fee || 0);
+      const paymentDay = Number(student.payment_day || 1);
+      const dueDate = buildDueDate(currentMonthDate, paymentDay);
+      const dueDateString = toDateOnlyString(dueDate);
+      const record = paymentMap.get(studentId);
+
+      if (record?.received) {
+        earnedAmount += monthlyFee;
+        continue;
+      }
+
+      const daysUntilDue = diffInDays(now, dueDate);
+      const studentSummary = {
+        id: studentId,
+        name: student.name,
+        whatsapp_number: student.whatsapp_number,
+        monthly_fee: Number(monthlyFee.toFixed(2)),
+        payment_day: paymentDay,
+        due_date: dueDateString,
+      };
+
+      pendingStudents.push({
+        ...studentSummary,
+        days_until_due: daysUntilDue,
+      });
+
+      if (daysUntilDue < 0) {
+        overdueStudents.push({
+          ...studentSummary,
+          days_overdue: Math.abs(daysUntilDue),
+        });
+        continue;
+      }
+
+      if (daysUntilDue <= 7) {
+        upcomingDueStudents.push({
+          ...studentSummary,
+          days_until_due: daysUntilDue,
+        });
+      }
+    }
+
+    overdueStudents.sort((a, b) => b.days_overdue - a.days_overdue);
+    pendingStudents.sort((a, b) => a.days_until_due - b.days_until_due);
+    upcomingDueStudents.sort((a, b) => a.days_until_due - b.days_until_due);
+
+    return {
+      reference_month: currentMonthReference,
+      indicators: {
+        earned_amount: Number(earnedAmount.toFixed(2)),
+        students_count: activeStudents.length,
+        pending_count: pendingStudents.length,
+        overdue_count: overdueStudents.length,
+        upcoming_due_count: upcomingDueStudents.length,
+      },
+      overdue_students: overdueStudents,
+      upcoming_due_students: upcomingDueStudents,
+      pending_students: pendingStudents,
+    };
+  });
+
   app.get("/students/:id/details", async (request) => {
     const { token } = await getAuthenticatedPersonal(app, request);
     const id = z
@@ -1139,6 +1709,11 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     }
 
     const student = normalizeStudentRow(studentRaw);
+    const paymentHistory = await buildStudentPaymentHistory(
+      client,
+      id,
+      student.payment_day,
+    );
 
     const { data: assignments, error: workoutsError } = await client
       .from("student_workouts")
@@ -1213,6 +1788,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     return {
       student,
+      payment_history: paymentHistory,
       workouts: workouts ?? [],
       available_workouts: (availableWorkouts ?? []).filter(
         (workout: any) => !assignedWorkoutIds.includes(workout.id),
@@ -1883,6 +2459,189 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return { success: true };
   });
 
+  app.post("/exercise-catalog/reset-base", async (request) => {
+    const { personalId } = await getAuthenticatedPersonal(app, request);
+    const parsed = ExerciseCatalogResetSchema.safeParse(request.body ?? {});
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    if (!parsed.data.confirm) {
+      throw app.httpErrors.badRequest("Confirmação obrigatória para resetar a base.");
+    }
+
+    let result;
+    try {
+      result = await resetPersonalExerciseBase(personalId);
+    } catch (error: any) {
+      throw app.httpErrors.badRequest(error?.message || "Erro ao resetar base");
+    }
+
+    return {
+      success: true,
+      removed_catalog_count: result.removed_catalog_count,
+      removed_variations_count: result.removed_variations_count,
+    };
+  });
+
+  app.post("/exercise-catalog/import-xls", async (request) => {
+    const { personalId } = await getAuthenticatedPersonal(app, request);
+    const parsed = ExerciseCatalogImportXlsSchema.safeParse(request.body ?? {});
+
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest(parsed.error.message);
+    }
+
+    if (parsed.data.reset_existing) {
+      try {
+        await resetPersonalExerciseBase(personalId);
+      } catch (error: any) {
+        throw app.httpErrors.badRequest(error?.message || "Erro ao resetar base");
+      }
+    }
+
+    let rows: Record<string, unknown>[] = [];
+    try {
+      const fileBuffer = decodeBase64Payload(parsed.data.file_base64);
+      const workbook = XLSX.read(fileBuffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      if (!sheetName) {
+        throw new Error("A planilha não possui abas válidas.");
+      }
+
+      const worksheet = workbook.Sheets[sheetName];
+      rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, {
+        defval: "",
+      });
+    } catch (error: any) {
+      throw app.httpErrors.badRequest(
+        error?.message || "Arquivo XLS/XLSX inválido.",
+      );
+    }
+
+    const seen = new Set<string>();
+    const names: string[] = [];
+
+    for (const row of rows) {
+      const name = extractExerciseNameFromRow(row);
+      if (!name) continue;
+      const key = normalizeSearchComparable(name);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      names.push(name);
+    }
+
+    if (names.length === 0) {
+      throw app.httpErrors.badRequest(
+        "Nenhum exercício válido encontrado. Use colunas como 'Nome' ou 'Exercício'.",
+      );
+    }
+
+    const { data: existingRows, error: existingRowsError } = await supabaseAdmin
+      .from("exercise_catalog")
+      .select("id,name")
+      .eq("personal_id", personalId);
+    if (existingRowsError) {
+      throw app.httpErrors.badRequest(existingRowsError.message);
+    }
+
+    const existingSet = new Set(
+      (existingRows ?? []).map((row: any) => normalizeSearchComparable(row.name)),
+    );
+
+    const toInsert = names.filter(
+      (name) => !existingSet.has(normalizeSearchComparable(name)),
+    );
+
+    if (toInsert.length > 0) {
+      const { error: insertError } = await supabaseAdmin
+        .from("exercise_catalog")
+        .insert(toInsert.map((name) => ({ name, personal_id: personalId })));
+
+      if (insertError) {
+        throw app.httpErrors.badRequest(insertError.message);
+      }
+    }
+
+    return {
+      success: true,
+      file: parsed.data.filename || null,
+      total_rows: rows.length,
+      imported_count: toInsert.length,
+      skipped_existing_count: names.length - toInsert.length,
+      reset_existing: Boolean(parsed.data.reset_existing),
+    };
+  });
+
+  app.get("/exercise-catalog/import-template", async (request, reply) => {
+    await getAuthenticatedPersonal(app, request);
+
+    const workbook = XLSX.utils.book_new();
+    const sampleRows = [
+      {
+        Nome: "Supino Reto",
+        "Grupo muscular (opcional)": "Peito",
+        "Observações (opcional)": "Priorizar execução controlada",
+      },
+      {
+        Nome: "Leg Press",
+        "Grupo muscular (opcional)": "Pernas",
+        "Observações (opcional)": "Amplitude completa sem tirar o quadril do banco",
+      },
+      {
+        Nome: "Puxada Frente",
+        "Grupo muscular (opcional)": "Costas",
+        "Observações (opcional)": "Evitar balanço do tronco",
+      },
+      {
+        Nome: "Desenvolvimento Ombros",
+        "Grupo muscular (opcional)": "Ombros",
+        "Observações (opcional)": "Manter core ativo durante toda a série",
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleRows);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Exercicios");
+
+    const instructionsRows = [
+      {
+        Campo: "Nome",
+        Obrigatorio: "Sim",
+        Regras: "Informe o nome do exercício. Ex.: Supino Reto",
+      },
+      {
+        Campo: "Grupo muscular (opcional)",
+        Obrigatorio: "Não",
+        Regras: "Campo opcional para organização interna.",
+      },
+      {
+        Campo: "Observações (opcional)",
+        Obrigatorio: "Não",
+        Regras: "Campo opcional com dicas de execução ou notas.",
+      },
+    ];
+    const instructionsSheet = XLSX.utils.json_to_sheet(instructionsRows);
+    XLSX.utils.book_append_sheet(workbook, instructionsSheet, "Instrucoes");
+
+    const buffer = XLSX.write(workbook, {
+      type: "buffer",
+      bookType: "xlsx",
+    }) as Buffer;
+
+    reply
+      .header(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      )
+      .header(
+        "Content-Disposition",
+        'attachment; filename="modelo-importacao-exercicios.xlsx"',
+      );
+
+    return reply.send(buffer);
+  });
+
   app.get("/exercise-variations", async (request) => {
     const { personalId } = await getAuthenticatedPersonal(app, request);
     const query = request.query as { search?: string; limit?: string };
@@ -1894,7 +2653,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     let q = supabaseAdmin
       .from("exercise_variations")
-      .select("id,name,gif_url")
+      .select("id,name")
       .or(`personal_id.is.null,personal_id.eq.${personalId}`)
       .order("name", { ascending: true });
 
@@ -1909,14 +2668,13 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
   app.post("/exercise-variations", async (request) => {
     const { personalId } = await getAuthenticatedPersonal(app, request);
-    const body = request.body as { name?: string; gif_url?: string | null };
+    const body = request.body as { name?: string };
     const name = z.string().min(2).max(120).parse((body?.name ?? "").trim());
-    const gifUrl = body?.gif_url?.trim() ? body.gif_url.trim() : null;
 
     const { data, error } = await supabaseAdmin
       .from("exercise_variations")
-      .insert({ name, personal_id: personalId, gif_url: gifUrl })
-      .select("id,name,gif_url,personal_id")
+      .insert({ name, personal_id: personalId })
+      .select("id,name,personal_id")
       .single();
 
     if (error) throw app.httpErrors.badRequest(error.message);
