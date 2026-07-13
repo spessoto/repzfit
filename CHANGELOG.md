@@ -6,6 +6,13 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-13] – Correção do login no painel (v1.1.6)
+
+### Corrigido
+- O login voltou a expor corretamente a função global `login()` no carregamento da página.
+- O formulário inicial volta a responder ao botão `Entrar` e ao clique no botão de mostrar senha.
+- Removida a declaração duplicada que impedia o script do painel de ser carregado no navegador.
+
 ## [2026-07-13] – Correção do dropdown de grupo muscular no treino (v1.1.5)
 
 ### Corrigido
