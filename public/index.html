@@ -1144,6 +1144,20 @@
         padding-top: 14px;
       }
 
+      .student-editor-two-columns {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .student-editor-column-card {
+        border: 1px solid #dbe2ea;
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 12px;
+      }
+
       .payment-history-list {
         border: 1px solid #dbe2ea;
         border-radius: 10px;
@@ -1264,7 +1278,8 @@
 
         .student-report-grid,
         .student-report-metrics,
-        .finance-list-grid {
+        .finance-list-grid,
+        .student-editor-two-columns {
           grid-template-columns: 1fr;
         }
 
@@ -1716,20 +1731,24 @@
                   Salvar dados do aluno
                 </button>
               </div>
-
-              <div class="student-payment-history" style="margin-top:16px;">
-                <h4 style="margin-bottom:10px; color:#374151;">Controle de pagamentos (mês/ano)</h4>
-                <div id="studentEditorPaymentsHistory">
-                  <p style="color:#6b7280;">Carregando histórico de pagamentos...</p>
-                </div>
-              </div>
             </div>
 
             <div class="card" style="margin-bottom: 16px">
-              <h4 style="margin-bottom: 10px; color: #374151">
-                Atribuir treino modelo
-              </h4>
-              <div id="studentEditorAvailableWorkouts"></div>
+              <div class="student-editor-two-columns">
+                <div class="student-editor-column-card">
+                  <h4 style="margin-bottom:10px; color:#374151;">Controle de pagamentos (mês/ano)</h4>
+                  <div id="studentEditorPaymentsHistory">
+                    <p style="color:#6b7280;">Carregando histórico de pagamentos...</p>
+                  </div>
+                </div>
+
+                <div class="student-editor-column-card">
+                  <h4 style="margin-bottom: 10px; color: #374151">
+                    Atribuir treino modelo
+                  </h4>
+                  <div id="studentEditorAvailableWorkouts"></div>
+                </div>
+              </div>
 
               <h3 style="margin-bottom: 10px; color: #374151">Treinos do Aluno</h3>
               <div id="studentEditorWorkouts"></div>

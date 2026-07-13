@@ -16,6 +16,8 @@ type InputRow = {
   description: string | null;
   gifUrl: string | null;
   equipments: string[];
+  grips: string[];
+  methods: string[];
 };
 
 type ExistingSharedExercise = {
@@ -153,7 +155,15 @@ function parseWorkbookRows(filePath: string): InputRow[] {
       pickColumn(row, ["Grupo Muscular", "Músculo", "Musculo", "muscle_group"]) ||
       null;
     const description =
-      pickColumn(row, ["Descrição", "Descricao", "Execução", "Execucao", "description"]) ||
+      pickColumn(row, [
+        "Descrição",
+        "Descricao",
+        "Execução",
+        "Execucao",
+        "Observações",
+        "Observacoes",
+        "description",
+      ]) ||
       null;
     const gifUrl =
       pickColumn(row, ["GIF", "Gif", "gif_url", "GIF URL", "Gif URL"]) ||
@@ -166,6 +176,16 @@ function parseWorkbookRows(filePath: string): InputRow[] {
       "equipment_list",
     ]);
 
+    const gripRaw = pickColumn(row, [
+      "Pegada/Pisada",
+      "Pegada",
+      "Pisada",
+      "grip",
+      "footing",
+    ]);
+
+    const methodRaw = pickColumn(row, ["Método", "Metodo", "method"]);
+
     parsed.push({
       row: index + 2,
       exerciseName,
@@ -174,6 +194,8 @@ function parseWorkbookRows(filePath: string): InputRow[] {
       description,
       gifUrl,
       equipments: splitCsv(equipmentRaw),
+      grips: splitCsv(gripRaw),
+      methods: splitCsv(methodRaw),
     });
   });
 
@@ -217,6 +239,12 @@ async function importExercises() {
   const uniqueEquipments = Array.from(
     new Set(rows.flatMap((r) => r.equipments).filter(Boolean)),
   );
+  const uniqueGrips = Array.from(
+    new Set(rows.flatMap((r) => r.grips).filter(Boolean)),
+  );
+  const uniqueMethods = Array.from(
+    new Set(rows.flatMap((r) => r.methods).filter(Boolean)),
+  );
   const uniqueExerciseNames = Array.from(
     new Set(rows.map((r) => normalizeText(r.exerciseName)).filter(Boolean)),
   );
@@ -224,7 +252,9 @@ async function importExercises() {
     new Set(rows.map((r) => normalizeText(r.variationName)).filter(Boolean)),
   );
 
-  console.log(`🧠 Resumo: ${uniqueExerciseNames.length} exercícios, ${uniqueVariationNames.length} variações, ${uniqueEquipments.length} equipamentos`);
+  console.log(
+    `🧠 Resumo: ${uniqueExerciseNames.length} exercícios, ${uniqueVariationNames.length} variações, ${uniqueEquipments.length} equipamentos, ${uniqueGrips.length} pegadas/pisadas, ${uniqueMethods.length} métodos`,
+  );
 
   if (dryRun) {
     console.log("🧪 Dry run habilitado, nenhuma alteração será aplicada.");
@@ -278,6 +308,20 @@ async function importExercises() {
       .from("equipment_catalog")
       .upsert(uniqueEquipments.map((name) => ({ name })), { onConflict: "name" });
     assertNoError(equipmentError, "upsert equipment catalog");
+  }
+
+  if (uniqueGrips.length) {
+    const { error: gripError } = await supabaseAdmin
+      .from("grip_footing_catalog")
+      .upsert(uniqueGrips.map((name) => ({ name })), { onConflict: "name" });
+    assertNoError(gripError, "upsert grip/footing catalog");
+  }
+
+  if (uniqueMethods.length) {
+    const { error: methodError } = await supabaseAdmin
+      .from("method_catalog")
+      .upsert(uniqueMethods.map((name) => ({ name })), { onConflict: "name" });
+    assertNoError(methodError, "upsert method catalog");
   }
 
   // ── Exercise catalog (get-existing + insert-new, preserve IDs) ────────────

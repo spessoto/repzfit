@@ -6,6 +6,24 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-13] – Ajustes finais de pagamentos e nova base de exercícios (v1.1.1)
+
+### Alterado
+- Lista de controle de pagamentos na edição de aluno agora mostra somente meses entre a inclusão do aluno e o mês atual.
+- Janela de meses no controle de pagamentos limitada aos últimos 5 meses, com atualização automática do mês corrente.
+- Layout da edição de aluno reorganizado em 2 colunas para os blocos de Controle de pagamentos e Atribuição de treino.
+- Modelo XLS de importação de exercícios ampliado com colunas opcionais e aba de instruções.
+
+### Scripts operacionais
+- scripts/import-exercises.ts atualizado para mapear colunas da planilha de seed (Grupo Muscular, Exercício, Equipamento, Execução, Pegada/Pisada, Método e Observações).
+- scripts/sql/reset-exercise-base.sql adicionado para limpeza rápida da base de exercícios normalizada.
+
+### Operação de banco executada
+- Seed importado a partir de src/exercicios seed 150.xlsx para preencher a nova base normalizada.
+- Registros legados remanescentes removidos após validação de impacto em workout_exercises.
+
+---
+
 ## [2026-07-13] – Financeiro, importação XLS e reset de base de exercícios
 
 ### Adicionado

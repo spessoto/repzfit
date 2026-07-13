@@ -444,15 +444,33 @@ function parseMonthReference(raw: string): Date | null {
   return new Date(year, month - 1, 1);
 }
 
-function buildMonthWindow(monthsBack: number, monthsForward: number): Date[] {
+function buildStudentPaymentMonthWindow(
+  studentCreatedAt: string | null | undefined,
+  limitMonths = 5,
+): Date[] {
   const now = new Date();
+  const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const createdDate = studentCreatedAt ? new Date(studentCreatedAt) : null;
+  const createdMonth =
+    createdDate && !Number.isNaN(createdDate.getTime())
+      ? new Date(createdDate.getFullYear(), createdDate.getMonth(), 1)
+      : currentMonth;
+
+  const startMonth = createdMonth <= currentMonth ? createdMonth : currentMonth;
   const months: Date[] = [];
 
-  for (let offset = -monthsBack; offset <= monthsForward; offset += 1) {
-    months.push(new Date(now.getFullYear(), now.getMonth() + offset, 1));
+  const cursor = new Date(startMonth.getFullYear(), startMonth.getMonth(), 1);
+  while (cursor <= currentMonth) {
+    months.push(new Date(cursor.getFullYear(), cursor.getMonth(), 1));
+    cursor.setMonth(cursor.getMonth() + 1);
   }
 
-  return months;
+  if (months.length <= limitMonths) {
+    return months;
+  }
+
+  return months.slice(months.length - limitMonths);
 }
 
 function buildDueDate(referenceMonthDate: Date, paymentDay: number): Date {
@@ -489,8 +507,12 @@ async function buildStudentPaymentHistory(
   client: ReturnType<typeof getRlsClient>,
   studentId: string,
   paymentDay: number | null | undefined,
+  studentCreatedAt: string | null | undefined,
 ): Promise<StudentPaymentHistoryRow[]> {
-  const monthDates = buildMonthWindow(6, 5);
+  const monthDates = buildStudentPaymentMonthWindow(studentCreatedAt, 5);
+  if (monthDates.length === 0) {
+    return [];
+  }
   const referenceMonthDates = monthDates.map(formatMonthReferenceDate);
 
   const { data: records, error } = await client
@@ -1449,6 +1471,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         client,
         id,
         student.payment_day,
+        student.created_at,
       );
 
       return {
@@ -1713,6 +1736,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       client,
       id,
       student.payment_day,
+      student.created_at,
     );
 
     const { data: assignments, error: workoutsError } = await client
