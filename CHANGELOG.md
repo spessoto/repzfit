@@ -6,6 +6,24 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-13] – Editor de treino em cascata por base original (v1.1.4)
+
+### Alterado
+- Criação e edição de treinos agora começam por grupo muscular e seguem a cascata da planilha original: grupo muscular → exercício → execução → equipamento → pegada/pisada → método.
+- Campos do editor de treino foram reorganizados em duas colunas para facilitar o preenchimento.
+- Os campos continuam com busca por digitação, mas agora o dropdown exibe todas as opções disponíveis do passo atual ao receber foco.
+
+### Adicionado
+- Endpoint `GET /api/exercise-combos/tree` para servir a árvore de combinações derivada da planilha `src/exercicios seed 150.xlsx`.
+- Tabela `exercise_combo_options` para materializar cada linha da planilha como combinação exata usada pelo editor de treino.
+
+### Operação de banco executada
+- `exercise_combo_options` preenchida com as 150 combinações originais da planilha.
+
+### Migrações relevantes
+- `supabase/migrations/202607130003_add_exercise_combo_dimensions.sql`
+- `supabase/migrations/202607130004_add_exercise_combo_options.sql`
+
 ## [2026-07-13] – Seed completo da base de exercícios (v1.1.3)
 
 ### Adicionado

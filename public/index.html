@@ -682,6 +682,24 @@
         gap: 12px;
       }
 
+      .workout-add-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      .workout-add-grid .full,
+      .workout-metrics-grid.full {
+        grid-column: 1 / -1;
+      }
+
+      .workout-metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
       .editor-grid .form-group.full {
         grid-column: 1 / -1;
       }
@@ -1273,6 +1291,11 @@
         }
 
         .editor-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .workout-add-grid,
+        .workout-metrics-grid {
           grid-template-columns: 1fr;
         }
 
@@ -7149,7 +7172,7 @@
 
       // Fechar dropdown ao clicar fora
       document.addEventListener("click", function (e) {
-        if (!e.target.matches('[id^="excat_search_"], [id^="tab_cat_search_"], [id^="exvar_search_"], [id^="exequip_search_"], [id^="exgrip_search_"], [id^="exmethod_search_"], [id^="tab_var_search_"], [id^="tab_equip_search_"], [id^="tab_grip_search_"], [id^="tab_method_search_"]')) {
+        if (!e.target.matches('[id^="excat_search_"], [id^="tab_mg_search_"], [id^="tab_cat_search_"], [id^="exvar_search_"], [id^="exequip_search_"], [id^="exgrip_search_"], [id^="exmethod_search_"], [id^="tab_var_search_"], [id^="tab_equip_search_"], [id^="tab_grip_search_"], [id^="tab_method_search_"]')) {
           document
             .querySelectorAll(".autocomplete-dropdown")
             .forEach((dropdown) => {
@@ -7410,71 +7433,87 @@
                       <div style="margin-top: 12px; padding: 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">
                         <h5 style="margin-bottom: 8px; color: #334155;">Adicionar exercício ao treino</h5>
 
-                        <div class="form-group" style="position: relative; margin-bottom: 8px;">
-                          <label>Exercício</label>
-                          <input
-                            type="text"
-                            id="tab_cat_search_${treino.id}"
-                            placeholder="Digite para buscar exercício..."
-                            autocomplete="off"
-                            oninput="buscarCatalogoEdicao('${treino.id}', this.value)"
-                            onfocus="buscarCatalogoEdicao('${treino.id}', this.value)"
-                          />
-                          <input type="hidden" id="tab_cat_id_${treino.id}" />
-                          <div id="tab_cat_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
-                        </div>
+                        <div class="workout-add-grid">
+                          <div class="form-group" style="position: relative;">
+                            <label>Grupo muscular</label>
+                            <input
+                              type="text"
+                              id="tab_mg_search_${treino.id}"
+                              placeholder="Clique para ver os grupos..."
+                              autocomplete="off"
+                              oninput="buscarGrupoMuscularEdicao('${treino.id}', this.value)"
+                              onfocus="buscarGrupoMuscularEdicao('${treino.id}', this.value)"
+                            />
+                            <input type="hidden" id="tab_mg_id_${treino.id}" />
+                            <div id="tab_mg_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                          </div>
 
-                        <div id="tab_equip_wrapper_${treino.id}" class="form-group" style="margin-bottom:8px; position:relative;">
-                          <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-                          <div id="tab_equip_tags_${treino.id}" class="tag-container"></div>
-                          <input type="text" id="tab_equip_search_${treino.id}" placeholder="Digite para buscar equipamento..." autocomplete="off"
-                                 oninput="buscarEquipamentoEdicao('${treino.id}', this.value)" onfocus="buscarEquipamentoEdicao('${treino.id}', this.value)" />
-                          <input type="hidden" id="tab_equip_id_${treino.id}" />
-                          <input type="hidden" id="tab_equip_ids_${treino.id}" />
-                          <div id="tab_equip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
-                        </div>
+                          <div class="form-group" style="position: relative;">
+                            <label>Exercício</label>
+                            <input
+                              type="text"
+                              id="tab_cat_search_${treino.id}"
+                              placeholder="Selecione o grupo muscular primeiro..."
+                              autocomplete="off"
+                              oninput="buscarCatalogoEdicao('${treino.id}', this.value)"
+                              onfocus="buscarCatalogoEdicao('${treino.id}', this.value)"
+                            />
+                            <input type="hidden" id="tab_cat_id_${treino.id}" />
+                            <div id="tab_cat_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                          </div>
 
-                        <div id="tab_var_wrapper_${treino.id}" class="form-group" style="margin-bottom:8px; position:relative;">
-                          <label>Execução <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-                          <div id="tab_var_tags_${treino.id}" class="tag-container"></div>
-                          <input type="text" id="tab_var_search_${treino.id}" placeholder="Digite para buscar execução..." autocomplete="off"
-                                 oninput="buscarVariacaoEdicao('${treino.id}', this.value)" onfocus="buscarVariacaoEdicao('${treino.id}', this.value)" />
-                          <div id="tab_var_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
-                        </div>
+                          <div id="tab_var_wrapper_${treino.id}" class="form-group" style="margin-bottom:0; position:relative;">
+                            <label>Execução <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                            <div id="tab_var_tags_${treino.id}" class="tag-container"></div>
+                            <input type="text" id="tab_var_search_${treino.id}" placeholder="Digite para buscar execução..." autocomplete="off"
+                                   oninput="buscarVariacaoEdicao('${treino.id}', this.value)" onfocus="buscarVariacaoEdicao('${treino.id}', this.value)" />
+                            <div id="tab_var_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                          </div>
 
-                        <div id="tab_grip_wrapper_${treino.id}" class="form-group" style="margin-bottom:8px; position:relative;">
-                          <label>Pegada/Pisada <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-                          <div id="tab_grip_tags_${treino.id}" class="tag-container"></div>
-                          <input type="text" id="tab_grip_search_${treino.id}" placeholder="Digite para buscar pegada/pisada..." autocomplete="off"
-                                 oninput="buscarPegadaPisadaEdicao('${treino.id}', this.value)" onfocus="buscarPegadaPisadaEdicao('${treino.id}', this.value)" />
-                          <input type="hidden" id="tab_grip_id_${treino.id}" />
-                          <input type="hidden" id="tab_grip_ids_${treino.id}" />
-                          <div id="tab_grip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
-                        </div>
+                          <div id="tab_equip_wrapper_${treino.id}" class="form-group" style="margin-bottom:0; position:relative;">
+                            <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                            <div id="tab_equip_tags_${treino.id}" class="tag-container"></div>
+                            <input type="text" id="tab_equip_search_${treino.id}" placeholder="Digite para buscar equipamento..." autocomplete="off"
+                                   oninput="buscarEquipamentoEdicao('${treino.id}', this.value)" onfocus="buscarEquipamentoEdicao('${treino.id}', this.value)" />
+                            <input type="hidden" id="tab_equip_id_${treino.id}" />
+                            <input type="hidden" id="tab_equip_ids_${treino.id}" />
+                            <div id="tab_equip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                          </div>
 
-                        <div id="tab_method_wrapper_${treino.id}" class="form-group" style="margin-bottom:8px; position:relative;">
-                          <label>Método <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-                          <div id="tab_method_tags_${treino.id}" class="tag-container"></div>
-                          <input type="text" id="tab_method_search_${treino.id}" placeholder="Digite para buscar método..." autocomplete="off"
-                                 oninput="buscarMetodoEdicao('${treino.id}', this.value)" onfocus="buscarMetodoEdicao('${treino.id}', this.value)" />
-                          <input type="hidden" id="tab_method_id_${treino.id}" />
-                          <input type="hidden" id="tab_method_ids_${treino.id}" />
-                          <div id="tab_method_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
-                        </div>
+                          <div id="tab_grip_wrapper_${treino.id}" class="form-group" style="margin-bottom:0; position:relative;">
+                            <label>Pegada/Pisada <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                            <div id="tab_grip_tags_${treino.id}" class="tag-container"></div>
+                            <input type="text" id="tab_grip_search_${treino.id}" placeholder="Digite para buscar pegada/pisada..." autocomplete="off"
+                                   oninput="buscarPegadaPisadaEdicao('${treino.id}', this.value)" onfocus="buscarPegadaPisadaEdicao('${treino.id}', this.value)" />
+                            <input type="hidden" id="tab_grip_id_${treino.id}" />
+                            <input type="hidden" id="tab_grip_ids_${treino.id}" />
+                            <div id="tab_grip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                          </div>
 
-                        <div id="tab_meta_wrapper_${treino.id}" style="display:block; margin-bottom:8px;">
-                          <div class="form-group">
+                          <div id="tab_method_wrapper_${treino.id}" class="form-group" style="margin-bottom:0; position:relative;">
+                            <label>Método <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                            <div id="tab_method_tags_${treino.id}" class="tag-container"></div>
+                            <input type="text" id="tab_method_search_${treino.id}" placeholder="Digite para buscar método..." autocomplete="off"
+                                   oninput="buscarMetodoEdicao('${treino.id}', this.value)" onfocus="buscarMetodoEdicao('${treino.id}', this.value)" />
+                            <input type="hidden" id="tab_method_id_${treino.id}" />
+                            <input type="hidden" id="tab_method_ids_${treino.id}" />
+                            <div id="tab_method_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                          </div>
+
+                          <div id="tab_meta_wrapper_${treino.id}" class="form-group full" style="display:block; margin-bottom:0;">
                             <label>Descrição para o aluno <small style="font-weight:400;color:#6b7280;">(editável)</small></label>
                             <textarea id="tab_desc_${treino.id}" rows="2" placeholder="Descrição gerada pela IA..."></textarea>
                             <small id="tab_mg_${treino.id}" style="color:#6b7280;font-size:12px;"></small>
                           </div>
-                          <button type="button" class="btn btn-secondary" id="tab_ai_btn_${treino.id}" onclick="gerarDescricaoExercicioIAEdicao('${treino.id}')" disabled style="margin-bottom:8px;">Gerar descrição com IA</button>
-                        </div>
 
-                        <input type="hidden" id="tab_add_var_id_${treino.id}" />
-                        <input type="hidden" id="tab_add_var_ids_${treino.id}" />
+                          <div class="form-group full" style="margin-top:-2px; margin-bottom:0;">
+                            <button type="button" class="btn btn-secondary" id="tab_ai_btn_${treino.id}" onclick="gerarDescricaoExercicioIAEdicao('${treino.id}')" disabled>Gerar descrição com IA</button>
+                          </div>
 
-                        <div style="display:grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 8px;">
+                          <input type="hidden" id="tab_add_var_id_${treino.id}" />
+                          <input type="hidden" id="tab_add_var_ids_${treino.id}" />
+
+                          <div class="workout-metrics-grid full">
                           <div class="form-group">
                             <label>Séries</label>
                             <input type="number" min="0" id="tab_add_sets_${treino.id}" value="0" />
@@ -7490,6 +7529,7 @@
                           <div class="form-group">
                             <label>Descanso (s)</label>
                             <input type="number" min="0" max="3600" step="5" id="tab_add_rest_${treino.id}" value="0" />
+                          </div>
                           </div>
                         </div>
 
@@ -8190,6 +8230,610 @@
             error.message || "Erro ao adicionar exercício",
             "error",
           );
+        }
+      }
+
+      const tabComboTreeState = {
+        loaded: false,
+        rows: [],
+        loading: null,
+      };
+      const tabWorkoutSelectionState = {};
+
+      function normalizeComboSearch(input) {
+        return String(input || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase();
+      }
+
+      function getWorkoutSelectionState(workoutId) {
+        if (!tabWorkoutSelectionState[workoutId]) {
+          tabWorkoutSelectionState[workoutId] = {
+            groupId: "",
+            groupName: "",
+            exerciseId: "",
+            exerciseName: "",
+          };
+        }
+        return tabWorkoutSelectionState[workoutId];
+      }
+
+      async function carregarComboTreeEdicao() {
+        if (tabComboTreeState.loaded) return tabComboTreeState.rows;
+        if (tabComboTreeState.loading) return tabComboTreeState.loading;
+
+        tabComboTreeState.loading = (async () => {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/exercise-combos/tree?limit=1000`,
+            { headers: { Authorization: `Bearer ${authToken}` } },
+          );
+
+          if (response.status === 401) {
+            handleUnauthorized();
+            return [];
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const rows = (await response.json()) || [];
+          tabComboTreeState.rows = rows;
+          tabComboTreeState.loaded = true;
+          return rows;
+        })();
+
+        try {
+          return await tabComboTreeState.loading;
+        } finally {
+          tabComboTreeState.loading = null;
+        }
+      }
+
+      function getComboRowsForWorkout(workoutId, field) {
+        const state = getWorkoutSelectionState(workoutId);
+        const variationIds = (tabVarState[workoutId] || []).map((item) => item.id);
+        const rows = tabComboTreeState.rows || [];
+        return rows.filter((row) => {
+          if (field !== "group" && state.groupId && row.muscle_group_id !== state.groupId) {
+            return false;
+          }
+          if (field !== "exercise" && state.exerciseId && row.exercise_catalog_id !== state.exerciseId) {
+            return false;
+          }
+          if ((field === "equipment" || field === "grip" || field === "method") && variationIds.length) {
+            if (!variationIds.includes(row.exercise_variation_id)) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+
+      function renderComboDropdown(dropdown, items, renderItem) {
+        if (!dropdown) return;
+        if (!items.length) {
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhuma opção disponível.</div>';
+          dropdown.style.display = "block";
+          return;
+        }
+
+        dropdown.innerHTML = items.map(renderItem).join("");
+        dropdown.style.display = "block";
+      }
+
+      function uniqueComboOptions(rows, getId, getLabel, extra = {}) {
+        const seen = new Map();
+        for (const row of rows) {
+          const id = getId(row);
+          const label = getLabel(row);
+          if (!id || !label || seen.has(id)) continue;
+          seen.set(id, { id, label, row, ...extra });
+        }
+        return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+      }
+
+      function resetComboFields(workoutId, fromField) {
+        const clearInput = (id) => {
+          const el = document.getElementById(id);
+          if (el) el.value = "";
+        };
+        const clearHidden = (id) => {
+          const el = document.getElementById(id);
+          if (el) el.value = "";
+        };
+        const hideDropdown = (id) => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = "none";
+        };
+
+        if (fromField === "group") {
+          clearInput(`tab_cat_search_${workoutId}`);
+          clearHidden(`tab_cat_id_${workoutId}`);
+          clearInput(`tab_var_search_${workoutId}`);
+          clearInput(`tab_equip_search_${workoutId}`);
+          clearInput(`tab_grip_search_${workoutId}`);
+          clearInput(`tab_method_search_${workoutId}`);
+          clearHidden(`tab_equip_id_${workoutId}`);
+          clearHidden(`tab_equip_ids_${workoutId}`);
+          clearHidden(`tab_grip_id_${workoutId}`);
+          clearHidden(`tab_grip_ids_${workoutId}`);
+          clearHidden(`tab_method_id_${workoutId}`);
+          clearHidden(`tab_method_ids_${workoutId}`);
+          tabVarState[workoutId] = [];
+          tabEquipState[workoutId] = [];
+          tabGripState[workoutId] = [];
+          tabMethodState[workoutId] = [];
+        }
+
+        if (fromField === "exercise") {
+          clearInput(`tab_var_search_${workoutId}`);
+          clearInput(`tab_equip_search_${workoutId}`);
+          clearInput(`tab_grip_search_${workoutId}`);
+          clearInput(`tab_method_search_${workoutId}`);
+          clearHidden(`tab_equip_id_${workoutId}`);
+          clearHidden(`tab_equip_ids_${workoutId}`);
+          clearHidden(`tab_grip_id_${workoutId}`);
+          clearHidden(`tab_grip_ids_${workoutId}`);
+          clearHidden(`tab_method_id_${workoutId}`);
+          clearHidden(`tab_method_ids_${workoutId}`);
+          tabVarState[workoutId] = [];
+          tabEquipState[workoutId] = [];
+          tabGripState[workoutId] = [];
+          tabMethodState[workoutId] = [];
+        }
+
+        if (fromField === "variation") {
+          clearInput(`tab_equip_search_${workoutId}`);
+          clearInput(`tab_grip_search_${workoutId}`);
+          clearInput(`tab_method_search_${workoutId}`);
+          clearHidden(`tab_equip_id_${workoutId}`);
+          clearHidden(`tab_equip_ids_${workoutId}`);
+          clearHidden(`tab_grip_id_${workoutId}`);
+          clearHidden(`tab_grip_ids_${workoutId}`);
+          clearHidden(`tab_method_id_${workoutId}`);
+          clearHidden(`tab_method_ids_${workoutId}`);
+          tabEquipState[workoutId] = [];
+          tabGripState[workoutId] = [];
+          tabMethodState[workoutId] = [];
+        }
+
+        if (fromField === "equipment") {
+          clearInput(`tab_grip_search_${workoutId}`);
+          clearInput(`tab_method_search_${workoutId}`);
+          clearHidden(`tab_grip_id_${workoutId}`);
+          clearHidden(`tab_grip_ids_${workoutId}`);
+          clearHidden(`tab_method_id_${workoutId}`);
+          clearHidden(`tab_method_ids_${workoutId}`);
+          tabGripState[workoutId] = [];
+          tabMethodState[workoutId] = [];
+        }
+
+        if (fromField === "grip") {
+          clearInput(`tab_method_search_${workoutId}`);
+          clearHidden(`tab_method_id_${workoutId}`);
+          clearHidden(`tab_method_ids_${workoutId}`);
+          tabMethodState[workoutId] = [];
+        }
+
+        hideDropdown(`tab_cat_dropdown_${workoutId}`);
+        hideDropdown(`tab_var_dropdown_${workoutId}`);
+        hideDropdown(`tab_equip_dropdown_${workoutId}`);
+        hideDropdown(`tab_grip_dropdown_${workoutId}`);
+        hideDropdown(`tab_method_dropdown_${workoutId}`);
+
+        renderTabVarTags(workoutId);
+        renderTabEquipTags(workoutId);
+        renderTabGripTags(workoutId);
+        renderTabMethodTags(workoutId);
+        updateIAButtonStateEdicao(workoutId);
+      }
+
+      async function buscarGrupoMuscularEdicao(workoutId, termo) {
+        const dropdown = document.getElementById(`tab_mg_dropdown_${workoutId}`);
+        if (!dropdown) return;
+        try {
+          await carregarComboTreeEdicao();
+          const query = normalizeComboSearch(termo || "");
+          const rows = getComboRowsForWorkout(workoutId, "group");
+          const options = uniqueComboOptions(
+            rows,
+            (row) => row.muscle_group_id,
+            (row) => row.muscle_group_name || "Grupo muscular",
+          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
+
+          renderComboDropdown(dropdown, options, (item) => `
+            <div class="autocomplete-item"
+                 onclick="selecionarGrupoMuscularEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
+                 onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+              <strong>${escapeHtml(item.label)}</strong>
+            </div>
+          `);
+        } catch (error) {
+          dropdown.style.display = "none";
+        }
+      }
+
+      function selecionarGrupoMuscularEdicaoItem(workoutId, groupId, groupName) {
+        const search = document.getElementById(`tab_mg_search_${workoutId}`);
+        const hidden = document.getElementById(`tab_mg_id_${workoutId}`);
+        const dropdown = document.getElementById(`tab_mg_dropdown_${workoutId}`);
+        if (search) search.value = groupName;
+        if (hidden) hidden.value = groupId;
+        if (dropdown) dropdown.style.display = "none";
+        const state = getWorkoutSelectionState(workoutId);
+        state.groupId = groupId;
+        state.groupName = groupName;
+        state.exerciseId = "";
+        state.exerciseName = "";
+        resetComboFields(workoutId, "group");
+      }
+
+      async function buscarCatalogoEdicao(workoutId, termo) {
+        const dropdown = document.getElementById(`tab_cat_dropdown_${workoutId}`);
+        if (!dropdown) return;
+        const state = getWorkoutSelectionState(workoutId);
+        if (!state.groupId) {
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Selecione um grupo muscular primeiro.</div>';
+          dropdown.style.display = "block";
+          return;
+        }
+
+        try {
+          await carregarComboTreeEdicao();
+          const query = normalizeComboSearch(termo || "");
+          const options = uniqueComboOptions(
+            getComboRowsForWorkout(workoutId, "exercise"),
+            (row) => row.exercise_catalog_id,
+            (row) => row.exercise_catalog_name || "Exercício",
+            { groupId: row => row.muscle_group_id },
+          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
+
+          renderComboDropdown(dropdown, options, (item) => `
+            <div class="autocomplete-item"
+                 onclick="selecionarCatalogoEdicao('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}', '${escapeHtml(item.row.muscle_group_id)}', '${escapeHtml(item.row.muscle_group_name || "").replace(/'/g, "\\'")}')"
+                 onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+              <strong>${escapeHtml(item.label)}</strong>
+              ${item.row.exercise_notes ? `<div style="font-size:12px;color:#6b7280;">${escapeHtml(item.row.exercise_notes)}</div>` : ""}
+            </div>
+          `);
+        } catch (error) {
+          dropdown.style.display = "none";
+        }
+      }
+
+      function selecionarCatalogoEdicao(workoutId, catalogId, catalogName, groupId, groupName) {
+        const catSearch = document.getElementById(`tab_cat_search_${workoutId}`);
+        const catId = document.getElementById(`tab_cat_id_${workoutId}`);
+        const catDropdown = document.getElementById(`tab_cat_dropdown_${workoutId}`);
+        const mgSearch = document.getElementById(`tab_mg_search_${workoutId}`);
+        const mgId = document.getElementById(`tab_mg_id_${workoutId}`);
+        if (catSearch) catSearch.value = catalogName;
+        if (catId) catId.value = catalogId;
+        if (catDropdown) catDropdown.style.display = "none";
+        if (groupId && mgId) mgId.value = groupId;
+        if (groupName && mgSearch) mgSearch.value = groupName;
+
+        const state = getWorkoutSelectionState(workoutId);
+        state.exerciseId = catalogId;
+        state.exerciseName = catalogName;
+        if (groupId) {
+          state.groupId = groupId;
+          state.groupName = groupName || state.groupName;
+        }
+
+        resetComboFields(workoutId, "exercise");
+      }
+
+      async function buscarVariacaoEdicao(workoutId, termo) {
+        const dropdown = document.getElementById(`tab_var_dropdown_${workoutId}`);
+        if (!dropdown) return;
+        const state = getWorkoutSelectionState(workoutId);
+        if (!state.exerciseId) {
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Selecione um exercício primeiro.</div>';
+          dropdown.style.display = "block";
+          return;
+        }
+
+        try {
+          await carregarComboTreeEdicao();
+          const query = normalizeComboSearch(termo || "");
+          const options = uniqueComboOptions(
+            getComboRowsForWorkout(workoutId, "variation"),
+            (row) => row.exercise_variation_id,
+            (row) => row.exercise_variation_name || "Execução",
+          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
+
+          renderComboDropdown(dropdown, options, (item) => `
+            <div class="autocomplete-item"
+                 onclick="selecionarVariacaoEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
+                 onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+              <strong>${escapeHtml(item.label)}</strong>
+            </div>
+          `);
+        } catch (error) {
+          dropdown.style.display = "none";
+        }
+      }
+
+      function selecionarVariacaoEdicaoItem(workoutId, variationId, variationName) {
+        const varSearch = document.getElementById(`tab_var_search_${workoutId}`);
+        if (varSearch) varSearch.value = "";
+        const varDropdown = document.getElementById(`tab_var_dropdown_${workoutId}`);
+        if (varDropdown) varDropdown.style.display = "none";
+        if (!tabVarState[workoutId]) tabVarState[workoutId] = [];
+        if (!tabVarState[workoutId].find((i) => i.id === variationId)) {
+          tabVarState[workoutId].push({ id: variationId, name: variationName });
+        }
+        renderTabVarTags(workoutId);
+        resetComboFields(workoutId, "variation");
+      }
+
+      async function buscarEquipamentoEdicao(workoutId, termo) {
+        const dropdown = document.getElementById(`tab_equip_dropdown_${workoutId}`);
+        if (!dropdown) return;
+        const state = getWorkoutSelectionState(workoutId);
+        if (!state.exerciseId) {
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Selecione um exercício primeiro.</div>';
+          dropdown.style.display = "block";
+          return;
+        }
+
+        try {
+          await carregarComboTreeEdicao();
+          const query = normalizeComboSearch(termo || "");
+          const rows = getComboRowsForWorkout(workoutId, "equipment");
+          const options = uniqueComboOptions(
+            rows,
+            (row) => row.equipment_id || row.exercise_catalog_id,
+            (row) => row.equipment_name || "Equipamento",
+          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
+
+          renderComboDropdown(dropdown, options, (item) => `
+            <div class="autocomplete-item"
+                 onclick="selecionarEquipamentoEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
+                 onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+              ${escapeHtml(item.label)}
+            </div>
+          `);
+        } catch (error) {
+          dropdown.style.display = "none";
+        }
+      }
+
+      function selecionarEquipamentoEdicaoItem(workoutId, equipId, equipName) {
+        const search = document.getElementById(`tab_equip_search_${workoutId}`);
+        if (search) search.value = "";
+        const dropdown = document.getElementById(`tab_equip_dropdown_${workoutId}`);
+        if (dropdown) dropdown.style.display = "none";
+        if (!tabEquipState[workoutId]) tabEquipState[workoutId] = [];
+        if (!tabEquipState[workoutId].find((i) => i.id === equipId)) {
+          tabEquipState[workoutId].push({ id: equipId, name: equipName });
+        }
+        renderTabEquipTags(workoutId);
+        resetComboFields(workoutId, "equipment");
+      }
+
+      async function buscarPegadaPisadaEdicao(workoutId, termo) {
+        const dropdown = document.getElementById(`tab_grip_dropdown_${workoutId}`);
+        if (!dropdown) return;
+        const state = getWorkoutSelectionState(workoutId);
+        if (!state.exerciseId) {
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Selecione um exercício primeiro.</div>';
+          dropdown.style.display = "block";
+          return;
+        }
+
+        try {
+          await carregarComboTreeEdicao();
+          const query = normalizeComboSearch(termo || "");
+          const rows = getComboRowsForWorkout(workoutId, "grip");
+          const options = uniqueComboOptions(
+            rows,
+            (row) => row.grip_footing_id || row.exercise_catalog_id,
+            (row) => row.grip_footing_name || "Pegada/Pisada",
+          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
+
+          renderComboDropdown(dropdown, options, (item) => `
+            <div class="autocomplete-item"
+                 onclick="selecionarPegadaPisadaEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
+                 onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+              ${escapeHtml(item.label)}
+            </div>
+          `);
+        } catch (error) {
+          dropdown.style.display = "none";
+        }
+      }
+
+      function selecionarPegadaPisadaEdicaoItem(workoutId, gripId, gripName) {
+        const search = document.getElementById(`tab_grip_search_${workoutId}`);
+        if (search) search.value = "";
+        const dropdown = document.getElementById(`tab_grip_dropdown_${workoutId}`);
+        if (dropdown) dropdown.style.display = "none";
+        if (!tabGripState[workoutId]) tabGripState[workoutId] = [];
+        if (!tabGripState[workoutId].find((i) => i.id === gripId)) {
+          tabGripState[workoutId].push({ id: gripId, name: gripName });
+        }
+        renderTabGripTags(workoutId);
+        resetComboFields(workoutId, "grip");
+      }
+
+      async function buscarMetodoEdicao(workoutId, termo) {
+        const dropdown = document.getElementById(`tab_method_dropdown_${workoutId}`);
+        if (!dropdown) return;
+        const state = getWorkoutSelectionState(workoutId);
+        if (!state.exerciseId) {
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Selecione um exercício primeiro.</div>';
+          dropdown.style.display = "block";
+          return;
+        }
+
+        try {
+          await carregarComboTreeEdicao();
+          const query = normalizeComboSearch(termo || "");
+          const rows = getComboRowsForWorkout(workoutId, "method");
+          const options = uniqueComboOptions(
+            rows,
+            (row) => row.method_id || row.exercise_catalog_id,
+            (row) => row.method_name || "Método",
+          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
+
+          renderComboDropdown(dropdown, options, (item) => `
+            <div class="autocomplete-item"
+                 onclick="selecionarMetodoEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
+                 onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+              ${escapeHtml(item.label)}
+            </div>
+          `);
+        } catch (error) {
+          dropdown.style.display = "none";
+        }
+      }
+
+      function selecionarMetodoEdicaoItem(workoutId, methodId, methodName) {
+        const search = document.getElementById(`tab_method_search_${workoutId}`);
+        if (search) search.value = "";
+        const dropdown = document.getElementById(`tab_method_dropdown_${workoutId}`);
+        if (dropdown) dropdown.style.display = "none";
+        if (!tabMethodState[workoutId]) tabMethodState[workoutId] = [];
+        if (!tabMethodState[workoutId].find((i) => i.id === methodId)) {
+          tabMethodState[workoutId].push({ id: methodId, name: methodName });
+        }
+        renderTabMethodTags(workoutId);
+      }
+
+      async function adicionarExercicioTreinoNaAba(workoutId) {
+        const variationIds = (document.getElementById(`tab_add_var_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
+        const catalogId = document.getElementById(`tab_cat_id_${workoutId}`)?.value;
+        const equipIds = (document.getElementById(`tab_equip_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
+        const gripIds = (document.getElementById(`tab_grip_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
+        const methodIds = (document.getElementById(`tab_method_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
+        const targetSets = Number(
+          document.getElementById(`tab_add_sets_${workoutId}`)?.value || 0,
+        );
+        const targetReps = Number(
+          document.getElementById(`tab_add_reps_${workoutId}`)?.value || 0,
+        );
+        const orderIndex = Number(
+          document.getElementById(`tab_next_order_${workoutId}`)?.value || 0,
+        );
+
+        if (!catalogId) {
+          showAlert("treinosAlert", "Selecione um exercício.", "error");
+          return;
+        }
+
+        if (!targetSets || !targetReps || targetSets < 1 || targetReps < 1) {
+          showAlert("treinosAlert", "Informe séries e repetições válidas.", "error");
+          return;
+        }
+
+        const weightRaw = document.getElementById(`tab_add_weight_${workoutId}`)?.value;
+        const restRaw = document.getElementById(`tab_add_rest_${workoutId}`)?.value;
+        const customDesc = document.getElementById(`tab_desc_${workoutId}`)?.value?.trim();
+
+        try {
+          let localOrder = Number.isFinite(orderIndex) ? orderIndex : 0;
+          const variationLoop = variationIds.length ? variationIds : [null];
+          const equipLoop = equipIds.length ? equipIds : [null];
+          const gripLoop = gripIds.length ? gripIds : [null];
+          const methodLoop = methodIds.length ? methodIds : [null];
+          for (const variationId of variationLoop) {
+            for (const equipId of equipLoop) {
+              for (const gripId of gripLoop) {
+                for (const methodId of methodLoop) {
+                  const payload = {
+                    ...(variationId ? { exercise_variation_id: variationId } : {}),
+                    ...(catalogId ? { exercise_catalog_id: catalogId } : {}),
+                    ...(equipId ? { equipment_id: equipId } : {}),
+                    ...(gripId ? { grip_footing_id: gripId } : {}),
+                    ...(methodId ? { method_id: methodId } : {}),
+                    target_sets: targetSets,
+                    target_reps: targetReps,
+                    target_weight: weightRaw === "" ? null : Number(weightRaw),
+                    order_index: localOrder,
+                    rest_seconds: restRaw === "" ? null : Number(restRaw),
+                    custom_description: customDesc || null,
+                  };
+                  localOrder += 1;
+                  const response = await fetch(
+                    `${getApiBaseUrl()}/api/workouts/${workoutId}/exercises`,
+                    {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${authToken}`,
+                      },
+                      body: JSON.stringify(payload),
+                    },
+                  );
+
+                  if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.message || "Erro ao adicionar exercício");
+                  }
+                }
+              }
+            }
+          }
+
+          const mgSearch = document.getElementById(`tab_mg_search_${workoutId}`);
+          const mgId = document.getElementById(`tab_mg_id_${workoutId}`);
+          const catSearch = document.getElementById(`tab_cat_search_${workoutId}`);
+          const catId = document.getElementById(`tab_cat_id_${workoutId}`);
+          const varId = document.getElementById(`tab_add_var_id_${workoutId}`);
+          const varIds = document.getElementById(`tab_add_var_ids_${workoutId}`);
+          const varSearch = document.getElementById(`tab_var_search_${workoutId}`);
+          const equipSearch = document.getElementById(`tab_equip_search_${workoutId}`);
+          const gripSearch = document.getElementById(`tab_grip_search_${workoutId}`);
+          const methodSearch = document.getElementById(`tab_method_search_${workoutId}`);
+          const equipHidden = document.getElementById(`tab_equip_id_${workoutId}`);
+          const equipIdsHidden = document.getElementById(`tab_equip_ids_${workoutId}`);
+          const gripHidden = document.getElementById(`tab_grip_id_${workoutId}`);
+          const gripIdsHidden = document.getElementById(`tab_grip_ids_${workoutId}`);
+          const methodHidden = document.getElementById(`tab_method_id_${workoutId}`);
+          const methodIdsHidden = document.getElementById(`tab_method_ids_${workoutId}`);
+          if (mgSearch) mgSearch.value = "";
+          if (mgId) mgId.value = "";
+          if (catSearch) catSearch.value = "";
+          if (catId) catId.value = "";
+          if (varId) varId.value = "";
+          if (varIds) varIds.value = "";
+          if (varSearch) varSearch.value = "";
+          if (equipSearch) equipSearch.value = "";
+          if (gripSearch) gripSearch.value = "";
+          if (methodSearch) methodSearch.value = "";
+          if (equipHidden) equipHidden.value = "";
+          if (equipIdsHidden) equipIdsHidden.value = "";
+          if (gripHidden) gripHidden.value = "";
+          if (gripIdsHidden) gripIdsHidden.value = "";
+          if (methodHidden) methodHidden.value = "";
+          if (methodIdsHidden) methodIdsHidden.value = "";
+          tabWorkoutSelectionState[workoutId] = { groupId: "", groupName: "", exerciseId: "", exerciseName: "" };
+          tabVarState[workoutId] = [];
+          tabEquipState[workoutId] = [];
+          tabGripState[workoutId] = [];
+          tabMethodState[workoutId] = [];
+          renderTabVarTags(workoutId);
+          renderTabEquipTags(workoutId);
+          renderTabGripTags(workoutId);
+          renderTabMethodTags(workoutId);
+          updateIAButtonStateEdicao(workoutId);
+
+          const nextOrderInput = document.getElementById(`tab_next_order_${workoutId}`);
+          if (nextOrderInput) {
+            nextOrderInput.value = String(localOrder);
+          }
+
+          showAlert("treinosAlert", "Exercício adicionado ao treino", "success");
+          await carregarTreinosAluno();
+          if (currentEditingStudentId) {
+            await carregarDetalhesAlunoEditor(currentEditingStudentId);
+          }
+        } catch (error) {
+          showAlert("treinosAlert", error.message || "Erro ao adicionar exercício", "error");
         }
       }
 

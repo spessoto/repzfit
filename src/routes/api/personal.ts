@@ -3136,6 +3136,90 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     };
   });
 
+  app.get("/exercise-combos/tree", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const query = request.query as { limit?: string };
+    const limit = Math.min(
+      Math.max(parseInt(query.limit ?? "500", 10) || 500, 1),
+      1000,
+    );
+
+    const [combosRes, muscleGroupsRes, catalogsRes, variationsRes, equipmentsRes, gripsRes, methodsRes] = await Promise.all([
+      supabaseAdmin
+        .from("exercise_combo_options")
+        .select("muscle_group_id,exercise_catalog_id,exercise_variation_id,equipment_id,grip_footing_id,method_id,description")
+        .order("created_at", { ascending: true })
+        .limit(limit),
+      supabaseAdmin.from("muscle_groups").select("id,name").order("name"),
+      supabaseAdmin.from("exercise_catalog").select("id,name,notes").order("name"),
+      supabaseAdmin.from("exercise_variations").select("id,name").order("name"),
+      supabaseAdmin.from("equipment_catalog").select("id,name").order("name"),
+      supabaseAdmin.from("grip_footing_catalog").select("id,name").order("name"),
+      supabaseAdmin.from("method_catalog").select("id,name").order("name"),
+    ]);
+
+    if (combosRes.error) throw app.httpErrors.badRequest(combosRes.error.message);
+    if (muscleGroupsRes.error) throw app.httpErrors.badRequest(muscleGroupsRes.error.message);
+    if (catalogsRes.error) throw app.httpErrors.badRequest(catalogsRes.error.message);
+    if (variationsRes.error) throw app.httpErrors.badRequest(variationsRes.error.message);
+    if (equipmentsRes.error) throw app.httpErrors.badRequest(equipmentsRes.error.message);
+    if (gripsRes.error) throw app.httpErrors.badRequest(gripsRes.error.message);
+    if (methodsRes.error) throw app.httpErrors.badRequest(methodsRes.error.message);
+
+    const muscleGroupMap = new Map<string, string>();
+    for (const row of muscleGroupsRes.data ?? []) {
+      muscleGroupMap.set(String((row as any).id), String((row as any).name));
+    }
+
+    const catalogMap = new Map<string, { name: string; notes: string | null }>();
+    for (const row of catalogsRes.data ?? []) {
+      catalogMap.set(String((row as any).id), {
+        name: String((row as any).name),
+        notes: (row as any).notes ?? null,
+      });
+    }
+
+    const variationMap = new Map<string, string>();
+    for (const row of variationsRes.data ?? []) {
+      variationMap.set(String((row as any).id), String((row as any).name));
+    }
+
+    const equipmentMap = new Map<string, string>();
+    for (const row of equipmentsRes.data ?? []) {
+      equipmentMap.set(String((row as any).id), String((row as any).name));
+    }
+
+    const gripMap = new Map<string, string>();
+    for (const row of gripsRes.data ?? []) {
+      gripMap.set(String((row as any).id), String((row as any).name));
+    }
+
+    const methodMap = new Map<string, string>();
+    for (const row of methodsRes.data ?? []) {
+      methodMap.set(String((row as any).id), String((row as any).name));
+    }
+
+    return (combosRes.data ?? []).map((row: any) => {
+      const catalog = catalogMap.get(String(row.exercise_catalog_id));
+      return {
+        exercise_catalog_id: row.exercise_catalog_id,
+        exercise_catalog_name: catalog?.name ?? null,
+        exercise_notes: catalog?.notes ?? null,
+        exercise_variation_id: row.exercise_variation_id,
+        exercise_variation_name: variationMap.get(String(row.exercise_variation_id)) ?? null,
+        muscle_group_id: row.muscle_group_id,
+        muscle_group_name: muscleGroupMap.get(String(row.muscle_group_id)) ?? null,
+        equipment_id: row.equipment_id,
+        equipment_name: row.equipment_id ? equipmentMap.get(String(row.equipment_id)) ?? null : null,
+        grip_footing_id: row.grip_footing_id,
+        grip_footing_name: row.grip_footing_id ? gripMap.get(String(row.grip_footing_id)) ?? null : null,
+        method_id: row.method_id,
+        method_name: row.method_id ? methodMap.get(String(row.method_id)) ?? null : null,
+        description: row.description ?? null,
+      };
+    });
+  });
+
   // ── Workouts ─────────────────────────────────────────────────────────────────
 
   app.post("/workouts", async (request) => {
