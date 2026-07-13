@@ -1791,10 +1791,36 @@
               <div id="exerciciosAlert"></div>
 
               <div class="catalog-manager-grid">
+
+                <!-- 1. Grupo Muscular -->
                 <div class="catalog-panel">
-                  <h3>Exercícios</h3>
+                  <h3>Grupo Muscular</h3>
                   <div class="form-group">
-                    <label>Novo exercício</label>
+                    <label>Novo grupo muscular</label>
+                    <input type="text" id="novoGrupoMuscularNome" placeholder="Ex: Peito, Costas, Pernas" />
+                  </div>
+                  <button class="btn btn-primary" onclick="criarGrupoMuscular()">
+                    Cadastrar
+                  </button>
+                  <div class="form-group" style="margin-top: 12px">
+                    <label>Buscar</label>
+                    <input
+                      type="text"
+                      id="grupoMuscularBusca"
+                      placeholder="Buscar grupo muscular"
+                      oninput="filtrarGruposMuscularesExercicios(this.value)"
+                    />
+                  </div>
+                  <div id="muscleGroupCatalogBody" class="catalog-list-wrap">
+                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
+                  </div>
+                </div>
+
+                <!-- 2. Exercício -->
+                <div class="catalog-panel">
+                  <h3>Exercício</h3>
+                  <div class="form-group">
+                    <label>Nome do exercício</label>
                     <input type="text" id="novoCatalogoNome" placeholder="Ex: Supino Reto" />
                   </div>
                   <button class="btn btn-primary" onclick="criarCatalogoExercicio()">
@@ -1808,13 +1834,13 @@
                       Importar XLS
                     </button>
                     <button class="btn btn-danger" type="button" onclick="resetarBaseExercicios()">
-                      Zerar Minha Base
+                      Zerar Base
                     </button>
                   </div>
                   <div class="form-group" style="margin-top: 10px">
                     <label style="display:flex; align-items:center; gap:8px; font-weight:500;">
                       <input type="checkbox" id="importCatalogoResetCheckbox" />
-                      Zerar base atual antes da importação
+                      Zerar base antes de importar
                     </label>
                     <input
                       type="file"
@@ -1824,7 +1850,7 @@
                       onchange="importarCatalogoExerciciosXls(event)"
                     />
                   </div>
-                  <div class="form-group" style="margin-top: 12px">
+                  <div class="form-group" style="margin-top: 8px">
                     <label>Buscar</label>
                     <input
                       type="text"
@@ -1838,31 +1864,9 @@
                   </div>
                 </div>
 
+                <!-- 3. Equipamento -->
                 <div class="catalog-panel">
-                  <h3>Execuções</h3>
-                  <div class="form-group">
-                    <label>Nova execução</label>
-                    <input type="text" id="novaVariacaoNome" placeholder="Ex: Inclinado, Unilateral" />
-                  </div>
-                  <button class="btn btn-primary" onclick="criarVariacaoExercicio()">
-                    Cadastrar
-                  </button>
-                  <div class="form-group" style="margin-top: 12px">
-                    <label>Buscar</label>
-                    <input
-                      type="text"
-                      id="variacoesBuscaExercicios"
-                      placeholder="Buscar execução"
-                      oninput="filtrarVariacoesExercicios(this.value)"
-                    />
-                  </div>
-                  <div id="exerciseVariationsBody" class="catalog-list-wrap">
-                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
-                  </div>
-                </div>
-
-                <div class="catalog-panel">
-                  <h3>Equipamentos</h3>
+                  <h3>Equipamento</h3>
                   <div class="form-group">
                     <label>Novo equipamento</label>
                     <input type="text" id="novoEquipamentoNome" placeholder="Ex: Barra, Halter, Banco" />
@@ -1884,6 +1888,31 @@
                   </div>
                 </div>
 
+                <!-- 4. Execução -->
+                <div class="catalog-panel">
+                  <h3>Execução</h3>
+                  <div class="form-group">
+                    <label>Nova execução</label>
+                    <input type="text" id="novaVariacaoNome" placeholder="Ex: Bilateral, Unilateral" />
+                  </div>
+                  <button class="btn btn-primary" onclick="criarVariacaoExercicio()">
+                    Cadastrar
+                  </button>
+                  <div class="form-group" style="margin-top: 12px">
+                    <label>Buscar</label>
+                    <input
+                      type="text"
+                      id="variacoesBuscaExercicios"
+                      placeholder="Buscar execução"
+                      oninput="filtrarVariacoesExercicios(this.value)"
+                    />
+                  </div>
+                  <div id="exerciseVariationsBody" class="catalog-list-wrap">
+                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
+                  </div>
+                </div>
+
+                <!-- 5. Pegada/Pisada -->
                 <div class="catalog-panel">
                   <h3>Pegada/Pisada</h3>
                   <div class="form-group">
@@ -1907,8 +1936,9 @@
                   </div>
                 </div>
 
+                <!-- 6. Método -->
                 <div class="catalog-panel">
-                  <h3>Métodos</h3>
+                  <h3>Método</h3>
                   <div class="form-group">
                     <label>Novo método</label>
                     <input type="text" id="novoMetodoNome" placeholder="Ex: Drop set, Bi-set, Rest-pause" />
@@ -1929,6 +1959,27 @@
                     <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
                   </div>
                 </div>
+
+                <!-- 7. Observações -->
+                <div class="catalog-panel">
+                  <h3>Observações</h3>
+                  <p style="font-size:12px;color:#64748b;margin-bottom:8px;">
+                    Observações são vinculadas ao cadastro de cada Exercício.
+                  </p>
+                  <div class="form-group">
+                    <label>Buscar exercício</label>
+                    <input
+                      type="text"
+                      id="observacoesBuscaExercicio"
+                      placeholder="Nome do exercício"
+                      oninput="filtrarExerciciosObservacoes(this.value)"
+                    />
+                  </div>
+                  <div id="observacoesCatalogBody" class="catalog-list-wrap">
+                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
@@ -5800,11 +5851,13 @@
         const equipamento = document.getElementById("novoEquipamentoNome");
         const pegadaPisada = document.getElementById("novaPegadaPisadaNome");
         const metodo = document.getElementById("novoMetodoNome");
+        const grupoMuscular = document.getElementById("novoGrupoMuscularNome");
         if (catalogo) catalogo.value = "";
         if (variacao) variacao.value = "";
         if (equipamento) equipamento.value = "";
         if (pegadaPisada) pegadaPisada.value = "";
         if (metodo) metodo.value = "";
+        if (grupoMuscular) grupoMuscular.value = "";
         document.getElementById("exerciciosAlert").innerHTML = "";
         exerciciosSimilaresCache = [];
       }
@@ -5814,6 +5867,8 @@
       let equipamentoBuscaAtual = "";
       let pegadaPisadaBuscaAtual = "";
       let metodoBuscaAtual = "";
+      let grupoMuscularBuscaAtual = "";
+      let observacoesBuscaAtual = "";
 
       async function criarCatalogoExercicio() {
         const nome = document.getElementById("novoCatalogoNome")?.value?.trim();
@@ -5840,6 +5895,34 @@
         document.getElementById("novoCatalogoNome").value = "";
         showAlert("exerciciosAlert", "Exercício cadastrado com sucesso.", "success");
         await carregarCatalogoExercicios();
+        await carregarObservacoesExercicios();
+      }
+
+      async function criarGrupoMuscular() {
+        const nome = document.getElementById("novoGrupoMuscularNome")?.value?.trim();
+        if (!nome) {
+          showAlert("exerciciosAlert", "Informe o nome do grupo muscular.", "error");
+          return;
+        }
+
+        const response = await fetch(`${getApiBaseUrl()}/api/muscle-groups`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ name: nome }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar grupo muscular.", "error");
+          return;
+        }
+
+        document.getElementById("novoGrupoMuscularNome").value = "";
+        showAlert("exerciciosAlert", "Grupo muscular cadastrado com sucesso.", "success");
+        await carregarGruposMuscularesExercicios();
       }
 
       function abrirImportacaoXlsCatalogo() {
@@ -6135,6 +6218,121 @@
         }
       }
 
+      async function carregarGruposMuscularesExercicios() {
+        try {
+          const searchParam = grupoMuscularBuscaAtual
+            ? `?search=${encodeURIComponent(grupoMuscularBuscaAtual)}&limit=80`
+            : "?limit=80";
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/muscle-groups${searchParam}`,
+            { headers: { Authorization: `Bearer ${authToken}` } },
+          );
+          if (response.status === 401) { handleUnauthorized(); return; }
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+          const itens = (await response.json()) || [];
+          const body = document.getElementById("muscleGroupCatalogBody");
+          if (!body) return;
+          if (!itens.length) {
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhum grupo muscular encontrado.</span></div>';
+            return;
+          }
+          body.innerHTML = itens
+            .map((item) => `
+              <div class="catalog-row">
+                <div><div class="catalog-row-title">${escapeHtml(item.name || "Grupo")}</div></div>
+                <button class="btn btn-danger" onclick="excluirGrupoMuscular('${escapeHtml(item.id)}','${escapeHtml(String(item.name || "")).replace(/'/g, "\\'")}')">Excluir</button>
+              </div>`)
+            .join("");
+        } catch (error) {
+          const body = document.getElementById("muscleGroupCatalogBody");
+          if (body) body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar grupos musculares.</span></div>';
+        }
+      }
+
+      async function carregarObservacoesExercicios() {
+        try {
+          const searchParam = observacoesBuscaAtual
+            ? `?search=${encodeURIComponent(observacoesBuscaAtual)}&limit=80`
+            : "?limit=80";
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/exercise-catalog${searchParam}`,
+            { headers: { Authorization: `Bearer ${authToken}` } },
+          );
+          if (response.status === 401) { handleUnauthorized(); return; }
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+          const exercicios = (await response.json()) || [];
+          const body = document.getElementById("observacoesCatalogBody");
+          if (!body) return;
+          if (!exercicios.length) {
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhum exercício encontrado.</span></div>';
+            return;
+          }
+          body.innerHTML = exercicios
+            .map((e) => `
+              <div class="catalog-row obs-row" style="flex-direction:column;align-items:stretch;gap:4px;">
+                <div class="catalog-row-title" style="font-size:13px;">${escapeHtml(e.name || "Exercício")}</div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <input
+                    type="text"
+                    id="obs_input_${escapeHtml(e.id)}"
+                    value="${escapeHtml(e.notes || "")}"
+                    placeholder="Observações..."
+                    style="flex:1;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;"
+                  />
+                  <button class="btn btn-primary" style="padding:6px 10px;font-size:12px;"
+                    onclick="salvarObservacaoExercicio('${escapeHtml(e.id)}')">Salvar</button>
+                </div>
+              </div>`)
+            .join("");
+        } catch (error) {
+          const body = document.getElementById("observacoesCatalogBody");
+          if (body) body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar observações.</span></div>';
+        }
+      }
+
+      async function salvarObservacaoExercicio(exercicioId) {
+        const input = document.getElementById(`obs_input_${exercicioId}`);
+        if (!input) return;
+        const notes = input.value.trim() || null;
+
+        try {
+          const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog/${exercicioId}/notes`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ notes }),
+          });
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.message || "Erro ao salvar observação");
+          showAlert("exerciciosAlert", "Observação salva.", "success");
+        } catch (error) {
+          showAlert("exerciciosAlert", error?.message || "Erro ao salvar observação", "error");
+        }
+      }
+
+      async function excluirGrupoMuscular(id, nome) {
+        if (!confirm(`Deseja excluir o grupo muscular "${nome}"?`)) return;
+        try {
+          const response = await fetch(`${getApiBaseUrl()}/api/muscle-groups/${id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || "Erro ao excluir grupo muscular");
+          }
+          showAlert("exerciciosAlert", "Grupo muscular excluído.", "success");
+          await carregarGruposMuscularesExercicios();
+        } catch (error) {
+          showAlert("exerciciosAlert", error?.message || "Erro ao excluir grupo muscular", "error");
+        }
+      }
+
       async function carregarVariacoesExercicios() {
         try {
           const searchParam = variacaoBuscaAtual
@@ -6333,12 +6531,26 @@
 
       async function carregarExercicios() {
         await Promise.all([
+          carregarGruposMuscularesExercicios(),
           carregarCatalogoExercicios(),
-          carregarVariacoesExercicios(),
           carregarEquipamentosExercicios(),
+          carregarVariacoesExercicios(),
           carregarPegadasPisadasExercicios(),
           carregarMetodosExercicios(),
+          carregarObservacoesExercicios(),
         ]);
+      }
+
+      function filtrarGruposMuscularesExercicios(valor) {
+        grupoMuscularBuscaAtual = (valor || "").trim();
+        if (exerciciosFiltroTimeout) clearTimeout(exerciciosFiltroTimeout);
+        exerciciosFiltroTimeout = setTimeout(() => carregarGruposMuscularesExercicios(), 250);
+      }
+
+      function filtrarExerciciosObservacoes(valor) {
+        observacoesBuscaAtual = (valor || "").trim();
+        if (exerciciosFiltroTimeout) clearTimeout(exerciciosFiltroTimeout);
+        exerciciosFiltroTimeout = setTimeout(() => carregarObservacoesExercicios(), 250);
       }
 
       function filtrarCatalogoExercicios(valor) {

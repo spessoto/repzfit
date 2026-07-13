@@ -6,6 +6,25 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-13] – Reorganização completa da base de exercícios (v1.1.2)
+
+### Adicionado
+- Painel **Grupo Muscular** na tela de Exercícios com CRUD completo (cadastrar/excluir), backed pelo `muscle_groups`.
+- Painel **Observações** na tela de Exercícios: exibe todos os exercícios com campo de notas editável por linha.
+- Campo `notes` em `exercise_catalog` para armazenar observações por exercício.
+- Endpoint PATCH `/api/exercise-catalog/:id/notes` para salvar observações.
+- Endpoints GET/POST/DELETE `/api/muscle-groups` para CRUD de grupos musculares.
+
+### Alterado
+- Painéis da tela de Exercícios reorganizados na ordem: **Grupo Muscular → Exercício → Equipamento → Execução → Pegada/Pisada → Método → Observações**.
+
+### Operação de banco executada
+- Base de exercícios limpa totalmente (exercises, exercise_catalog, exercise_variations, equipment_catalog, grip_footing_catalog, method_catalog, muscle_groups, exercise_combo_cache, workout_exercises).
+
+### Migrações relevantes
+- supabase/migrations/202607130002_exercise_catalog_notes_and_muscle_group_crud.sql
+
+---
 ## [2026-07-13] – Ajustes finais de pagamentos e nova base de exercícios (v1.1.1)
 
 ### Alterado

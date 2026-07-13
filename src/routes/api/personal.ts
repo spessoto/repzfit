@@ -2426,7 +2426,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     let q = supabaseAdmin
       .from("exercise_catalog")
-      .select("id,name")
+      .select("id,name,notes")
       .or(`personal_id.is.null,personal_id.eq.${personalId}`)
       .order("name", { ascending: true });
 
@@ -2441,17 +2441,74 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
   app.post("/exercise-catalog", async (request) => {
     const { personalId } = await getAuthenticatedPersonal(app, request);
-    const body = request.body as { name?: string };
+    const body = request.body as { name?: string; notes?: string | null };
     const name = z.string().min(2).max(120).parse((body?.name ?? "").trim());
+    const notes = body?.notes?.trim() || null;
 
     const { data, error } = await supabaseAdmin
       .from("exercise_catalog")
-      .insert({ name, personal_id: personalId })
-      .select("id,name,personal_id")
+      .insert({ name, notes, personal_id: personalId })
+      .select("id,name,notes,personal_id")
       .single();
 
     if (error) throw app.httpErrors.badRequest(error.message);
     return data;
+  });
+
+  // ── Muscle groups CRUD ───────────────────────────────────────────────────────
+
+  app.get("/muscle-groups", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const query = request.query as { search?: string; limit?: string };
+    const search = (query.search ?? "").trim();
+    const limit = Math.min(
+      Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
+      100,
+    );
+
+    let q = supabaseAdmin
+      .from("muscle_groups")
+      .select("id,name")
+      .order("name", { ascending: true });
+
+    if (search) {
+      q = q.ilike("name", `%${search}%`);
+    }
+
+    const { data, error } = await q.limit(limit);
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data ?? [];
+  });
+
+  app.post("/muscle-groups", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const body = request.body as { name?: string };
+    const name = z.string().min(1).max(120).parse((body?.name ?? "").trim());
+
+    const { data, error } = await supabaseAdmin
+      .from("muscle_groups")
+      .insert({ name })
+      .select("id,name")
+      .single();
+
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data;
+  });
+
+  app.delete("/muscle-groups/:id", async (request) => {
+    await getAuthenticatedPersonal(app, request);
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+
+    const { error } = await supabaseAdmin
+      .from("muscle_groups")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return { success: true };
   });
 
   app.delete("/exercise-catalog/:id", async (request) => {
@@ -2481,6 +2538,28 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     if (error) throw app.httpErrors.badRequest(error.message);
     return { success: true };
+  });
+
+  app.patch("/exercise-catalog/:id/notes", async (request) => {
+    const { personalId } = await getAuthenticatedPersonal(app, request);
+    const id = z
+      .string()
+      .uuid()
+      .parse((request.params as { id?: string }).id);
+    const body = request.body as { notes?: string | null };
+    const notes = body?.notes?.trim() || null;
+
+    const { data, error } = await supabaseAdmin
+      .from("exercise_catalog")
+      .update({ notes })
+      .eq("id", id)
+      .or(`personal_id.is.null,personal_id.eq.${personalId}`)
+      .select("id,name,notes")
+      .maybeSingle();
+
+    if (error) throw app.httpErrors.badRequest(error.message);
+    if (!data) throw app.httpErrors.notFound("Exercise not found");
+    return data;
   });
 
   app.post("/exercise-catalog/reset-base", async (request) => {
