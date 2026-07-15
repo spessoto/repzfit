@@ -118,7 +118,10 @@ export async function generateBotResponse(context: {
  */
 export async function generateExerciseDescription(params: {
   exerciseName: string;
-  variationName: string;
+  variationName?: string | null;
+  equipmentName?: string | null;
+  gripFootingName?: string | null;
+  methodName?: string | null;
   muscleGroups: Array<{ id: string; name: string }>;
 }): Promise<{
   description: string;
@@ -129,14 +132,30 @@ export async function generateExerciseDescription(params: {
     throw new Error("GEMINI_API_KEY não configurada");
   }
 
-  const { exerciseName, variationName, muscleGroups } = params;
+  const {
+    exerciseName,
+    variationName,
+    equipmentName,
+    gripFootingName,
+    methodName,
+    muscleGroups,
+  } = params;
 
   const muscleGroupList = muscleGroups.map((mg) => `- ${mg.name}`).join("\n");
 
-  const prompt = `Você é especialista em musculação. Escreva uma descrição técnica curta, clara e objetiva para o aluno executar este exercício com segurança.
+  const detailLines = [
+    `Exercício: ${exerciseName}`,
+    variationName ? `Execução: ${variationName}` : null,
+    equipmentName ? `Equipamento: ${equipmentName}` : null,
+    gripFootingName ? `Pegada/Pisada: ${gripFootingName}` : null,
+    methodName ? `Método: ${methodName}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-Exercício: ${exerciseName}
-Variação: ${variationName}
+  const prompt = `Você é especialista em musculação. Escreva uma descrição técnica curta, clara e objetiva para o aluno executar este exercício com segurança, usando apenas as informações fornecidas abaixo (não invente detalhes que não foram informados).
+
+${detailLines}
 
 Responda APENAS com JSON no formato exato abaixo (sem texto extra):
 {"description":"texto com no máximo 150 caracteres","muscleGroup":"nome do grupo muscular"}

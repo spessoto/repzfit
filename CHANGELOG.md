@@ -6,6 +6,18 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-14] – Exercício como único campo obrigatório e IA sem dependência de campos opcionais (v1.2.1)
+
+### Corrigido
+- Corrigido o erro `exercise_id or exercise_variation_id must be provided` ao salvar um treino: o exercício (catálogo) sozinho já era suficiente no fluxo novo, mas o backend ainda exigia um vínculo legado ou uma execução selecionada. Agora `exercise_catalog_id` isoladamente satisfaz a validação, tanto na criação do treino quanto na adição de um item a um treino existente.
+- Corrigida a geração de descrição por IA para não exigir mais Execução, Equipamento, Pegada/Pisada ou Método preenchidos: o botão "Gerar descrição com IA" agora só depende do exercício selecionado, e a IA usa apenas as informações que o personal realmente preencheu.
+- Corrigidos ~407 caracteres especiais que apareciam como `�` em toda a tela de Exercícios e Treinos (rótulos, alertas, placeholders), causados por uma corrupção de codificação pré-existente no arquivo. O conteúdo textual foi restaurado para UTF-8 correto sem alterar nenhuma lógica.
+- Corrigida a mensagem enviada pelo bot do WhatsApp ao término do descanso: quando o exercício não tinha vínculo legado, o aluno recebia o nome genérico "Exercício" em vez do nome real cadastrado no catálogo.
+- Corrigido o resumo de sessões concluídas (histórico do aluno no painel do personal), que também exibia "Exercício" genérico para itens de treino sem vínculo legado em vez do nome do catálogo/execução.
+
+### Alterado
+- `POST /api/exercise-combos/generate-description` passou a aceitar `exercise_variation_id`, `equipment_id`, `grip_footing_id` e `method_id` como opcionais; o cache de descrição por combinação só é usado/gravado quando uma execução é selecionada.
+
 ## [2026-07-14] – Exercícios cadastrados completos na seleção de treino (v1.2.0)
 
 ### Corrigido

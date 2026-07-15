@@ -142,9 +142,15 @@ const WorkoutCreateSchema = z.object({
             .optional(),
         })
         .refine(
-          (value) => Boolean(value.exercise_id || value.exercise_variation_id),
+          (value) =>
+            Boolean(
+              value.exercise_id ||
+                value.exercise_variation_id ||
+                value.exercise_catalog_id,
+            ),
           {
-            message: "exercise_id or exercise_variation_id must be provided",
+            message:
+              "exercise_id, exercise_variation_id or exercise_catalog_id must be provided",
           },
         ),
     )
@@ -167,9 +173,16 @@ const WorkoutExerciseCreateSchema = z.object({
   custom_description: z
     .union([z.string().max(2000), z.null(), z.literal("")])
     .optional(),
-}).refine((value) => Boolean(value.exercise_id || value.exercise_variation_id), {
-  message: "exercise_id or exercise_variation_id must be provided",
-});
+}).refine(
+  (value) =>
+    Boolean(
+      value.exercise_id || value.exercise_variation_id || value.exercise_catalog_id,
+    ),
+  {
+    message:
+      "exercise_id, exercise_variation_id or exercise_catalog_id must be provided",
+  },
+);
 
 const WorkoutPatchSchema = z
   .object({
@@ -302,10 +315,21 @@ function buildCompletedSessionSummaryFromLogs(logs: any[]): string | null {
     const workoutExercise = Array.isArray(log?.workout_exercises)
       ? log.workout_exercises[0]
       : log?.workout_exercises;
+    const catalogRow = Array.isArray(workoutExercise?.exercise_catalog)
+      ? workoutExercise.exercise_catalog[0]
+      : workoutExercise?.exercise_catalog;
+    const variationRow = Array.isArray(workoutExercise?.exercise_variations)
+      ? workoutExercise.exercise_variations[0]
+      : workoutExercise?.exercise_variations;
     const exerciseRow = Array.isArray(workoutExercise?.exercises)
       ? workoutExercise.exercises[0]
       : workoutExercise?.exercises;
-    const exerciseName = String(exerciseRow?.name ?? "Exercício");
+    const baseExerciseName = String(
+      catalogRow?.name ?? exerciseRow?.name ?? "Exercício",
+    );
+    const exerciseName = variationRow?.name
+      ? `${baseExerciseName} - ${variationRow.name}`
+      : baseExerciseName;
     const exerciseOrder = Number(workoutExercise?.order_index ?? 0);
 
     if (!byExercise.has(workoutExerciseId)) {
@@ -962,9 +986,42 @@ async function resolveWorkoutExerciseReference(params: {
     };
   }
 
+  if (exerciseCatalogId) {
+    const { data: catalog, error: catalogError } = await supabaseAdmin
+      .from("exercise_catalog")
+      .select("id,personal_id,legacy_exercise_id")
+      .eq("id", exerciseCatalogId)
+      .maybeSingle();
+
+    if (catalogError) {
+      throw app.httpErrors.badRequest(catalogError.message);
+    }
+
+    if (!catalog) {
+      throw app.httpErrors.notFound("Exercise not found");
+    }
+
+    if (catalog.personal_id && catalog.personal_id !== personalId) {
+      throw app.httpErrors.notFound("Exercise not found");
+    }
+
+    const resolvedExerciseId = catalog.legacy_exercise_id ?? null;
+
+    if (exerciseId && resolvedExerciseId && exerciseId !== resolvedExerciseId) {
+      throw app.httpErrors.badRequest(
+        "exercise_id does not match provided exercise_catalog_id",
+      );
+    }
+
+    return {
+      exerciseId: resolvedExerciseId ?? exerciseId ?? null,
+      exerciseVariationId: null,
+    };
+  }
+
   if (!exerciseId) {
     throw app.httpErrors.badRequest(
-      "exercise_id or exercise_variation_id must be provided",
+      "exercise_id, exercise_variation_id or exercise_catalog_id must be provided",
     );
   }
 
@@ -1776,7 +1833,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     let sessionsResult: any = await client
       .from("daily_sessions")
       .select(
-        "id,date,status,created_at,updated_at,summary,workout_id,workouts(name),set_logs(set_number,reps_done,weight_used,rpe_score,workout_exercise_id,workout_exercises(order_index,exercises(name)))",
+        "id,date,status,created_at,updated_at,summary,workout_id,workouts(name),set_logs(set_number,reps_done,weight_used,rpe_score,workout_exercise_id,workout_exercises(order_index,exercise_catalog(name),exercise_variations(name),exercises(name)))",
       )
       .eq("student_id", id)
       .eq("status", "completed")
@@ -3091,87 +3148,120 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { personalId } = await getAuthenticatedPersonal(app, request);
     const body = request.body as {
       exercise_catalog_id?: string;
-      exercise_variation_id?: string;
+      exercise_variation_id?: string | null;
+      equipment_id?: string | null;
+      grip_footing_id?: string | null;
+      method_id?: string | null;
     };
 
     const exerciseCatalogId = z
       .string()
       .uuid()
       .parse((body as any)?.exercise_catalog_id);
-    const variationId = z
-      .string()
-      .uuid()
-      .parse((body as any)?.exercise_variation_id);
+    const variationId = NullableUuidInput.optional().parse(
+      (body as any)?.exercise_variation_id ?? null,
+    );
+    const equipmentId = NullableUuidInput.optional().parse(
+      (body as any)?.equipment_id ?? null,
+    );
+    const gripFootingId = NullableUuidInput.optional().parse(
+      (body as any)?.grip_footing_id ?? null,
+    );
+    const methodId = NullableUuidInput.optional().parse(
+      (body as any)?.method_id ?? null,
+    );
 
-    // Check combo cache first
-    const { data: cached, error: cacheError } = await supabaseAdmin
-      .from("exercise_combo_cache")
-      .select("description,muscle_group_id,muscle_groups(name)")
-      .eq("exercise_catalog_id", exerciseCatalogId)
-      .eq("exercise_variation_id", variationId)
-      .maybeSingle();
+    // Check combo cache first (only possible when a variation is selected)
+    if (variationId) {
+      const { data: cached, error: cacheError } = await supabaseAdmin
+        .from("exercise_combo_cache")
+        .select("description,muscle_group_id,muscle_groups(name)")
+        .eq("exercise_catalog_id", exerciseCatalogId)
+        .eq("exercise_variation_id", variationId)
+        .maybeSingle();
 
-    if (cacheError) throw app.httpErrors.badRequest(cacheError.message);
+      if (cacheError) throw app.httpErrors.badRequest(cacheError.message);
 
-    if (cached && (cached as any).description) {
-      return {
-        description: normalizeExerciseAIDescription(
-          (cached as any).description as string,
-        ),
-        muscle_group_name: (cached as any).muscle_groups?.name ?? null,
-        cached: true,
-      };
+      if (cached && (cached as any).description) {
+        return {
+          description: normalizeExerciseAIDescription(
+            (cached as any).description as string,
+          ),
+          muscle_group_name: (cached as any).muscle_groups?.name ?? null,
+          cached: true,
+        };
+      }
     }
 
-    // Fetch exercise name, variation name, and muscle groups in parallel
-    const [catalogRes, variationRes, muscleGroupsRes] = await Promise.all([
-      supabaseAdmin
-        .from("exercise_catalog")
-        .select("name")
-        .eq("id", exerciseCatalogId)
-        .or(`personal_id.is.null,personal_id.eq.${personalId}`)
-        .maybeSingle(),
-      supabaseAdmin
-        .from("exercise_variations")
-        .select("name")
-        .eq("id", variationId)
-        .or(`personal_id.is.null,personal_id.eq.${personalId}`)
-        .maybeSingle(),
-      supabaseAdmin.from("muscle_groups").select("id,name").order("name"),
-    ]);
+    // Fetch exercise name, optional related names, and muscle groups in parallel
+    const [catalogRes, variationRes, equipmentRes, gripRes, methodRes, muscleGroupsRes] =
+      await Promise.all([
+        supabaseAdmin
+          .from("exercise_catalog")
+          .select("name")
+          .eq("id", exerciseCatalogId)
+          .or(`personal_id.is.null,personal_id.eq.${personalId}`)
+          .maybeSingle(),
+        variationId
+          ? supabaseAdmin
+              .from("exercise_variations")
+              .select("name")
+              .eq("id", variationId)
+              .or(`personal_id.is.null,personal_id.eq.${personalId}`)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        equipmentId
+          ? supabaseAdmin.from("equipment_catalog").select("name").eq("id", equipmentId).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        gripFootingId
+          ? supabaseAdmin.from("grip_footing_catalog").select("name").eq("id", gripFootingId).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        methodId
+          ? supabaseAdmin.from("method_catalog").select("name").eq("id", methodId).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        supabaseAdmin.from("muscle_groups").select("id,name").order("name"),
+      ]);
 
     if (catalogRes.error) throw app.httpErrors.badRequest(catalogRes.error.message);
-    if (variationRes.error) throw app.httpErrors.badRequest(variationRes.error.message);
+    if (variationRes.error) throw app.httpErrors.badRequest((variationRes.error as any).message);
+    if (equipmentRes.error) throw app.httpErrors.badRequest((equipmentRes.error as any).message);
+    if (gripRes.error) throw app.httpErrors.badRequest((gripRes.error as any).message);
+    if (methodRes.error) throw app.httpErrors.badRequest((methodRes.error as any).message);
     if (!catalogRes.data) throw app.httpErrors.notFound("Exercise not found");
-    if (!variationRes.data) throw app.httpErrors.notFound("Variation not found");
+    if (variationId && !variationRes.data) throw app.httpErrors.notFound("Variation not found");
 
     const result = await generateExerciseDescription({
       exerciseName: (catalogRes.data as any).name,
-      variationName: (variationRes.data as any).name,
+      variationName: (variationRes.data as any)?.name ?? null,
+      equipmentName: (equipmentRes.data as any)?.name ?? null,
+      gripFootingName: (gripRes.data as any)?.name ?? null,
+      methodName: (methodRes.data as any)?.name ?? null,
       muscleGroups: (muscleGroupsRes.data ?? []).map((mg: any) => ({
         id: mg.id,
         name: mg.name,
       })),
     });
 
-    // Save to combo cache
-    const { error: upsertError } = await supabaseAdmin
-      .from("exercise_combo_cache")
-      .upsert(
-        {
-          exercise_catalog_id: exerciseCatalogId,
-          exercise_variation_id: variationId,
-          description: result.description,
-          muscle_group_id: result.muscleGroupId,
-        },
-        { onConflict: "exercise_catalog_id,exercise_variation_id" },
-      );
+    // Save to combo cache (only possible when a variation is selected)
+    if (variationId) {
+      const { error: upsertError } = await supabaseAdmin
+        .from("exercise_combo_cache")
+        .upsert(
+          {
+            exercise_catalog_id: exerciseCatalogId,
+            exercise_variation_id: variationId,
+            description: result.description,
+            muscle_group_id: result.muscleGroupId,
+          },
+          { onConflict: "exercise_catalog_id,exercise_variation_id" },
+        );
 
-    if (upsertError) {
-      app.log.warn(
-        { error: upsertError, exerciseCatalogId, variationId },
-        "Failed to cache exercise combo description",
-      );
+      if (upsertError) {
+        app.log.warn(
+          { error: upsertError, exerciseCatalogId, variationId },
+          "Failed to cache exercise combo description",
+        );
+      }
     }
 
     return {

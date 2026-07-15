@@ -3160,13 +3160,26 @@ async function fireExpiredRest(
 
     const { data: exRow } = await supabaseAdmin
       .from("workout_exercises")
-      .select("target_sets,exercises(name)")
+      .select(
+        "target_sets,exercise_catalog(name),exercise_variations(name),exercises(name)",
+      )
       .eq("id", state.current_workout_exercise_id!)
       .single();
 
-    const exerciseName = Array.isArray((exRow as any)?.exercises)
-      ? (exRow as any).exercises[0]?.name
-      : ((exRow as any)?.exercises?.name ?? "Exercício");
+    const exCatalog = Array.isArray((exRow as any)?.exercise_catalog)
+      ? (exRow as any).exercise_catalog[0]
+      : (exRow as any)?.exercise_catalog;
+    const exVariation = Array.isArray((exRow as any)?.exercise_variations)
+      ? (exRow as any).exercise_variations[0]
+      : (exRow as any)?.exercise_variations;
+    const legacyExercise = Array.isArray((exRow as any)?.exercises)
+      ? (exRow as any).exercises[0]
+      : (exRow as any)?.exercises;
+    const exerciseBaseName =
+      exCatalog?.name ?? legacyExercise?.name ?? "Exercício";
+    const exerciseName = exVariation?.name
+      ? `${exerciseBaseName} - ${exVariation.name}`
+      : exerciseBaseName;
     const targetSets = (exRow as any)?.target_sets ?? nextSet;
 
     await updateState(state.whatsapp_number, {
