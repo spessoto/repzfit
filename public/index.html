@@ -7223,10 +7223,11 @@
           return;
         }
         const query = normalizeComboSearch(termo || "");
+        const limit = query ? 1000 : 1000;
         variacaoBuscaTimeout[index] = setTimeout(async () => {
           try {
             const response = await fetch(
-              `${getApiBaseUrl()}/api/exercise-variations?search=${encodeURIComponent(query)}&limit=20`,
+              `${getApiBaseUrl()}/api/exercise-variations?search=${encodeURIComponent(query)}&limit=${limit}`,
               { headers: { Authorization: `Bearer ${authToken}` } },
             );
             if (!response.ok) return;
@@ -7269,10 +7270,11 @@
           return;
         }
         const query = normalizeComboSearch(termo || "");
+        const limit = query ? 1000 : 1000;
         equipamentoBuscaTimeout[index] = setTimeout(async () => {
           try {
             const response = await fetch(
-              `${getApiBaseUrl()}/api/equipment-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              `${getApiBaseUrl()}/api/equipment-catalog?search=${encodeURIComponent(query)}&limit=${limit}`,
               { headers: { Authorization: `Bearer ${authToken}` } },
             );
             if (!response.ok) return;
@@ -7313,10 +7315,11 @@
           return;
         }
         const query = normalizeComboSearch(termo || "");
+        const limit = query ? 1000 : 1000;
         gripBuscaTimeout[index] = setTimeout(async () => {
           try {
             const response = await fetch(
-              `${getApiBaseUrl()}/api/grip-footing-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              `${getApiBaseUrl()}/api/grip-footing-catalog?search=${encodeURIComponent(query)}&limit=${limit}`,
               { headers: { Authorization: `Bearer ${authToken}` } },
             );
             if (!response.ok) return;
@@ -7357,10 +7360,11 @@
           return;
         }
         const query = normalizeComboSearch(termo || "");
+        const limit = query ? 1000 : 1000;
         methodBuscaTimeout[index] = setTimeout(async () => {
           try {
             const response = await fetch(
-              `${getApiBaseUrl()}/api/method-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              `${getApiBaseUrl()}/api/method-catalog?search=${encodeURIComponent(query)}&limit=${limit}`,
               { headers: { Authorization: `Bearer ${authToken}` } },
             );
             if (!response.ok) return;
@@ -8075,14 +8079,13 @@
         if (catalogoEdicaoBuscaTimeout[workoutId]) clearTimeout(catalogoEdicaoBuscaTimeout[workoutId]);
         const dropdown = document.getElementById(`tab_cat_dropdown_${workoutId}`);
         if (!dropdown) return;
-        const query = (termo || "").trim();
-        if (!query) { dropdown.style.display = "none"; return; }
+        const query = normalizeComboSearch(termo || "");
         catalogoEdicaoBuscaTimeout[workoutId] = setTimeout(async () => {
           try {
-            const res = await fetch(
-              `${getApiBaseUrl()}/api/exercise-catalog?search=${encodeURIComponent(query)}&limit=20`,
-              { headers: { Authorization: `Bearer ${authToken}` } },
-            );
+            const catalogUrl = query
+              ? `${getApiBaseUrl()}/api/exercise-catalog?search=${encodeURIComponent(query)}&limit=1000`
+              : `${getApiBaseUrl()}/api/exercise-catalog?limit=1000`;
+            const res = await fetch(catalogUrl, { headers: { Authorization: `Bearer ${authToken}` } });
             if (!res.ok) return;
             const items = await res.json();
             if (!items.length) {
@@ -8144,12 +8147,14 @@
         if (variacaoEdicaoBuscaTimeout[workoutId]) clearTimeout(variacaoEdicaoBuscaTimeout[workoutId]);
         const dropdown = document.getElementById(`tab_var_dropdown_${workoutId}`);
         if (!dropdown) return;
-        const query = (termo || "").trim();
-        if (!query) { dropdown.style.display = "none"; return; }
+        const query = normalizeComboSearch(termo || "");
         variacaoEdicaoBuscaTimeout[workoutId] = setTimeout(async () => {
           try {
+            const variationUrl = query
+              ? `${getApiBaseUrl()}/api/exercise-variations?search=${encodeURIComponent(query)}&limit=1000`
+              : `${getApiBaseUrl()}/api/exercise-variations?limit=1000`;
             const res = await fetch(
-              `${getApiBaseUrl()}/api/exercise-variations?search=${encodeURIComponent(query)}&limit=20`,
+              variationUrl,
               { headers: { Authorization: `Bearer ${authToken}` } },
             );
             if (!res.ok) return;
@@ -8189,12 +8194,14 @@
         if (equipamentoEdicaoBuscaTimeout[workoutId]) clearTimeout(equipamentoEdicaoBuscaTimeout[workoutId]);
         const dropdown = document.getElementById(`tab_equip_dropdown_${workoutId}`);
         if (!dropdown) return;
-        const query = (termo || "").trim();
-        if (!query) { dropdown.style.display = "none"; return; }
+        const query = normalizeComboSearch(termo || "");
         equipamentoEdicaoBuscaTimeout[workoutId] = setTimeout(async () => {
           try {
+            const equipmentUrl = query
+              ? `${getApiBaseUrl()}/api/equipment-catalog?search=${encodeURIComponent(query)}&limit=1000`
+              : `${getApiBaseUrl()}/api/equipment-catalog?limit=1000`;
             const res = await fetch(
-              `${getApiBaseUrl()}/api/equipment-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              equipmentUrl,
               { headers: { Authorization: `Bearer ${authToken}` } },
             );
             if (!res.ok) return;
@@ -8228,12 +8235,14 @@
         if (gripEdicaoBuscaTimeout[workoutId]) clearTimeout(gripEdicaoBuscaTimeout[workoutId]);
         const dropdown = document.getElementById(`tab_grip_dropdown_${workoutId}`);
         if (!dropdown) return;
-        const query = (termo || "").trim();
-        if (!query) { dropdown.style.display = "none"; return; }
+        const query = normalizeComboSearch(termo || "");
         gripEdicaoBuscaTimeout[workoutId] = setTimeout(async () => {
           try {
+            const gripUrl = query
+              ? `${getApiBaseUrl()}/api/grip-footing-catalog?search=${encodeURIComponent(query)}&limit=1000`
+              : `${getApiBaseUrl()}/api/grip-footing-catalog?limit=1000`;
             const res = await fetch(
-              `${getApiBaseUrl()}/api/grip-footing-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              gripUrl,
               { headers: { Authorization: `Bearer ${authToken}` } },
             );
             if (!res.ok) return;
@@ -8267,12 +8276,14 @@
         if (methodEdicaoBuscaTimeout[workoutId]) clearTimeout(methodEdicaoBuscaTimeout[workoutId]);
         const dropdown = document.getElementById(`tab_method_dropdown_${workoutId}`);
         if (!dropdown) return;
-        const query = (termo || "").trim();
-        if (!query) { dropdown.style.display = "none"; return; }
+        const query = normalizeComboSearch(termo || "");
         methodEdicaoBuscaTimeout[workoutId] = setTimeout(async () => {
           try {
+            const methodUrl = query
+              ? `${getApiBaseUrl()}/api/method-catalog?search=${encodeURIComponent(query)}&limit=1000`
+              : `${getApiBaseUrl()}/api/method-catalog?limit=1000`;
             const res = await fetch(
-              `${getApiBaseUrl()}/api/method-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              methodUrl,
               { headers: { Authorization: `Bearer ${authToken}` } },
             );
             if (!res.ok) return;
@@ -8520,7 +8531,7 @@
 
         tabComboTreeState.loading = (async () => {
           const response = await fetch(
-            `${getApiBaseUrl()}/api/exercise-combos/tree?limit=1000`,
+            `${getApiBaseUrl()}/api/exercise-combos/tree?limit=5000`,
             { headers: { Authorization: `Bearer ${authToken}` } },
           );
 

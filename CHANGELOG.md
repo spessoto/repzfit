@@ -6,6 +6,18 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-14] – Autocomplete completo nos campos de treino (v1.1.9)
+
+### Alterado
+- O carregamento dos campos de treino passou a buscar listas completas em vez de cortes parciais de 20 ou 50 itens.
+- O autocomplete de exercício, execução, equipamento, pegada/pisada e método agora carrega todas as opções disponíveis no foco, respeitando o grupo muscular quando ele está selecionado.
+
+### Corrigido
+- Evitado truncamento de opções no dropdown principal de exercícios causado pelo limite da árvore de combinações.
+
+### Ajuste técnico
+- O endpoint `GET /api/exercise-combos/tree` passou a aceitar um volume maior de registros para suportar listas completas no editor de treino.
+
 ## [2026-07-14] – Salvamento de treino sem vínculo legado obrigatório (v1.1.8)
 
 ### Corrigido

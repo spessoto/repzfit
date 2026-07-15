@@ -2415,7 +2415,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const search = (query.search ?? "").trim();
     const limit = Math.min(
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
-      50,
+      1000,
     );
 
     let q = supabaseAdmin
@@ -2457,7 +2457,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const search = (query.search ?? "").trim();
     const limit = Math.min(
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
-      100,
+      1000,
     );
 
     let q = supabaseAdmin
@@ -2745,7 +2745,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const search = (query.search ?? "").trim();
     const limit = Math.min(
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
-      50,
+      1000,
     );
 
     let q = supabaseAdmin
@@ -2817,7 +2817,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const search = (query.search ?? "").trim();
     const limit = Math.min(
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
-      50,
+      1000,
     );
 
     let q = supabaseAdmin
@@ -2892,7 +2892,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const search = (query.search ?? "").trim();
     const limit = Math.min(
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
-      50,
+      1000,
     );
 
     let q = supabaseAdmin
@@ -2967,7 +2967,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const search = (query.search ?? "").trim();
     const limit = Math.min(
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
-      50,
+      1000,
     );
 
     let q = supabaseAdmin
@@ -3134,8 +3134,8 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     await getAuthenticatedPersonal(app, request);
     const query = request.query as { limit?: string };
     const limit = Math.min(
-      Math.max(parseInt(query.limit ?? "500", 10) || 500, 1),
-      1000,
+      Math.max(parseInt(query.limit ?? "5000", 10) || 5000, 1),
+      5000,
     );
 
     const [combosRes, muscleGroupsRes, catalogsRes, variationsRes, equipmentsRes, gripsRes, methodsRes] = await Promise.all([
