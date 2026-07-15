@@ -6,6 +6,15 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-14] – Salvamento de treino sem vínculo legado obrigatório (v1.1.8)
+
+### Corrigido
+- O salvamento de treino voltou a funcionar quando a variação selecionada não possui `exercise_id` legado.
+- A coluna `exercise_id` em `workout_exercises` passou a aceitar `NULL`, alinhando o banco ao fluxo normalizado de exercícios.
+
+### Migration executada
+- `supabase/migrations/202607140001_make_workout_exercise_id_nullable.sql`
+
 ## [2026-07-14] – Criação de treino com filtros flexíveis e fallback de variações (v1.1.7)
 
 ### Alterado
