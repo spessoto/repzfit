@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
@@ -1531,7 +1531,7 @@
               onclick="navigatePersonalPage('exercicios')"
             >
               <span class="tab-icon" aria-hidden="true">&#127947;</span>
-              <span class="tab-label">Exercícios</span>
+              <span class="tab-label">Exerc�cios</span>
             </button>
             <button
               id="treinosTabButton"
@@ -1547,7 +1547,7 @@
               onclick="navigatePersonalPage('configuracoes')"
             >
               <span class="tab-icon" aria-hidden="true">&#9881;</span>
-              <span class="tab-label">Configurações</span>
+              <span class="tab-label">Configura��es</span>
             </button>
             <button
               id="adminTabButton"
@@ -1555,7 +1555,7 @@
               onclick="switchTab('admin')"
             >
               <span class="tab-icon" aria-hidden="true">&#128100;</span>
-              <span class="tab-label">Usuários</span>
+              <span class="tab-label">Usu�rios</span>
             </button>
             <button
               id="adminSettingsTabButton"
@@ -1563,7 +1563,7 @@
               onclick="switchTab('adminSettings')"
             >
               <span class="tab-icon" aria-hidden="true">&#9881;</span>
-              <span class="tab-label">Configurações</span>
+              <span class="tab-label">Configura��es</span>
             </button>
             <button
               id="adminLogsTabButton"
@@ -1636,7 +1636,7 @@
                     <th>Nome</th>
                     <th>WhatsApp</th>
                     <th>Status</th>
-                    <th>Ações</th>
+                    <th>A��es</th>
                   </tr>
                 </thead>
                 <tbody id="alunosBody">
@@ -1659,7 +1659,7 @@
               </p>
               <div class="finance-metrics" id="financeiroMetrics">
                 <div class="finance-metric-card">
-                  <span class="finance-metric-label">Quanto ganhou no mês</span>
+                  <span class="finance-metric-label">Quanto ganhou no m�s</span>
                   <strong id="financeMetricEarned">R$ 0,00</strong>
                 </div>
                 <div class="finance-metric-card">
@@ -1671,7 +1671,7 @@
                   <strong id="financeMetricPending">0</strong>
                 </div>
                 <div class="finance-metric-card">
-                  <span class="finance-metric-label">Próximos do vencimento</span>
+                  <span class="finance-metric-label">Pr�ximos do vencimento</span>
                   <strong id="financeMetricUpcoming">0</strong>
                 </div>
               </div>
@@ -1684,7 +1684,7 @@
                   <div id="financeiroOverdueList"></div>
                 </div>
                 <div>
-                  <h3 style="margin-bottom:10px; color:#1f2937;">Alunos próximos ao vencimento</h3>
+                  <h3 style="margin-bottom:10px; color:#1f2937;">Alunos pr�ximos ao vencimento</h3>
                   <div id="financeiroUpcomingList"></div>
                 </div>
               </div>
@@ -1710,7 +1710,7 @@
                 </button>
               </div>
               <p style="color: #6b7280; margin-top: 8px">
-                Página dedicada para visualizar e editar dados, treinos e sessões do aluno.
+                P�gina dedicada para visualizar e editar dados, treinos e sess�es do aluno.
               </p>
             </div>
 
@@ -1779,9 +1779,9 @@
             <div class="card" style="margin-bottom: 16px">
               <div class="student-editor-two-columns">
                 <div class="student-editor-column-card">
-                  <h4 style="margin-bottom:10px; color:#374151;">Controle de pagamentos (mês/ano)</h4>
+                  <h4 style="margin-bottom:10px; color:#374151;">Controle de pagamentos (m�s/ano)</h4>
                   <div id="studentEditorPaymentsHistory">
-                    <p style="color:#6b7280;">Carregando histórico de pagamentos...</p>
+                    <p style="color:#6b7280;">Carregando hist�rico de pagamentos...</p>
                   </div>
                 </div>
 
@@ -1811,7 +1811,7 @@
                   class="student-insights-tab"
                   onclick="openStudentInsightsTab('report')"
                 >
-                  Relatório do Aluno
+                  Relat�rio do Aluno
                 </button>
               </div>
 
@@ -1821,16 +1821,16 @@
 
               <div id="studentInsightsReportPanel" class="student-insights-panel">
                 <div id="studentEditorReport">
-                  <p style="color:#6b7280;">Selecione a aba de relatório para carregar os dados.</p>
+                  <p style="color:#6b7280;">Selecione a aba de relat�rio para carregar os dados.</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Exercícios Tab -->
+          <!-- Exerc�cios Tab -->
           <div id="exerciciosTab" class="tab-content">
             <div class="card">
-              <h2>Gestão da Biblioteca</h2>
+              <h2>Gest�o da Biblioteca</h2>
               <div id="exerciciosAlert"></div>
 
               <div class="catalog-manager-grid">
@@ -1859,12 +1859,18 @@
                   </div>
                 </div>
 
-                <!-- 2. Exercício -->
+                <!-- 2. Exerc�cio -->
                 <div class="catalog-panel">
-                  <h3>Exercício</h3>
+                  <h3>Exerc�cio</h3>
                   <div class="form-group">
-                    <label>Nome do exercício</label>
+                    <label>Nome do exerc�cio</label>
                     <input type="text" id="novoCatalogoNome" placeholder="Ex: Supino Reto" />
+                  </div>
+                  <div class="form-group">
+                    <label>Grupo muscular <small style="font-weight:400;color:#6b7280;">(opcional, usado apenas como filtro)</small></label>
+                    <select id="novoCatalogoGrupoMuscular">
+                      <option value="">Sem grupo</option>
+                    </select>
                   </div>
                   <button class="btn btn-primary" onclick="criarCatalogoExercicio()">
                     Cadastrar
@@ -1898,7 +1904,7 @@
                     <input
                       type="text"
                       id="catalogoBuscaExercicios"
-                      placeholder="Buscar exercício"
+                      placeholder="Buscar exerc�cio"
                       oninput="filtrarCatalogoExercicios(this.value)"
                     />
                   </div>
@@ -1931,11 +1937,11 @@
                   </div>
                 </div>
 
-                <!-- 4. Execução -->
+                <!-- 4. Execu��o -->
                 <div class="catalog-panel">
-                  <h3>Execução</h3>
+                  <h3>Execu��o</h3>
                   <div class="form-group">
-                    <label>Nova execução</label>
+                    <label>Nova execu��o</label>
                     <input type="text" id="novaVariacaoNome" placeholder="Ex: Bilateral, Unilateral" />
                   </div>
                   <button class="btn btn-primary" onclick="criarVariacaoExercicio()">
@@ -1946,7 +1952,7 @@
                     <input
                       type="text"
                       id="variacoesBuscaExercicios"
-                      placeholder="Buscar execução"
+                      placeholder="Buscar execu��o"
                       oninput="filtrarVariacoesExercicios(this.value)"
                     />
                   </div>
@@ -1979,11 +1985,11 @@
                   </div>
                 </div>
 
-                <!-- 6. Método -->
+                <!-- 6. M�todo -->
                 <div class="catalog-panel">
-                  <h3>Método</h3>
+                  <h3>M�todo</h3>
                   <div class="form-group">
-                    <label>Novo método</label>
+                    <label>Novo m�todo</label>
                     <input type="text" id="novoMetodoNome" placeholder="Ex: Drop set, Bi-set, Rest-pause" />
                   </div>
                   <button class="btn btn-primary" onclick="criarMetodoCatalogo()">
@@ -1994,7 +2000,7 @@
                     <input
                       type="text"
                       id="metodosBuscaExercicios"
-                      placeholder="Buscar método"
+                      placeholder="Buscar m�todo"
                       oninput="filtrarMetodosExercicios(this.value)"
                     />
                   </div>
@@ -2003,18 +2009,18 @@
                   </div>
                 </div>
 
-                <!-- 7. Observações -->
+                <!-- 7. Observa��es -->
                 <div class="catalog-panel">
-                  <h3>Observações</h3>
+                  <h3>Observa��es</h3>
                   <p style="font-size:12px;color:#64748b;margin-bottom:8px;">
-                    Observações são vinculadas ao cadastro de cada Exercício.
+                    Observa��es s�o vinculadas ao cadastro de cada Exerc�cio.
                   </p>
                   <div class="form-group">
-                    <label>Buscar exercício</label>
+                    <label>Buscar exerc�cio</label>
                     <input
                       type="text"
                       id="observacoesBuscaExercicio"
-                      placeholder="Nome do exercício"
+                      placeholder="Nome do exerc�cio"
                       oninput="filtrarExerciciosObservacoes(this.value)"
                     />
                   </div>
@@ -2038,24 +2044,24 @@
                 <input
                   type="text"
                   id="treinoNome"
-                  placeholder="Ex: Treino A - Peito e Tríceps"
+                  placeholder="Ex: Treino A - Peito e Tr�ceps"
                   required
                 />
               </div>
 
               <div style="display: grid; grid-template-columns: 1fr; gap: 15px">
                 <div class="form-group">
-                  <label>Data de Início (opcional)</label>
+                  <label>Data de In�cio (opcional)</label>
                   <input type="date" id="treinoDataInicio" />
                 </div>
               </div>
 
               <h3 style="margin-top: 25px; margin-bottom: 15px; color: #374151">
-                Exercícios do Treino
+                Exerc�cios do Treino
               </h3>
 
               <div id="exerciciosContainer">
-                <!-- Exercícios serão adicionados aqui -->
+                <!-- Exerc�cios ser�o adicionados aqui -->
               </div>
 
               <button
@@ -2063,7 +2069,7 @@
                 onclick="adicionarExercicioAoTreino()"
                 style="margin-bottom: 20px"
               >
-                + Adicionar Exercício
+                + Adicionar Exerc�cio
               </button>
 
               <div style="display: flex; gap: 10px">
@@ -2082,8 +2088,8 @@
             <div class="card">
               <h2>Treinos Cadastrados</h2>
               <p style="color: #6b7280; margin-bottom: 15px">
-                Edite, exclua e visualize os treinos criados (atribuídos ou
-                não).
+                Edite, exclua e visualize os treinos criados (atribu�dos ou
+                n�o).
               </p>
               <button
                 class="btn btn-secondary"
@@ -2096,12 +2102,12 @@
           </div>
 
 
-          <!-- Configurações Tab -->
+          <!-- Configura��es Tab -->
           <div id="configuracoesTab" class="tab-content">
             <div class="card">
-              <h2>Configurações</h2>
+              <h2>Configura��es</h2>
 
-              <!-- Informações do Personal -->
+              <!-- Informa��es do Personal -->
               <div
                 style="
                   background: #f9fafb;
@@ -2111,7 +2117,7 @@
                 "
               >
                 <h3 style="color: #374151; margin-bottom: 10px">
-                  ?Informações da Conta
+                  ?Informa��es da Conta
                 </h3>
                 <p style="color: #6b7280; margin: 5px 0">
                   <strong>Nome:</strong> <span id="configNome">-</span>
@@ -2161,7 +2167,7 @@
                   <input
                     type="password"
                     id="adminPersonalSenha"
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="M�nimo 6 caracteres"
                   />
                 </div>
               </div>
@@ -2175,7 +2181,7 @@
                 Personals Cadastrados
               </h3>
               <p style="color: #6b7280; margin-bottom: 14px; font-size: 14px">
-                Visualize rapidamente os dados principais e use as ações ao lado
+                Visualize rapidamente os dados principais e use as a��es ao lado
                 para gerenciar cada personal.
               </p>
               <div id="adminPersonalsBody">
@@ -2188,9 +2194,9 @@
 
           <div id="adminSettingsTab" class="tab-content">
             <div class="card">
-              <h2>Configurações de Embed</h2>
+              <h2>Configura��es de Embed</h2>
               <p style="color: #6b7280; margin-bottom: 14px">
-                Gere o código para incorporar o formulário de cadastro de
+                Gere o c�digo para incorporar o formul�rio de cadastro de
                 personal trainer em landing pages externas.
               </p>
 
@@ -2206,7 +2212,7 @@
                 "
               >
                 <h3 style="margin-bottom: 8px; color: #1f2937">
-                  Conexão WhatsApp do Bot Unificado
+                  Conex�o WhatsApp do Bot Unificado
                 </h3>
                 <div id="adminWhatsappStatus" style="font-size: 16px">
                   Verificando...
@@ -2229,7 +2235,7 @@
               </div>
 
               <div class="form-group">
-                <label>Identificador da origem do formulário</label>
+                <label>Identificador da origem do formul�rio</label>
                 <input
                   type="text"
                   id="adminEmbedSource"
@@ -2237,13 +2243,13 @@
                   oninput="generateAdminEmbedCode()"
                 />
                 <small style="color: #6b7280; font-size: 12px"
-                  >Use um identificador único para descobrir de qual landing
+                  >Use um identificador �nico para descobrir de qual landing
                   veio cada cadastro.</small
                 >
               </div>
 
               <div class="form-group">
-                <label>URL de redirecionamento da recuperação de senha</label>
+                <label>URL de redirecionamento da recupera��o de senha</label>
                 <input
                   type="url"
                   id="adminRecoveryRedirectUrl"
@@ -2257,7 +2263,7 @@
               </div>
 
               <div class="form-group">
-                <label>Código para embeddar</label>
+                <label>C�digo para embeddar</label>
                 <textarea
                   id="adminEmbedCode"
                   readonly
@@ -2271,10 +2277,10 @@
                   class="btn btn-secondary"
                   onclick="generateAdminEmbedCode()"
                 >
-                  Atualizar código
+                  Atualizar c�digo
                 </button>
                 <button class="btn btn-primary" onclick="copyAdminEmbedCode()">
-                  Copiar código (1 clique)
+                  Copiar c�digo (1 clique)
                 </button>
               </div>
 
@@ -2287,23 +2293,23 @@
                 "
               >
                 <h3 style="margin-bottom: 8px; color: #1f2937">
-                  Onde será usado
+                  Onde ser� usado
                 </h3>
                 <p style="color: #6b7280; margin-bottom: 8px">
-                  URL atual sugerida para publicação:
+                  URL atual sugerida para publica��o:
                 </p>
                 <p style="font-weight: 600; color: #111827" id="adminEmbedHost">
                   -
                 </p>
                 <p style="color: #6b7280; margin-top: 8px; font-size: 13px">
-                  O valor de origem informado acima é enviado no cadastro para
-                  identificar em qual landing page o formulário foi usado.
+                  O valor de origem informado acima � enviado no cadastro para
+                  identificar em qual landing page o formul�rio foi usado.
                 </p>
               </div>
             </div>
 
             <div class="card">
-              <h2>Relatório de Cadastros por Origem</h2>
+              <h2>Relat�rio de Cadastros por Origem</h2>
               <p style="color: #6b7280; margin-bottom: 12px">
                 Veja de onde os cadastros de personal vieram para medir
                 performance das landing pages.
@@ -2313,7 +2319,7 @@
 
               <div style="display: flex; gap: 10px; align-items: end">
                 <div class="form-group" style="margin: 0; max-width: 180px">
-                  <label>Período (dias)</label>
+                  <label>Per�odo (dias)</label>
                   <input
                     type="number"
                     min="1"
@@ -2326,12 +2332,12 @@
                   class="btn btn-secondary"
                   onclick="carregarRelatorioOrigensAdmin()"
                 >
-                  Atualizar relatório
+                  Atualizar relat�rio
                 </button>
               </div>
 
               <p style="margin-top: 12px; color: #111827; font-weight: 600">
-                Total no período: <span id="adminSourceTotalSignups">-</span>
+                Total no per�odo: <span id="adminSourceTotalSignups">-</span>
               </p>
 
               <table>
@@ -2356,8 +2362,8 @@
             <div class="card">
               <h2>Logs do Sistema</h2>
               <p style="color: #6b7280; margin-bottom: 12px">
-                Monitore eventos fora do padrão no BOT para investigação e
-                correção.
+                Monitore eventos fora do padr�o no BOT para investiga��o e
+                corre��o.
               </p>
 
               <div id="adminLogsAlert"></div>
@@ -2381,7 +2387,7 @@
                   />
                 </div>
                 <div class="form-group">
-                  <label>Código</label>
+                  <label>C�digo</label>
                   <input
                     type="text"
                     id="adminLogsCode"
@@ -2397,7 +2403,7 @@
                   />
                 </div>
                 <div class="form-group">
-                  <label>Registros por página</label>
+                  <label>Registros por p�gina</label>
                   <select id="adminLogsLimit">
                     <option value="20">20</option>
                     <option value="50" selected>50</option>
@@ -2431,7 +2437,7 @@
                     <th>Data/Hora</th>
                     <th>Severidade</th>
                     <th>Categoria</th>
-                    <th>Código</th>
+                    <th>C�digo</th>
                     <th>Mensagem</th>
                     <th>Estado</th>
                     <th>WhatsApp</th>
@@ -2456,10 +2462,10 @@
                   &#8592; Anterior
                 </button>
                 <span id="adminLogsPageInfo" style="color: #6b7280; font-weight: 500">
-                  Página 1 de 1
+                  P�gina 1 de 1
                 </span>
                 <button class="btn btn-secondary" onclick="adminLogsNextPage()" id="adminLogsNextBtn" disabled>
-                  Próxima &#8594;
+                  Pr�xima &#8594;
                 </button>
               </div>
             </div>
@@ -2522,7 +2528,7 @@
             Cancelar
           </button>
           <button class="btn btn-primary" onclick="salvarPerfilPersonal()">
-            Salvar alterações
+            Salvar altera��es
           </button>
         </div>
       </div>
@@ -2603,9 +2609,9 @@
 
         <div class="editor-grid">
           <div class="form-group">
-            <label>Tipo Sanguíneo</label>
+            <label>Tipo Sangu�neo</label>
             <select id="adminEditAlunoTipoSanguineo">
-              <option value="">Não informado</option>
+              <option value="">N�o informado</option>
               <option value="O+">O+</option>
               <option value="O-">O-</option>
               <option value="A+">A+</option>
@@ -2646,7 +2652,7 @@
             Cancelar
           </button>
           <button class="btn btn-primary" onclick="salvarAlunoAdminEdicao()">
-            Salvar alterações
+            Salvar altera��es
           </button>
         </div>
       </div>
@@ -2718,7 +2724,7 @@
             Cancelar
           </button>
           <button class="btn btn-primary" onclick="salvarPersonalAdmin()">
-            Salvar alterações
+            Salvar altera��es
           </button>
         </div>
       </div>
@@ -2824,7 +2830,7 @@
       let adminPersonalsCache = [];
       let adminPersonalEditAtualId = null;
 
-      // Função de escape HTML para prevenir XSS
+      // Fun��o de escape HTML para prevenir XSS
       function escapeHtml(text) {
         if (!text) return "";
         const div = document.createElement("div");
@@ -2832,7 +2838,7 @@
         return div.innerHTML;
       }
 
-      // Paginação de exercícios
+      // Pagina��o de exerc�cios
       let exerciciosPaginaAtual = 1;
       let exerciciosTotalPaginas = 1;
       const PERSONAL_PAGES = [
@@ -2913,7 +2919,7 @@
         loadApp();
       } else {
         document.getElementById("loginScreen").classList.remove("hidden");
-        // Pré-preenche e-mail se vier de cadastro no formulario embed
+        // Pr�-preenche e-mail se vier de cadastro no formulario embed
         const _initParams = new URLSearchParams(window.location.search);
         const _preEmail = _initParams.get("email");
         if (_preEmail) {
@@ -2925,7 +2931,7 @@
         }
       }
 
-      // Função login precisa estar no escopo global para ser chamada pelo onclick
+      // Fun��o login precisa estar no escopo global para ser chamada pelo onclick
       async function login() {
         const email = document.getElementById("loginEmail").value.trim();
         const password = document.getElementById("loginPassword").value;
@@ -2966,7 +2972,7 @@
 
             if (!adminResp.ok) {
               throw new Error(
-                adminData.message || "Credenciais de admin inválidas",
+                adminData.message || "Credenciais de admin inv�lidas",
               );
             }
 
@@ -3070,8 +3076,8 @@
       }
 
       function handleUnauthorized() {
-        console.warn("Token expirado ou inválido, fazendo logout...");
-        alert("Sua sessão expirou. Por favor, faça login novamente.");
+        console.warn("Token expirado ou inv�lido, fazendo logout...");
+        alert("Sua sess�o expirou. Por favor, fa�a login novamente.");
         logout();
       }
 
@@ -3434,7 +3440,7 @@
           const total = Number(pagination.total || logs.length || 0);
 
           totalEl.textContent = String(total);
-          pageInfo.textContent = `Página ${adminLogsCurrentPage} de ${adminLogsTotalPages}`;
+          pageInfo.textContent = `P�gina ${adminLogsCurrentPage} de ${adminLogsTotalPages}`;
           prevBtn.disabled = adminLogsCurrentPage <= 1;
           nextBtn.disabled = adminLogsCurrentPage >= adminLogsTotalPages;
 
@@ -3470,7 +3476,7 @@
             .join("");
         } catch (error) {
           totalEl.textContent = "-";
-          pageInfo.textContent = "Página -";
+          pageInfo.textContent = "P�gina -";
           prevBtn.disabled = true;
           nextBtn.disabled = true;
           tbody.innerHTML =
@@ -3557,7 +3563,7 @@
         if (response.status === 409) {
           showAlert(
             "alunosAlert",
-            "Este WhatsApp já está vinculado a outro aluno. Confirme o número com o personal responsável.",
+            "Este WhatsApp j� est� vinculado a outro aluno. Confirme o n�mero com o personal respons�vel.",
             "error",
           );
           return;
@@ -3654,7 +3660,7 @@
             closeAlunoEditor();
           }
 
-          showAlert("alunosAlert", "Aluno excluído com sucesso!", "success");
+          showAlert("alunosAlert", "Aluno exclu�do com sucesso!", "success");
           await carregarAlunos();
           await carregarAlunosSelect();
         } catch (error) {
@@ -3780,7 +3786,7 @@
             const err = await response.json().catch(() => ({}));
             if (response.status === 409) {
               throw new Error(
-                "Este WhatsApp já está vinculado a outro aluno. Confirme o número com o personal responsável.",
+                "Este WhatsApp j� est� vinculado a outro aluno. Confirme o n�mero com o personal respons�vel.",
               );
             }
             throw new Error(err.message || "Erro ao salvar aluno");
@@ -3885,7 +3891,7 @@
           const refLabel = formatReferenceMonthLabel(referenceMonth);
           const referenceEl = document.getElementById("financeiroReferenceMonth");
           if (referenceEl) {
-            referenceEl.textContent = `Referência: ${refLabel}`;
+            referenceEl.textContent = `Refer�ncia: ${refLabel}`;
           }
 
           const earnedEl = document.getElementById("financeMetricEarned");
@@ -3937,7 +3943,7 @@
 
         if (!Array.isArray(history) || history.length === 0) {
           root.innerHTML =
-            '<p style="color:#6b7280;">Sem meses disponíveis para controle.</p>';
+            '<p style="color:#6b7280;">Sem meses dispon�veis para controle.</p>';
           return;
         }
 
@@ -3952,7 +3958,7 @@
                 const dueDate = row?.due_date ? formatDateLabel(row.due_date) : "Sem dia definido";
                 const receivedAt = row?.received_at
                   ? `Recebido em ${formatDateLabel(row.received_at)}`
-                  : "Ainda não recebido";
+                  : "Ainda n�o recebido";
 
                 return `
                   <div class="payment-history-row">
@@ -4100,7 +4106,7 @@
                     <div class="form-group full">
                       <label>Modo de acompanhamento</label>
                       <select id="w_tracking_${workout.id}">
-                        <option value="per_exercise" ${trackingMode === "per_exercise" ? "selected" : ""}>A cada exercício</option>
+                        <option value="per_exercise" ${trackingMode === "per_exercise" ? "selected" : ""}>A cada exerc�cio</option>
                         <option value="per_workout" ${trackingMode === "per_workout" ? "selected" : ""}>A cada treino (PSE geral ao encerrar)</option>
                         <option value="none" ${trackingMode === "none" ? "selected" : ""}>Sem acompanhamento</option>
                       </select>
@@ -4110,7 +4116,7 @@
                   <button class="btn btn-secondary" style="margin-left:8px;" onclick="desvincularTreinoDoAluno('${workout.id}')">Desvincular do aluno</button>
 
                   <div style="margin-top: 10px;">
-                    <h4 class="workout-section-title">Exercícios</h4>
+                    <h4 class="workout-section-title">Exerc�cios</h4>
                     ${
                       exercises.length > 0
                         ? exercises
@@ -4121,14 +4127,14 @@
                                 : ex.exercises;
                               return `
                               <div class="exercise-row">
-                                <p class="exercise-title">&#127947; ${escapeHtml(exData?.name || "Exercício")}</p>
+                                <p class="exercise-title">&#127947; ${escapeHtml(exData?.name || "Exerc�cio")}</p>
                                 <div class="exercise-fields-grid">
                                   <div class="exercise-field">
-                                    <label for="we_sets_${ex.id}">Séries</label>
+                                    <label for="we_sets_${ex.id}">S�ries</label>
                                     <input type="number" min="1" id="we_sets_${ex.id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
                                   </div>
                                   <div class="exercise-field">
-                                    <label for="we_reps_${ex.id}">Repetições</label>
+                                    <label for="we_reps_${ex.id}">Repeti��es</label>
                                     <input type="number" min="1" id="we_reps_${ex.id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
                                   </div>
                                   <div class="exercise-field">
@@ -4152,7 +4158,7 @@
                             `;
                             })
                             .join("")
-                        : '<p style="color:#6b7280;">Sem exercícios neste treino.</p>'
+                        : '<p style="color:#6b7280;">Sem exerc�cios neste treino.</p>'
                     }
                   </div>
                 </div>
@@ -4247,7 +4253,7 @@
                       <div class="workout-search-item">
                         <div>
                           <strong>${escapeHtml(w.name || "Treino")}</strong>
-                          <div class="workout-search-meta">Início: ${escapeHtml(w.start_date || "-")}</div>
+                          <div class="workout-search-meta">In�cio: ${escapeHtml(w.start_date || "-")}</div>
                         </div>
                         <button class="btn btn-secondary" onclick="selecionarTreinoParaAluno('${w.id}')">Selecionar</button>
                       </div>
@@ -4280,7 +4286,7 @@
         selectedRoot.innerHTML = `
           <div class="selected-workout-box">
             <p><strong>Treino selecionado:</strong> ${escapeHtml(workout.name || "Treino")}</p>
-            <p class="workout-search-meta">Início: ${escapeHtml(workout.start_date || "-")}</p>
+            <p class="workout-search-meta">In�cio: ${escapeHtml(workout.start_date || "-")}</p>
             <div class="form-group" style="margin-top: 8px;">
               <label>Validade para este aluno</label>
               <input type="date" id="selectedWorkoutValidUntil" />
@@ -4424,7 +4430,7 @@
 
           showAlert(
             "studentEditorAlert",
-            "Treino atribuído ao aluno",
+            "Treino atribu�do ao aluno",
             "success",
           );
           selectedWorkoutForStudent = null;
@@ -4483,10 +4489,10 @@
 
           if (!response.ok) {
             const err = await response.json();
-            throw new Error(err.message || "Erro ao salvar exercício");
+            throw new Error(err.message || "Erro ao salvar exerc�cio");
           }
 
-          showAlert("studentEditorAlert", "Exercício atualizado", "success");
+          showAlert("studentEditorAlert", "Exerc�cio atualizado", "success");
           if (currentEditingStudentId) {
             await carregarDetalhesAlunoEditor(currentEditingStudentId);
           }
@@ -4494,14 +4500,14 @@
         } catch (error) {
           showAlert(
             "studentEditorAlert",
-            error.message || "Erro ao atualizar exercício",
+            error.message || "Erro ao atualizar exerc�cio",
             "error",
           );
         }
       }
 
       async function excluirExercicioTreino(workoutId, workoutExerciseId) {
-        if (!confirm("Deseja excluir este exercício do treino?")) {
+        if (!confirm("Deseja excluir este exerc�cio do treino?")) {
           return;
         }
 
@@ -4518,10 +4524,10 @@
 
           if (!response.ok) {
             const err = await response.json().catch(() => ({}));
-            throw new Error(err.message || "Erro ao excluir exercício");
+            throw new Error(err.message || "Erro ao excluir exerc�cio");
           }
 
-          showAlert("studentEditorAlert", "Exercício removido", "success");
+          showAlert("studentEditorAlert", "Exerc�cio removido", "success");
           if (currentEditingStudentId) {
             await carregarDetalhesAlunoEditor(currentEditingStudentId);
           }
@@ -4529,7 +4535,7 @@
         } catch (error) {
           showAlert(
             "studentEditorAlert",
-            error.message || "Erro ao excluir exercício",
+            error.message || "Erro ao excluir exerc�cio",
             "error",
           );
         }
@@ -4623,8 +4629,8 @@
             </span>
             <div style="display:flex;gap:8px;align-items:center;">
               <button class="btn btn-secondary" ${page <= 1 ? "disabled" : ""} onclick="changeStudentSessionsPage(${page - 1})">Anterior</button>
-              <span style="color:#334155;font-size:12px;">Página ${page} de ${totalPages}</span>
-              <button class="btn btn-secondary" ${page >= totalPages ? "disabled" : ""} onclick="changeStudentSessionsPage(${page + 1})">Próxima</button>
+              <span style="color:#334155;font-size:12px;">P�gina ${page} de ${totalPages}</span>
+              <button class="btn btn-secondary" ${page >= totalPages ? "disabled" : ""} onclick="changeStudentSessionsPage(${page + 1})">Pr�xima</button>
             </div>
           </div>
         `;
@@ -4641,7 +4647,7 @@
           return;
         }
 
-        root.innerHTML = '<p style="color:#6b7280;">Carregando relatório...</p>';
+        root.innerHTML = '<p style="color:#6b7280;">Carregando relat�rio...</p>';
 
         try {
           const response = await fetch(
@@ -4664,7 +4670,7 @@
           studentReportData = await response.json();
           renderRelatorioAluno(studentReportData);
         } catch (error) {
-          root.innerHTML = `<p style="color:#ef4444;">${escapeHtml(error?.message || "Erro ao carregar relatório")}</p>`;
+          root.innerHTML = `<p style="color:#ef4444;">${escapeHtml(error?.message || "Erro ao carregar relat�rio")}</p>`;
         }
       }
 
@@ -4691,7 +4697,7 @@
         root.innerHTML = `
           <div class="student-report-grid">
             <div class="student-report-box">
-              <h4>Calendário de treinos</h4>
+              <h4>Calend�rio de treinos</h4>
               <div id="studentReportCalendar"></div>
             </div>
             <div class="student-report-box">
@@ -4712,7 +4718,7 @@
           </div>
 
           <div class="student-report-box" style="margin-top:12px;">
-            <h4>Evolução de peso do aluno</h4>
+            <h4>Evolu��o de peso do aluno</h4>
             <div id="studentWeightTimeline"></div>
           </div>
         `;
@@ -4817,7 +4823,7 @@
 
         if (data.length === 0) {
           root.innerHTML =
-            '<p style="color:#6b7280;">Sem dados suficientes para o gráfico de teia.</p>';
+            '<p style="color:#6b7280;">Sem dados suficientes para o gr�fico de teia.</p>';
           return;
         }
 
@@ -4870,7 +4876,7 @@
           .join(" ");
 
         root.innerHTML = `
-          <svg viewBox="0 0 ${width} ${height}" width="100%" height="300" role="img" aria-label="Gráfico de teia por grupos musculares">
+          <svg viewBox="0 0 ${width} ${height}" width="100%" height="300" role="img" aria-label="Gr�fico de teia por grupos musculares">
             ${gridPolygons.join("")}
             ${axes}
             <polygon points="${dataPoints}" fill="rgba(2, 77, 58, 0.22)" stroke="#024d3a" stroke-width="2" />
@@ -4893,7 +4899,7 @@
             const sign = isOver ? "+" : "-";
             return `
               <li>
-                <span>${escapeHtml(item.exercise_name || "Exercício")}</span>
+                <span>${escapeHtml(item.exercise_name || "Exerc�cio")}</span>
                 <span style="white-space:nowrap;color:${isOver ? "#065f46" : "#b91c1c"};font-weight:700;">
                   ${sign}${Number(item.avg_diff_kg || 0).toFixed(2)}kg
                 </span>
@@ -4909,7 +4915,7 @@
 
         if (!weightTimeline || weightTimeline.length === 0) {
           root.innerHTML =
-            '<p style="color:#6b7280;">Sem histórico de peso para o período.</p>';
+            '<p style="color:#6b7280;">Sem hist�rico de peso para o per�odo.</p>';
           return;
         }
 
@@ -4923,7 +4929,7 @@
 
         if (points.length === 0) {
           root.innerHTML =
-            '<p style="color:#6b7280;">Sem histórico de peso para o período.</p>';
+            '<p style="color:#6b7280;">Sem hist�rico de peso para o per�odo.</p>';
           return;
         }
 
@@ -4969,7 +4975,7 @@
           <div style="margin-bottom:8px;color:#475569;font-size:13px;">
             ${escapeHtml(new Date(first.date).toLocaleDateString("pt-BR"))} (${first.weight.toFixed(1)}kg) &#8594; ${escapeHtml(new Date(last.date).toLocaleDateString("pt-BR"))} (${last.weight.toFixed(1)}kg)
           </div>
-          <svg viewBox="0 0 ${width} ${height}" width="100%" height="260" role="img" aria-label="Gráfico temporal do peso do aluno">
+          <svg viewBox="0 0 ${width} ${height}" width="100%" height="260" role="img" aria-label="Gr�fico temporal do peso do aluno">
             <line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" stroke="#cbd5e1" />
             <line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}" stroke="#cbd5e1" />
             <polyline points="${polyline}" fill="none" stroke="#024d3a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
@@ -5126,7 +5132,7 @@
         if (!personal) {
           showAlert(
             "adminAlert",
-            "Não foi possível abrir o formulário de edição do personal.",
+            "N�o foi poss�vel abrir o formul�rio de edi��o do personal.",
             "error",
           );
           return;
@@ -5172,7 +5178,7 @@
         if (!name || !email) {
           showAlert(
             "adminPersonalEditAlert",
-            "Nome e email são obrigatórios.",
+            "Nome e email s�o obrigat�rios.",
             "error",
           );
           return;
@@ -5226,7 +5232,7 @@
         if (!adminToken) return;
 
         const confirmado = confirm(
-          `Tem certeza que deseja excluir o personal "${personalName}"?\nEssa ação não pode ser desfeita.`,
+          `Tem certeza que deseja excluir o personal "${personalName}"?\nEssa a��o n�o pode ser desfeita.`,
         );
         if (!confirmado) return;
 
@@ -5253,7 +5259,7 @@
 
           showAlert(
             "adminAlert",
-            `Personal "${personalName}" excluído com sucesso`,
+            `Personal "${personalName}" exclu�do com sucesso`,
             "success",
           );
           await carregarAdminPersonals();
@@ -5360,7 +5366,7 @@
                     <th style="padding:8px;text-align:left;font-weight:600;">WhatsApp</th>
                     <th style="padding:8px;text-align:left;font-weight:600;">Email</th>
                     <th style="padding:8px;text-align:left;font-weight:600;">Status</th>
-                    <th style="padding:8px;text-align:left;font-weight:600;">Ações</th>
+                    <th style="padding:8px;text-align:left;font-weight:600;">A��es</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -5414,7 +5420,7 @@
         if (!normalizedWhatsapp || !normalizedWhatsapp.startsWith("55")) {
           showAlert(
             "adminAlunosAlert",
-            "WhatsApp inválido. Informe com DDD; o sistema adiciona 55 automaticamente quando necessário.",
+            "WhatsApp inv�lido. Informe com DDD; o sistema adiciona 55 automaticamente quando necess�rio.",
             "error",
           );
           return;
@@ -5460,7 +5466,7 @@
       function editarAlunoAdmin(alunoId) {
         const aluno = adminAlunosCache.find((item) => item.id === alunoId);
         if (!aluno) {
-          showAlert("adminAlunosAlert", "Aluno não encontrado para edição", "error");
+          showAlert("adminAlunosAlert", "Aluno n�o encontrado para edi��o", "error");
           return;
         }
 
@@ -5505,7 +5511,7 @@
           document.getElementById("adminEditAlunoStatus").value === "true";
 
         if (!name) {
-          showAlert("adminAlunoEditAlert", "Nome é obrigatório", "error");
+          showAlert("adminAlunoEditAlert", "Nome � obrigat�rio", "error");
           return;
         }
 
@@ -5513,7 +5519,7 @@
         if (!normalizedWhatsapp || !normalizedWhatsapp.startsWith("55")) {
           showAlert(
             "adminAlunoEditAlert",
-            "WhatsApp inválido. Informe com DDD; o sistema adiciona 55 automaticamente quando necessário.",
+            "WhatsApp inv�lido. Informe com DDD; o sistema adiciona 55 automaticamente quando necess�rio.",
             "error",
           );
           return;
@@ -5568,7 +5574,7 @@
         if (!adminToken) return;
 
         const confirmado = confirm(
-          `Tem certeza que deseja deletar o aluno "${alunoName}"?\nEssa ação não pode ser desfeita.`,
+          `Tem certeza que deseja deletar o aluno "${alunoName}"?\nEssa a��o n�o pode ser desfeita.`,
         );
         if (!confirmado) return;
 
@@ -5643,7 +5649,7 @@
         if (!codeArea || !codeArea.value) {
           showAlert(
             "adminSettingsAlert",
-            "Gere o código antes de copiar.",
+            "Gere o c�digo antes de copiar.",
             "error",
           );
           return;
@@ -5653,7 +5659,7 @@
           await navigator.clipboard.writeText(codeArea.value);
           showAlert(
             "adminSettingsAlert",
-            "Código copiado para a área de transferência.",
+            "C�digo copiado para a �rea de transfer�ncia.",
             "success",
           );
         } catch (error) {
@@ -5661,7 +5667,7 @@
           document.execCommand("copy");
           showAlert(
             "adminSettingsAlert",
-            "Código copiado com fallback do navegador.",
+            "C�digo copiado com fallback do navegador.",
             "success",
           );
         }
@@ -5692,7 +5698,7 @@
           const data = await response.json().catch(() => ({}));
 
           if (!response.ok) {
-            throw new Error(data.message || "Erro ao carregar relatório");
+            throw new Error(data.message || "Erro ao carregar relat�rio");
           }
 
           totalEl.textContent = String(data.total_signups ?? 0);
@@ -5700,7 +5706,7 @@
           const sources = Array.isArray(data.sources) ? data.sources : [];
           if (sources.length === 0) {
             tbody.innerHTML =
-              '<tr><td colspan="2" style="text-align:center;color:#6b7280;">Sem cadastros no período</td></tr>';
+              '<tr><td colspan="2" style="text-align:center;color:#6b7280;">Sem cadastros no per�odo</td></tr>';
             return;
           }
 
@@ -5717,10 +5723,10 @@
         } catch (error) {
           totalEl.textContent = "-";
           tbody.innerHTML =
-            '<tr><td colspan="2" style="text-align:center;color:#ef4444;">Erro ao carregar relatório</td></tr>';
+            '<tr><td colspan="2" style="text-align:center;color:#ef4444;">Erro ao carregar relat�rio</td></tr>';
           showAlert(
             "adminSourceReportAlert",
-            error.message || "Erro ao carregar relatório",
+            error.message || "Erro ao carregar relat�rio",
             "error",
           );
         }
@@ -5787,8 +5793,8 @@
             container.classList.remove("hidden");
             container.innerHTML = `
               <div style="padding: 20px; background: rgba(115, 213, 55, 0.2); border-radius: 8px; margin-top: 12px;">
-                <h3 style="color: #024d3a; margin-bottom: 10px;">&#9989; WhatsApp já conectado</h3>
-                <p style="color: #047857;">A instância unificada já está pronta para uso.</p>
+                <h3 style="color: #024d3a; margin-bottom: 10px;">&#9989; WhatsApp j� conectado</h3>
+                <p style="color: #047857;">A inst�ncia unificada j� est� pronta para uso.</p>
               </div>
             `;
             return;
@@ -5826,21 +5832,21 @@
             const pairingCode = data.pairingCode || data.code;
             container.innerHTML = `
               <div style="padding: 20px; background: #eff6ff; border-radius: 8px; margin-top: 12px;">
-                <h3 style="color: #1e40af; margin-bottom: 10px;">Use o código de pareamento</h3>
+                <h3 style="color: #1e40af; margin-bottom: 10px;">Use o c�digo de pareamento</h3>
                 <p style="color: #1e3a8a; font-size: 28px; letter-spacing: 2px; font-weight: 700; margin: 8px 0;">${pairingCode}</p>
-                <p style="color: #1e40af;">No WhatsApp, vá em Aparelhos conectados e informe este código.</p>
+                <p style="color: #1e40af;">No WhatsApp, v� em Aparelhos conectados e informe este c�digo.</p>
               </div>
             `;
           } else {
             container.innerHTML =
-              '<p style="color: #ef4444;">Não foi possível renderizar o QR Code. Tente novamente.</p>';
+              '<p style="color: #ef4444;">N�o foi poss�vel renderizar o QR Code. Tente novamente.</p>';
           }
 
           setTimeout(() => verificarStatusWhatsAppAdmin(), 3000);
         } catch (error) {
           container.classList.remove("hidden");
           container.innerHTML =
-            '<p style="color: #ef4444;">Erro ao conectar com a Evolution API. Verifique a configuração.</p>';
+            '<p style="color: #ef4444;">Erro ao conectar com a Evolution API. Verifique a configura��o.</p>';
         }
       }
 
@@ -5913,12 +5919,38 @@
       let grupoMuscularBuscaAtual = "";
       let observacoesBuscaAtual = "";
 
+      let muscleGroupsSelectCache = null;
+
+      async function obterGruposMuscularesParaSelect(forceReload) {
+        if (muscleGroupsSelectCache && !forceReload) return muscleGroupsSelectCache;
+        try {
+          const response = await fetch(`${getApiBaseUrl()}/api/muscle-groups?limit=1000`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          if (!response.ok) return muscleGroupsSelectCache || [];
+          muscleGroupsSelectCache = (await response.json()) || [];
+          return muscleGroupsSelectCache;
+        } catch (e) {
+          return muscleGroupsSelectCache || [];
+        }
+      }
+
+      async function preencherSelectNovoCatalogoGrupoMuscular() {
+        const select = document.getElementById("novoCatalogoGrupoMuscular");
+        if (!select) return;
+        const grupos = await obterGruposMuscularesParaSelect();
+        select.innerHTML =
+          '<option value="">Sem grupo</option>' +
+          grupos.map((g) => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)}</option>`).join("");
+      }
+
       async function criarCatalogoExercicio() {
         const nome = document.getElementById("novoCatalogoNome")?.value?.trim();
         if (!nome) {
-          showAlert("exerciciosAlert", "Informe o nome do exercício.", "error");
+          showAlert("exerciciosAlert", "Informe o nome do exerc�cio.", "error");
           return;
         }
+        const muscleGroupId = document.getElementById("novoCatalogoGrupoMuscular")?.value || null;
 
         const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog`, {
           method: "POST",
@@ -5926,17 +5958,19 @@
             "Content-Type": "application/json",
             Authorization: `Bearer ${authToken}`,
           },
-          body: JSON.stringify({ name: nome }),
+          body: JSON.stringify({ name: nome, muscle_group_id: muscleGroupId }),
         });
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar exercício.", "error");
+          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar exerc�cio.", "error");
           return;
         }
 
         document.getElementById("novoCatalogoNome").value = "";
-        showAlert("exerciciosAlert", "Exercício cadastrado com sucesso.", "success");
+        const groupSelect = document.getElementById("novoCatalogoGrupoMuscular");
+        if (groupSelect) groupSelect.value = "";
+        showAlert("exerciciosAlert", "Exerc�cio cadastrado com sucesso.", "success");
         await carregarCatalogoExercicios();
         await carregarObservacoesExercicios();
       }
@@ -5964,8 +5998,10 @@
         }
 
         document.getElementById("novoGrupoMuscularNome").value = "";
+        muscleGroupsSelectCache = null;
         showAlert("exerciciosAlert", "Grupo muscular cadastrado com sucesso.", "success");
         await carregarGruposMuscularesExercicios();
+        await preencherSelectNovoCatalogoGrupoMuscular();
       }
 
       function abrirImportacaoXlsCatalogo() {
@@ -6027,7 +6063,7 @@
         );
 
         try {
-          showAlert("exerciciosAlert", "Importando planilha de exercícios...", "success");
+          showAlert("exerciciosAlert", "Importando planilha de exerc�cios...", "success");
 
           const fileBase64 = await new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -6051,12 +6087,12 @@
 
           const payload = await response.json().catch(() => ({}));
           if (!response.ok) {
-            throw new Error(payload.message || "Erro ao importar exercícios");
+            throw new Error(payload.message || "Erro ao importar exerc�cios");
           }
 
           showAlert(
             "exerciciosAlert",
-            `Importação concluída. ${payload.imported_count || 0} novos exercício(s), ${payload.skipped_existing_count || 0} já existentes.`,
+            `Importa��o conclu�da. ${payload.imported_count || 0} novos exerc�cio(s), ${payload.skipped_existing_count || 0} j� existentes.`,
             "success",
           );
 
@@ -6072,7 +6108,7 @@
       }
 
       async function resetarBaseExercicios() {
-        if (!confirm("Deseja realmente zerar sua base de exercícios e execuções? Esta ação não pode ser desfeita.")) {
+        if (!confirm("Deseja realmente zerar sua base de exerc�cios e execu��es? Esta a��o n�o pode ser desfeita.")) {
           return;
         }
 
@@ -6088,16 +6124,16 @@
 
           const payload = await response.json().catch(() => ({}));
           if (!response.ok) {
-            throw new Error(payload.message || "Erro ao resetar base de exercícios");
+            throw new Error(payload.message || "Erro ao resetar base de exerc�cios");
           }
 
-          showAlert("exerciciosAlert", "Base de exercícios zerada com sucesso.", "success");
+          showAlert("exerciciosAlert", "Base de exerc�cios zerada com sucesso.", "success");
           await carregarCatalogoExercicios();
           await carregarVariacoesExercicios();
         } catch (error) {
           showAlert(
             "exerciciosAlert",
-            error?.message || "Erro ao resetar base de exercícios",
+            error?.message || "Erro ao resetar base de exerc�cios",
             "error",
           );
         }
@@ -6106,7 +6142,7 @@
       async function criarVariacaoExercicio() {
         const nome = document.getElementById("novaVariacaoNome")?.value?.trim();
         if (!nome) {
-          showAlert("exerciciosAlert", "Informe o nome da execução.", "error");
+          showAlert("exerciciosAlert", "Informe o nome da execu��o.", "error");
           return;
         }
 
@@ -6121,12 +6157,12 @@
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar execução.", "error");
+          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar execu��o.", "error");
           return;
         }
 
         document.getElementById("novaVariacaoNome").value = "";
-        showAlert("exerciciosAlert", "Execução cadastrada com sucesso.", "success");
+        showAlert("exerciciosAlert", "Execu��o cadastrada com sucesso.", "success");
         await carregarVariacoesExercicios();
       }
 
@@ -6160,7 +6196,7 @@
       async function criarMetodoCatalogo() {
         const nome = document.getElementById("novoMetodoNome")?.value?.trim();
         if (!nome) {
-          showAlert("exerciciosAlert", "Informe o nome do método.", "error");
+          showAlert("exerciciosAlert", "Informe o nome do m�todo.", "error");
           return;
         }
 
@@ -6175,12 +6211,12 @@
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar método.", "error");
+          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar m�todo.", "error");
           return;
         }
 
         document.getElementById("novoMetodoNome").value = "";
-        showAlert("exerciciosAlert", "Método cadastrado com sucesso.", "success");
+        showAlert("exerciciosAlert", "M�todo cadastrado com sucesso.", "success");
         await carregarMetodosExercicios();
       }
 
@@ -6237,27 +6273,66 @@
           if (!body) return;
 
           if (!exercicios.length) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhum exercício encontrado.</span></div>';
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhum exerc�cio encontrado.</span></div>';
             return;
           }
+
+          const grupos = await obterGruposMuscularesParaSelect();
+          const gruposOptions = grupos
+            .map((g) => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)}</option>`)
+            .join("");
 
           body.innerHTML = exercicios
             .map(
               (e) => `
-                <div class="catalog-row">
-                  <div>
-                    <div class="catalog-row-title">${escapeHtml(e.name || "Exercício")}</div>
+                <div class="catalog-row" style="flex-direction:column;align-items:stretch;gap:6px;">
+                  <div class="catalog-row-title">${escapeHtml(e.name || "Exerc�cio")}</div>
+                  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <select id="cat_grupo_${escapeHtml(e.id)}" style="flex:1;min-width:140px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
+                      <option value="">Sem grupo</option>
+                      ${gruposOptions}
+                    </select>
+                    <button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;"
+                      onclick="salvarGrupoMuscularCatalogoExercicio('${escapeHtml(e.id)}')">Salvar grupo</button>
+                    <button class="btn btn-danger" onclick="excluirCatalogoExercicio('${escapeHtml(e.id)}','${escapeHtml(String(e.name || "")).replace(/'/g, "\\'")}')">Excluir</button>
                   </div>
-                  <button class="btn btn-danger" onclick="excluirCatalogoExercicio('${escapeHtml(e.id)}','${escapeHtml(String(e.name || "")).replace(/'/g, "\\'")}')">Excluir</button>
                 </div>
             `,
             )
             .join("");
+
+          for (const e of exercicios) {
+            const select = document.getElementById(`cat_grupo_${e.id}`);
+            if (select) select.value = e.muscle_group_id || "";
+          }
         } catch (error) {
           const body = document.getElementById("exerciseCatalogBody");
           if (body) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar exercícios.</span></div>';
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar exerc�cios.</span></div>';
           }
+        }
+      }
+
+      async function salvarGrupoMuscularCatalogoExercicio(exercicioId) {
+        const select = document.getElementById(`cat_grupo_${exercicioId}`);
+        if (!select) return;
+        const muscleGroupId = select.value || null;
+
+        try {
+          const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog/${exercicioId}/notes`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ muscle_group_id: muscleGroupId }),
+          });
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.message || "Erro ao salvar grupo muscular");
+          showAlert("exerciciosAlert", "Grupo muscular do exerc�cio atualizado.", "success");
+        } catch (error) {
+          showAlert("exerciciosAlert", error?.message || "Erro ao salvar grupo muscular", "error");
         }
       }
 
@@ -6309,19 +6384,19 @@
           const body = document.getElementById("observacoesCatalogBody");
           if (!body) return;
           if (!exercicios.length) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhum exercício encontrado.</span></div>';
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhum exerc�cio encontrado.</span></div>';
             return;
           }
           body.innerHTML = exercicios
             .map((e) => `
               <div class="catalog-row obs-row" style="flex-direction:column;align-items:stretch;gap:4px;">
-                <div class="catalog-row-title" style="font-size:13px;">${escapeHtml(e.name || "Exercício")}</div>
+                <div class="catalog-row-title" style="font-size:13px;">${escapeHtml(e.name || "Exerc�cio")}</div>
                 <div style="display:flex;gap:6px;align-items:center;">
                   <input
                     type="text"
                     id="obs_input_${escapeHtml(e.id)}"
                     value="${escapeHtml(e.notes || "")}"
-                    placeholder="Observações..."
+                    placeholder="Observa��es..."
                     style="flex:1;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;"
                   />
                   <button class="btn btn-primary" style="padding:6px 10px;font-size:12px;"
@@ -6331,7 +6406,7 @@
             .join("");
         } catch (error) {
           const body = document.getElementById("observacoesCatalogBody");
-          if (body) body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar observações.</span></div>';
+          if (body) body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar observa��es.</span></div>';
         }
       }
 
@@ -6351,10 +6426,10 @@
           });
 
           const payload = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(payload.message || "Erro ao salvar observação");
-          showAlert("exerciciosAlert", "Observação salva.", "success");
+          if (!response.ok) throw new Error(payload.message || "Erro ao salvar observa��o");
+          showAlert("exerciciosAlert", "Observa��o salva.", "success");
         } catch (error) {
-          showAlert("exerciciosAlert", error?.message || "Erro ao salvar observação", "error");
+          showAlert("exerciciosAlert", error?.message || "Erro ao salvar observa��o", "error");
         }
       }
 
@@ -6369,8 +6444,10 @@
             const err = await response.json().catch(() => ({}));
             throw new Error(err.message || "Erro ao excluir grupo muscular");
           }
-          showAlert("exerciciosAlert", "Grupo muscular excluído.", "success");
+          showAlert("exerciciosAlert", "Grupo muscular exclu�do.", "success");
+          muscleGroupsSelectCache = null;
           await carregarGruposMuscularesExercicios();
+          await preencherSelectNovoCatalogoGrupoMuscular();
         } catch (error) {
           showAlert("exerciciosAlert", error?.message || "Erro ao excluir grupo muscular", "error");
         }
@@ -6401,7 +6478,7 @@
           const body = document.getElementById("exerciseVariationsBody");
           if (!body) return;
           if (!variacoes.length) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhuma execução encontrada.</span></div>';
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhuma execu��o encontrada.</span></div>';
             return;
           }
 
@@ -6410,7 +6487,7 @@
               (v) => `
                 <div class="catalog-row">
                   <div>
-                    <div class="catalog-row-title">${escapeHtml(v.name || "Execução")}</div>
+                    <div class="catalog-row-title">${escapeHtml(v.name || "Execu��o")}</div>
                   </div>
                   <button class="btn btn-danger" onclick="excluirVariacaoExercicio('${escapeHtml(v.id)}','${escapeHtml(String(v.name || "")).replace(/'/g, "\\'")}')">Excluir</button>
                 </div>
@@ -6420,7 +6497,7 @@
         } catch (error) {
           const body = document.getElementById("exerciseVariationsBody");
           if (body) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar execuções.</span></div>';
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar execu��es.</span></div>';
           }
         }
       }
@@ -6499,7 +6576,7 @@
           const body = document.getElementById("methodCatalogBody");
           if (!body) return;
           if (!itens.length) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhum método encontrado.</span></div>';
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhum m�todo encontrado.</span></div>';
             return;
           }
 
@@ -6508,7 +6585,7 @@
               (item) => `
                 <div class="catalog-row">
                   <div>
-                    <div class="catalog-row-title">${escapeHtml(item.name || "Método")}</div>
+                    <div class="catalog-row-title">${escapeHtml(item.name || "M�todo")}</div>
                   </div>
                   <button class="btn btn-danger" onclick="excluirMetodoExercicio('${escapeHtml(item.id)}','${escapeHtml(String(item.name || "")).replace(/'/g, "\\'")}')">Excluir</button>
                 </div>
@@ -6518,7 +6595,7 @@
         } catch (error) {
           const body = document.getElementById("methodCatalogBody");
           if (body) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar métodos.</span></div>';
+            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar m�todos.</span></div>';
           }
         }
       }
@@ -6581,6 +6658,7 @@
           carregarPegadasPisadasExercicios(),
           carregarMetodosExercicios(),
           carregarObservacoesExercicios(),
+          preencherSelectNovoCatalogoGrupoMuscular(),
         ]);
       }
 
@@ -6627,32 +6705,32 @@
       }
 
       async function excluirCatalogoExercicio(id, nome) {
-        if (!confirm(`Deseja excluir o exercício "${nome}"?`)) return;
+        if (!confirm(`Deseja excluir o exerc�cio "${nome}"?`)) return;
         const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${authToken}` },
         });
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          showAlert("exerciciosAlert", err.message || "Erro ao excluir exercício.", "error");
+          showAlert("exerciciosAlert", err.message || "Erro ao excluir exerc�cio.", "error");
           return;
         }
-        showAlert("exerciciosAlert", "Exercício excluído.", "success");
+        showAlert("exerciciosAlert", "Exerc�cio exclu�do.", "success");
         await carregarCatalogoExercicios();
       }
 
       async function excluirVariacaoExercicio(id, nome) {
-        if (!confirm(`Deseja excluir a execução "${nome}"?`)) return;
+        if (!confirm(`Deseja excluir a execu��o "${nome}"?`)) return;
         const response = await fetch(`${getApiBaseUrl()}/api/exercise-variations/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${authToken}` },
         });
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          showAlert("exerciciosAlert", err.message || "Erro ao excluir execução.", "error");
+          showAlert("exerciciosAlert", err.message || "Erro ao excluir execu��o.", "error");
           return;
         }
-        showAlert("exerciciosAlert", "Execução excluída.", "success");
+        showAlert("exerciciosAlert", "Execu��o exclu�da.", "success");
         await carregarVariacoesExercicios();
       }
 
@@ -6667,22 +6745,22 @@
           showAlert("exerciciosAlert", err.message || "Erro ao excluir pegada/pisada.", "error");
           return;
         }
-        showAlert("exerciciosAlert", "Pegada/Pisada excluída.", "success");
+        showAlert("exerciciosAlert", "Pegada/Pisada exclu�da.", "success");
         await carregarPegadasPisadasExercicios();
       }
 
       async function excluirMetodoExercicio(id, nome) {
-        if (!confirm(`Deseja excluir o método "${nome}"?`)) return;
+        if (!confirm(`Deseja excluir o m�todo "${nome}"?`)) return;
         const response = await fetch(`${getApiBaseUrl()}/api/method-catalog/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${authToken}` },
         });
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          showAlert("exerciciosAlert", err.message || "Erro ao excluir método.", "error");
+          showAlert("exerciciosAlert", err.message || "Erro ao excluir m�todo.", "error");
           return;
         }
-        showAlert("exerciciosAlert", "Método excluído.", "success");
+        showAlert("exerciciosAlert", "M�todo exclu�do.", "success");
         await carregarMetodosExercicios();
       }
 
@@ -6697,7 +6775,7 @@
           showAlert("exerciciosAlert", err.message || "Erro ao excluir equipamento.", "error");
           return;
         }
-        showAlert("exerciciosAlert", "Equipamento excluído.", "success");
+        showAlert("exerciciosAlert", "Equipamento exclu�do.", "success");
         await carregarEquipamentosExercicios();
       }
 
@@ -6915,7 +6993,7 @@
         exercicioDiv.innerHTML = `
           <button onclick="removerExercicioDoTreino(${index})"
                   style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 18px;">
-            ×
+            �
           </button>
 
           <div class="workout-add-grid">
@@ -6934,11 +7012,11 @@
             </div>
 
             <div class="form-group" style="position: relative;">
-              <label>Exercício *</label>
+              <label>Exerc�cio *</label>
               <input
                 type="text"
                 id="excat_search_${index}"
-                placeholder="Digite para buscar exercício (grupo opcional)..."
+                placeholder="Digite para buscar exerc�cio (grupo opcional)..."
                 autocomplete="off"
                 oninput="buscarCatalogo(${index}, this.value)"
                 onfocus="buscarCatalogo(${index}, this.value)"
@@ -6960,9 +7038,9 @@
             </div>
 
             <div id="exvar_wrapper_${index}" class="form-group" style="position:relative;">
-              <label>Execução <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+              <label>Execu��o <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
               <div id="exvar_tags_${index}" class="tag-container"></div>
-              <input type="text" id="exvar_search_${index}" placeholder="Digite para buscar execução..." autocomplete="off"
+              <input type="text" id="exvar_search_${index}" placeholder="Digite para buscar execu��o..." autocomplete="off"
                      oninput="buscarVariacao(${index}, this.value)" onfocus="buscarVariacao(${index}, this.value)" />
               <div id="exvar_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
@@ -6978,9 +7056,9 @@
             </div>
 
             <div id="exmethod_wrapper_${index}" class="form-group" style="position:relative;">
-              <label>Método <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+              <label>M�todo <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
               <div id="exmethod_tags_${index}" class="tag-container"></div>
-              <input type="text" id="exmethod_search_${index}" placeholder="Digite para buscar método..." autocomplete="off"
+              <input type="text" id="exmethod_search_${index}" placeholder="Digite para buscar m�todo..." autocomplete="off"
                      oninput="buscarMetodo(${index}, this.value)" onfocus="buscarMetodo(${index}, this.value)" />
               <input type="hidden" id="exmethod_id_${index}" />
               <input type="hidden" id="exmethod_ids_${index}" />
@@ -6990,11 +7068,11 @@
 
           <div id="exmeta_wrapper_${index}" style="display:block;">
             <div class="form-group">
-              <label>Descrição para o aluno <small style="font-weight:400;color:#6b7280;">(editável)</small></label>
+              <label>Descri��o para o aluno <small style="font-weight:400;color:#6b7280;">(edit�vel)</small></label>
               <textarea id="exdesc_${index}" rows="2" placeholder="Carregando..."></textarea>
               <small id="exdesc_mg_${index}" style="color:#6b7280;font-size:12px;display:block;margin-top:2px;"></small>
             </div>
-            <button type="button" class="btn btn-secondary" id="exai_btn_${index}" onclick="gerarDescricaoExercicioIA(${index})" disabled style="margin-bottom:10px;">Gerar descrição com IA</button>
+            <button type="button" class="btn btn-secondary" id="exai_btn_${index}" onclick="gerarDescricaoExercicioIA(${index})" disabled style="margin-bottom:10px;">Gerar descri��o com IA</button>
           </div>
 
           <input type="hidden" id="exvarid_${index}" />
@@ -7002,11 +7080,11 @@
 
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-top: 10px;">
             <div class="form-group">
-              <label>Séries *</label>
+              <label>S�ries *</label>
               <input type="number" id="series_${index}" min="0" value="0" placeholder="Ex: 3" required />
             </div>
             <div class="form-group">
-              <label>Repetições *</label>
+              <label>Repeti��es *</label>
               <input type="number" id="reps_${index}" min="0" value="0" placeholder="Ex: 12" required />
             </div>
             <div class="form-group">
@@ -7024,13 +7102,13 @@
         exerciciosDoTreino.push({ index });
       }
 
-      // -- Estado in-memory para multi-seleção ----------------------------------
+      // -- Estado in-memory para multi-sele��o ----------------------------------
       const exVarState = {};    // { [index]: [{id, name}] }
       const exEquipState = {};  // { [index]: [{id, name}] }
       const exGripState = {};   // { [index]: [{id, name}] }
       const exMethodState = {}; // { [index]: [{id, name}] }
 
-      // Caches para seleção em cascata - Novo Treino
+      // Caches para sele��o em cascata - Novo Treino
       const grupoMuscularBuscaTimeout = {};
       let catalogoBuscaTimeout = {};
       let variacaoBuscaTimeout = {};
@@ -7045,12 +7123,18 @@
         const query = normalizeComboSearch(termo || "");
         grupoMuscularBuscaTimeout[index] = setTimeout(async () => {
           try {
-            await carregarTreeNovoTreino();
-            const options = uniqueComboOptions(
-              getNovoTreinoRows(index, "group"),
-              (row) => row.muscle_group_id,
-              (row) => row.muscle_group_name || "Grupo muscular",
-            ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
+            const params = new URLSearchParams();
+            if (query) params.set("search", query);
+            params.set("limit", "1000");
+            const response = await fetch(
+              `${getApiBaseUrl()}/api/muscle-groups?${params.toString()}`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
+            if (!response.ok) return;
+            const items = await response.json();
+            const options = (Array.isArray(items) ? items : [])
+              .map((item) => ({ id: item.id, label: item.name }))
+              .filter((item) => !query || normalizeComboSearch(item.label).includes(query));
 
             renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
@@ -7087,7 +7171,7 @@
         const el = document.getElementById(`exvar_tags_${index}`);
         if (el) {
           el.innerHTML = items.map((item) =>
-            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeVariacaoItem(${index},'${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeVariacaoItem(${index},'${escapeHtml(item.id)}')" title="Remover">�</button></span>`
           ).join("");
         }
         document.getElementById(`exvarids_${index}`).value = items.map((i) => i.id).join(",");
@@ -7105,7 +7189,7 @@
         const el = document.getElementById(`exequip_tags_${index}`);
         if (el) {
           el.innerHTML = items.map((item) =>
-            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeEquipamentoItem(${index},'${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeEquipamentoItem(${index},'${escapeHtml(item.id)}')" title="Remover">�</button></span>`
           ).join("");
         }
         document.getElementById(`exequip_ids_${index}`).value = items.map((i) => i.id).join(",");
@@ -7123,7 +7207,7 @@
         const el = document.getElementById(`exgrip_tags_${index}`);
         if (el) {
           el.innerHTML = items.map((item) =>
-            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removePegadaPisadaItem(${index},'${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removePegadaPisadaItem(${index},'${escapeHtml(item.id)}')" title="Remover">�</button></span>`
           ).join("");
         }
         document.getElementById(`exgrip_ids_${index}`).value = items.map((i) => i.id).join(",");
@@ -7140,7 +7224,7 @@
         const el = document.getElementById(`exmethod_tags_${index}`);
         if (el) {
           el.innerHTML = items.map((item) =>
-            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeMetodoItem(${index},'${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+            `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeMetodoItem(${index},'${escapeHtml(item.id)}')" title="Remover">�</button></span>`
           ).join("");
         }
         document.getElementById(`exmethod_ids_${index}`).value = items.map((i) => i.id).join(",");
@@ -7164,21 +7248,36 @@
         const dropdown = document.getElementById(`excat_dropdown_${index}`);
         if (!dropdown) return;
         const query = normalizeComboSearch(termo || "");
+        const state = getNovoTreinoState(index);
         catalogoBuscaTimeout[index] = setTimeout(async () => {
           try {
-            await carregarTreeNovoTreino();
-            const options = uniqueComboOptions(
-              getNovoTreinoRows(index, "exercise"),
-              (row) => row.exercise_catalog_id,
-              (row) => row.exercise_catalog_name || "Exercício",
-            ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
+            const params = new URLSearchParams();
+            if (query) params.set("search", query);
+            params.set("limit", "1000");
+            if (state.groupId) params.set("muscle_group_id", state.groupId);
+
+            const response = await fetch(
+              `${getApiBaseUrl()}/api/exercise-catalog?${params.toString()}`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
+            if (!response.ok) return;
+            const items = await response.json();
+            const options = (Array.isArray(items) ? items : [])
+              .map((item) => ({
+                id: item.id,
+                label: item.name,
+                notes: item.notes,
+                muscleGroupId: item.muscle_group_id,
+                muscleGroupName: item.muscle_group_name,
+              }))
+              .filter((item) => !query || normalizeComboSearch(item.label).includes(query));
 
             renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
-                   onclick="selecionarCatalogo(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}', '${escapeHtml(item.row.muscle_group_id || "")}', '${escapeHtml(item.row.muscle_group_name || "").replace(/'/g, "\\'")}')"
+                   onclick="selecionarCatalogo(${index}, '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}', '${escapeHtml(item.muscleGroupId || "")}', '${escapeHtml(item.muscleGroupName || "").replace(/'/g, "\\'")}')"
                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
                 <strong>${escapeHtml(item.label)}</strong>
-                ${item.row.exercise_notes ? `<div style="font-size:12px;color:#6b7280;">${escapeHtml(item.row.exercise_notes)}</div>` : ""}
+                ${item.notes ? `<div style="font-size:12px;color:#6b7280;">${escapeHtml(item.notes)}</div>` : ""}
               </div>
             `);
           } catch (e) {
@@ -7202,7 +7301,7 @@
           state.groupId = groupId;
           state.groupName = groupName || state.groupName;
         }
-        // Reset execução e equipamento
+        // Reset execu��o e equipamento
         resetNovoTreinoDependentes(index, "exercise");
         document.getElementById(`exequip_wrapper_${index}`).style.display = "block";
         document.getElementById(`exvar_wrapper_${index}`).style.display = "block";
@@ -7218,7 +7317,7 @@
         if (!dropdown) return;
         const state = getNovoTreinoState(index);
         if (!state.exerciseId) {
-          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exercício primeiro.</div>';
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exerc�cio primeiro.</div>';
           dropdown.style.display = "block";
           return;
         }
@@ -7265,7 +7364,7 @@
         if (!dropdown) return;
         const state = getNovoTreinoState(index);
         if (!state.exerciseId) {
-          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exercício primeiro.</div>';
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exerc�cio primeiro.</div>';
           dropdown.style.display = "block";
           return;
         }
@@ -7310,7 +7409,7 @@
         if (!dropdown) return;
         const state = getNovoTreinoState(index);
         if (!state.exerciseId) {
-          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exercício primeiro.</div>';
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exerc�cio primeiro.</div>';
           dropdown.style.display = "block";
           return;
         }
@@ -7355,7 +7454,7 @@
         if (!dropdown) return;
         const state = getNovoTreinoState(index);
         if (!state.exerciseId) {
-          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exercício primeiro.</div>';
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um exerc�cio primeiro.</div>';
           dropdown.style.display = "block";
           return;
         }
@@ -7402,7 +7501,7 @@
         const mgSmall = document.getElementById(`exdesc_mg_${index}`);
         if (!descArea) return;
         descArea.value = "";
-        descArea.placeholder = "Gerando descrição com IA...";
+        descArea.placeholder = "Gerando descri��o com IA...";
         if (mgSmall) mgSmall.textContent = "";
         try {
           const res = await fetch(
@@ -7419,10 +7518,10 @@
           }
           const result = await res.json();
           descArea.value = result.description || "";
-          descArea.placeholder = "Descrição gerada pela IA...";
+          descArea.placeholder = "Descri��o gerada pela IA...";
           if (mgSmall) mgSmall.textContent = result.muscle_group_name ? `Grupo muscular: ${result.muscle_group_name}` : "";
         } catch (e) {
-          descArea.placeholder = e?.message || "Erro ao gerar descrição.";
+          descArea.placeholder = e?.message || "Erro ao gerar descri��o.";
         }
       }
 
@@ -7462,7 +7561,7 @@
           return;
         }
 
-        // Coletar exercícios
+        // Coletar exerc�cios
         const exercises = [];
         let orderCounter = 0;
         for (let i = 0; i < exerciciosDoTreino.length; i++) {
@@ -7480,7 +7579,7 @@
           if (!catalogId) {
             showAlert(
               "treinosAlert",
-              `Selecione o exercício no item ${i + 1}.`,
+              `Selecione o exerc�cio no item ${i + 1}.`,
               "error",
             );
             return;
@@ -7494,7 +7593,7 @@
           ) {
             showAlert(
               "treinosAlert",
-              `Preencha séries e repetições válidas (maiores que 0) para o exercício ${i + 1}.`,
+              `Preencha s�ries e repeti��es v�lidas (maiores que 0) para o exerc�cio ${i + 1}.`,
               "error",
             );
             return;
@@ -7557,7 +7656,7 @@
         if (response.ok) {
           showAlert(
             "treinosAlert",
-            `Treino criado com sucesso!${exercises.length > 0 ? ` ${exercises.length} exercícios adicionados.` : ""}`,
+            `Treino criado com sucesso!${exercises.length > 0 ? ` ${exercises.length} exerc�cios adicionados.` : ""}`,
             "success",
           );
           limparFormularioTreino();
@@ -7639,27 +7738,27 @@
                         <input type="text" id="tab_w_name_${treino.id}" value="${escapeHtml(treino.name || "")}" />
                       </div>
                       <div class="form-group">
-                        <label>Data de início</label>
+                        <label>Data de in�cio</label>
                         <input type="date" id="tab_w_start_${treino.id}" value="${escapeHtml(treino.start_date || "")}" />
                       </div>
                     </div>
                     <div style="margin-top: 10px; margin-bottom: 10px;">
-                      <h4 class="workout-section-title">Exercícios do treino</h4>
+                      <h4 class="workout-section-title">Exerc�cios do treino</h4>
                       ${
                         exercises.length > 0
                           ? exercises
                               .map(
                                 (ex) => `
                             <div class="exercise-row" style="margin-bottom:8px;">
-                              <p class="exercise-title">&#127947; ${escapeHtml(ex.name || "Exercício")}</p>
-                              <p style="margin:4px 0; font-size:12px; color:#6b7280;">Descrição padrão: ${escapeHtml(ex.description_default || ex.description || "-")}</p>
+                              <p class="exercise-title">&#127947; ${escapeHtml(ex.name || "Exerc�cio")}</p>
+                              <p style="margin:4px 0; font-size:12px; color:#6b7280;">Descri��o padr�o: ${escapeHtml(ex.description_default || ex.description || "-")}</p>
                               <div class="exercise-fields-grid">
                                 <div class="exercise-field">
-                                  <label>Séries</label>
+                                  <label>S�ries</label>
                                   <input type="number" min="1" id="tw_sets_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
                                 </div>
                                 <div class="exercise-field">
-                                  <label>Repetições</label>
+                                  <label>Repeti��es</label>
                                   <input type="number" min="1" id="tw_reps_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
                                 </div>
                                 <div class="exercise-field">
@@ -7673,22 +7772,22 @@
                                 </div>
                               </div>
                               <div class="form-group" style="margin-top:8px;">
-                                <label>Descrição personalizada para este treino (opcional)</label>
-                                <textarea id="tw_desc_${ex.workout_exercise_id}" rows="2" placeholder="Se vazio, usa a descrição padrão">${escapeHtml(ex.custom_description || "")}</textarea>
+                                <label>Descri��o personalizada para este treino (opcional)</label>
+                                <textarea id="tw_desc_${ex.workout_exercise_id}" rows="2" placeholder="Se vazio, usa a descri��o padr�o">${escapeHtml(ex.custom_description || "")}</textarea>
                               </div>
                               <div class="exercise-actions">
-                                <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Salvar exercício</button>
-                                <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Excluir exercício</button>
+                                <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Salvar exerc�cio</button>
+                                <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Excluir exerc�cio</button>
                               </div>
                             </div>
                           `,
                               )
                               .join("")
-                          : '<p style="color:#6b7280;">Sem exercícios neste treino.</p>'
+                          : '<p style="color:#6b7280;">Sem exerc�cios neste treino.</p>'
                       }
 
                       <div style="margin-top: 12px; padding: 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">
-                        <h5 style="margin-bottom: 8px; color: #334155;">Adicionar exercício ao treino</h5>
+                        <h5 style="margin-bottom: 8px; color: #334155;">Adicionar exerc�cio ao treino</h5>
 
                         <div class="workout-add-grid">
                           <div class="form-group" style="position: relative;">
@@ -7706,11 +7805,11 @@
                           </div>
 
                           <div class="form-group" style="position: relative;">
-                            <label>Exercício</label>
+                            <label>Exerc�cio</label>
                             <input
                               type="text"
                               id="tab_cat_search_${treino.id}"
-                              placeholder="Digite para buscar exercício (grupo opcional)..."
+                              placeholder="Digite para buscar exerc�cio (grupo opcional)..."
                               autocomplete="off"
                               oninput="buscarCatalogoEdicao('${treino.id}', this.value)"
                               onfocus="buscarCatalogoEdicao('${treino.id}', this.value)"
@@ -7731,9 +7830,9 @@
                             </div>
 
                             <div id="tab_var_wrapper_${treino.id}" class="form-group" style="position:relative;">
-                              <label>Execução <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                              <label>Execu��o <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
                               <div id="tab_var_tags_${treino.id}" class="tag-container"></div>
-                              <input type="text" id="tab_var_search_${treino.id}" placeholder="Digite para buscar execução..." autocomplete="off"
+                              <input type="text" id="tab_var_search_${treino.id}" placeholder="Digite para buscar execu��o..." autocomplete="off"
                                      oninput="buscarVariacaoEdicao('${treino.id}', this.value)" onfocus="buscarVariacaoEdicao('${treino.id}', this.value)" />
                               <div id="tab_var_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
                             </div>
@@ -7749,9 +7848,9 @@
                             </div>
 
                             <div id="tab_method_wrapper_${treino.id}" class="form-group" style="position:relative;">
-                              <label>Método <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                              <label>M�todo <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
                               <div id="tab_method_tags_${treino.id}" class="tag-container"></div>
-                              <input type="text" id="tab_method_search_${treino.id}" placeholder="Digite para buscar método..." autocomplete="off"
+                              <input type="text" id="tab_method_search_${treino.id}" placeholder="Digite para buscar m�todo..." autocomplete="off"
                                      oninput="buscarMetodoEdicao('${treino.id}', this.value)" onfocus="buscarMetodoEdicao('${treino.id}', this.value)" />
                               <input type="hidden" id="tab_method_id_${treino.id}" />
                               <input type="hidden" id="tab_method_ids_${treino.id}" />
@@ -7760,13 +7859,13 @@
                           </div>
 
                           <div id="tab_meta_wrapper_${treino.id}" class="form-group full" style="display:block; margin-bottom:0;">
-                            <label>Descrição para o aluno <small style="font-weight:400;color:#6b7280;">(editável)</small></label>
-                            <textarea id="tab_desc_${treino.id}" rows="2" placeholder="Descrição gerada pela IA..."></textarea>
+                            <label>Descri��o para o aluno <small style="font-weight:400;color:#6b7280;">(edit�vel)</small></label>
+                            <textarea id="tab_desc_${treino.id}" rows="2" placeholder="Descri��o gerada pela IA..."></textarea>
                             <small id="tab_mg_${treino.id}" style="color:#6b7280;font-size:12px;"></small>
                           </div>
 
                           <div class="form-group full" style="margin-top:-2px; margin-bottom:0;">
-                            <button type="button" class="btn btn-secondary" id="tab_ai_btn_${treino.id}" onclick="gerarDescricaoExercicioIAEdicao('${treino.id}')" disabled>Gerar descrição com IA</button>
+                            <button type="button" class="btn btn-secondary" id="tab_ai_btn_${treino.id}" onclick="gerarDescricaoExercicioIAEdicao('${treino.id}')" disabled>Gerar descri��o com IA</button>
                           </div>
 
                           <input type="hidden" id="tab_add_var_id_${treino.id}" />
@@ -7774,11 +7873,11 @@
 
                           <div class="workout-metrics-grid full">
                           <div class="form-group">
-                            <label>Séries</label>
+                            <label>S�ries</label>
                             <input type="number" min="0" id="tab_add_sets_${treino.id}" value="0" />
                           </div>
                           <div class="form-group">
-                            <label>Repetições</label>
+                            <label>Repeti��es</label>
                             <input type="number" min="0" id="tab_add_reps_${treino.id}" value="0" />
                           </div>
                           <div class="form-group">
@@ -7794,7 +7893,7 @@
 
                         <input type="hidden" id="tab_next_order_${treino.id}" value="${nextOrderIndex}" />
 
-                        <button class="btn btn-secondary" onclick="adicionarExercicioTreinoNaAba('${treino.id}')">+ Adicionar Exercício</button>
+                        <button class="btn btn-secondary" onclick="adicionarExercicioTreinoNaAba('${treino.id}')">+ Adicionar Exerc�cio</button>
                       </div>
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -7875,7 +7974,7 @@
             throw new Error(err.message || "Erro ao excluir treino");
           }
 
-          showAlert("treinosAlert", "Treino excluído", "success");
+          showAlert("treinosAlert", "Treino exclu�do", "success");
           if (currentEditingStudentId) {
             await carregarDetalhesAlunoEditor(currentEditingStudentId);
           }
@@ -7936,10 +8035,10 @@
 
           if (!response.ok) {
             const err = await response.json();
-            throw new Error(err.message || "Erro ao salvar exercício");
+            throw new Error(err.message || "Erro ao salvar exerc�cio");
           }
 
-          showAlert("treinosAlert", "Exercício atualizado", "success");
+          showAlert("treinosAlert", "Exerc�cio atualizado", "success");
           await carregarTreinosAluno();
           if (currentEditingStudentId) {
             await carregarDetalhesAlunoEditor(currentEditingStudentId);
@@ -7947,14 +8046,14 @@
         } catch (error) {
           showAlert(
             "treinosAlert",
-            error.message || "Erro ao salvar exercício",
+            error.message || "Erro ao salvar exerc�cio",
             "error",
           );
         }
       }
 
       async function excluirExercicioTreinoNaAba(workoutId, workoutExerciseId) {
-        if (!confirm("Deseja excluir este exercício do treino?")) {
+        if (!confirm("Deseja excluir este exerc�cio do treino?")) {
           return;
         }
 
@@ -7971,10 +8070,10 @@
 
           if (!response.ok) {
             const err = await response.json().catch(() => ({}));
-            throw new Error(err.message || "Erro ao excluir exercício");
+            throw new Error(err.message || "Erro ao excluir exerc�cio");
           }
 
-          showAlert("treinosAlert", "Exercício removido", "success");
+          showAlert("treinosAlert", "Exerc�cio removido", "success");
           await carregarTreinosAluno();
           if (currentEditingStudentId) {
             await carregarDetalhesAlunoEditor(currentEditingStudentId);
@@ -7982,7 +8081,7 @@
         } catch (error) {
           showAlert(
             "treinosAlert",
-            error.message || "Erro ao excluir exercício",
+            error.message || "Erro ao excluir exerc�cio",
             "error",
           );
         }
@@ -8002,7 +8101,7 @@
         const items = tabVarState[workoutId] || [];
         const el = document.getElementById(`tab_var_tags_${workoutId}`);
         if (el) el.innerHTML = items.map((item) =>
-          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabVarItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabVarItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">�</button></span>`
         ).join("");
         const first = document.getElementById(`tab_add_var_id_${workoutId}`);
         if (first) first.value = items[0]?.id || "";
@@ -8020,7 +8119,7 @@
         const items = tabEquipState[workoutId] || [];
         const el = document.getElementById(`tab_equip_tags_${workoutId}`);
         if (el) el.innerHTML = items.map((item) =>
-          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabEquipItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabEquipItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">�</button></span>`
         ).join("");
         const first = document.getElementById(`tab_equip_id_${workoutId}`);
         if (first) first.value = items[0]?.id || "";
@@ -8038,7 +8137,7 @@
         const items = tabGripState[workoutId] || [];
         const el = document.getElementById(`tab_grip_tags_${workoutId}`);
         if (el) el.innerHTML = items.map((item) =>
-          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabGripItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabGripItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">�</button></span>`
         ).join("");
         const first = document.getElementById(`tab_grip_id_${workoutId}`);
         if (first) first.value = items[0]?.id || "";
@@ -8055,7 +8154,7 @@
         const items = tabMethodState[workoutId] || [];
         const el = document.getElementById(`tab_method_tags_${workoutId}`);
         if (el) el.innerHTML = items.map((item) =>
-          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabMethodItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">×</button></span>`
+          `<span class="tag-chip">${escapeHtml(item.name)}<button type="button" class="tag-remove" onclick="removeTabMethodItem('${workoutId}','${escapeHtml(item.id)}')" title="Remover">�</button></span>`
         ).join("");
         const first = document.getElementById(`tab_method_id_${workoutId}`);
         if (first) first.value = items[0]?.id || "";
@@ -8080,24 +8179,30 @@
         const dropdown = document.getElementById(`tab_cat_dropdown_${workoutId}`);
         if (!dropdown) return;
         const query = normalizeComboSearch(termo || "");
+        const state = getWorkoutSelectionState(workoutId);
         catalogoEdicaoBuscaTimeout[workoutId] = setTimeout(async () => {
           try {
-            const catalogUrl = query
-              ? `${getApiBaseUrl()}/api/exercise-catalog?search=${encodeURIComponent(query)}&limit=1000`
-              : `${getApiBaseUrl()}/api/exercise-catalog?limit=1000`;
-            const res = await fetch(catalogUrl, { headers: { Authorization: `Bearer ${authToken}` } });
+            const params = new URLSearchParams();
+            if (query) params.set("search", query);
+            params.set("limit", "1000");
+            if (state.groupId) params.set("muscle_group_id", state.groupId);
+            const res = await fetch(
+              `${getApiBaseUrl()}/api/exercise-catalog?${params.toString()}`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
             if (!res.ok) return;
             const items = await res.json();
             if (!items.length) {
-              dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhum exercício encontrado.</div>';
+              dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhum exerc�cio encontrado.</div>';
               dropdown.style.display = "block";
               return;
             }
             dropdown.innerHTML = items.map(item => `
               <div class="autocomplete-item"
-                   onclick="selecionarCatalogoEdicao('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')"
+                   onclick="selecionarCatalogoEdicao('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.name).replace(/'/g, "\\'")}', '${escapeHtml(item.muscle_group_id || "")}', '${escapeHtml(item.muscle_group_name || "").replace(/'/g, "\\'")}')"
                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
                 <strong>${escapeHtml(item.name)}</strong>
+                ${item.notes ? `<div style="font-size:12px;color:#6b7280;">${escapeHtml(item.notes)}</div>` : ""}
               </div>
             `).join("");
             dropdown.style.display = "block";
@@ -8107,10 +8212,19 @@
         }, 250);
       }
 
-      async function selecionarCatalogoEdicao(workoutId, catalogId, catalogName) {
+      async function selecionarCatalogoEdicao(workoutId, catalogId, catalogName, groupId, groupName) {
         const catSearch = document.getElementById(`tab_cat_search_${workoutId}`);
         const catId = document.getElementById(`tab_cat_id_${workoutId}`);
         const catDropdown = document.getElementById(`tab_cat_dropdown_${workoutId}`);
+        const mgSearch = document.getElementById(`tab_mg_search_${workoutId}`);
+        const mgId = document.getElementById(`tab_mg_id_${workoutId}`);
+        if (groupId && mgId) mgId.value = groupId;
+        if (groupName && mgSearch) mgSearch.value = groupName;
+        const state = getWorkoutSelectionState(workoutId);
+        if (groupId) {
+          state.groupId = groupId;
+          state.groupName = groupName || state.groupName;
+        }
         if (catSearch) catSearch.value = catalogName;
         if (catId) catId.value = catalogId;
         if (catDropdown) catDropdown.style.display = "none";
@@ -8160,7 +8274,7 @@
             if (!res.ok) return;
             const items = await res.json();
             if (!items.length) {
-              dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhuma execução encontrada.</div>';
+              dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhuma execu��o encontrada.</div>';
               dropdown.style.display = "block";
               return;
             }
@@ -8321,7 +8435,7 @@
         const mgSmall = document.getElementById(`tab_mg_${workoutId}`);
         if (!descArea) return;
         descArea.value = "";
-        descArea.placeholder = "Gerando descrição com IA...";
+        descArea.placeholder = "Gerando descri��o com IA...";
         if (mgSmall) mgSmall.textContent = "";
         try {
           const res = await fetch(
@@ -8338,10 +8452,10 @@
           }
           const result = await res.json();
           descArea.value = result.description || "";
-          descArea.placeholder = "Descrição gerada pela IA...";
+          descArea.placeholder = "Descri��o gerada pela IA...";
           if (mgSmall) mgSmall.textContent = result.muscle_group_name ? `Grupo muscular: ${result.muscle_group_name}` : "";
         } catch (e) {
-          descArea.placeholder = e?.message || "Erro ao gerar descrição.";
+          descArea.placeholder = e?.message || "Erro ao gerar descri��o.";
         }
       }
 
@@ -8364,7 +8478,7 @@
         if (!catalogId) {
           showAlert(
             "treinosAlert",
-            "Selecione um exercício.",
+            "Selecione um exerc�cio.",
             "error",
           );
           return;
@@ -8373,7 +8487,7 @@
         if (!targetSets || !targetReps || targetSets < 1 || targetReps < 1) {
           showAlert(
             "treinosAlert",
-            "Informe séries e repetições válidas.",
+            "Informe s�ries e repeti��es v�lidas.",
             "error",
           );
           return;
@@ -8421,7 +8535,7 @@
 
                   if (!response.ok) {
                     const err = await response.json().catch(() => ({}));
-                    throw new Error(err.message || "Erro ao adicionar exercício");
+                    throw new Error(err.message || "Erro ao adicionar exerc�cio");
                   }
                 }
               }
@@ -8483,7 +8597,7 @@
 
           showAlert(
             "treinosAlert",
-            "Exercício adicionado ao treino",
+            "Exerc�cio adicionado ao treino",
             "success",
           );
           await carregarTreinosAluno();
@@ -8493,7 +8607,7 @@
         } catch (error) {
           showAlert(
             "treinosAlert",
-            error.message || "Erro ao adicionar exercício",
+            error.message || "Erro ao adicionar exerc�cio",
             "error",
           );
         }
@@ -8574,7 +8688,7 @@
       function renderComboDropdown(dropdown, items, renderItem) {
         if (!dropdown) return;
         if (!items.length) {
-          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhuma opção disponível.</div>';
+          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhuma op��o dispon�vel.</div>';
           dropdown.style.display = "block";
           return;
         }
@@ -8693,15 +8807,20 @@
       async function buscarGrupoMuscularEdicao(workoutId, termo) {
         const dropdown = document.getElementById(`tab_mg_dropdown_${workoutId}`);
         if (!dropdown) return;
+        const query = normalizeComboSearch(termo || "");
         try {
-          await carregarComboTreeEdicao();
-          const query = normalizeComboSearch(termo || "");
-          const rows = getComboRowsForWorkout(workoutId, "group");
-          const options = uniqueComboOptions(
-            rows,
-            (row) => row.muscle_group_id,
-            (row) => row.muscle_group_name || "Grupo muscular",
-          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
+          const params = new URLSearchParams();
+          if (query) params.set("search", query);
+          params.set("limit", "1000");
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/muscle-groups?${params.toString()}`,
+            { headers: { Authorization: `Bearer ${authToken}` } },
+          );
+          if (!response.ok) return;
+          const items = await response.json();
+          const options = (Array.isArray(items) ? items : [])
+            .map((item) => ({ id: item.id, label: item.name }))
+            .filter((item) => !query || normalizeComboSearch(item.label).includes(query));
 
           renderComboDropdown(dropdown, options, (item) => `
             <div class="autocomplete-item"
@@ -8728,366 +8847,6 @@
         state.exerciseId = "";
         state.exerciseName = "";
         resetComboFields(workoutId, "group");
-      }
-
-      async function buscarCatalogoEdicao(workoutId, termo) {
-        const dropdown = document.getElementById(`tab_cat_dropdown_${workoutId}`);
-        if (!dropdown) return;
-        try {
-          await carregarComboTreeEdicao();
-          const query = normalizeComboSearch(termo || "");
-          const options = uniqueComboOptions(
-            getComboRowsForWorkout(workoutId, "exercise"),
-            (row) => row.exercise_catalog_id,
-            (row) => row.exercise_catalog_name || "Exercício",
-            { groupId: row => row.muscle_group_id },
-          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
-
-          renderComboDropdown(dropdown, options, (item) => `
-            <div class="autocomplete-item"
-                 onclick="selecionarCatalogoEdicao('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}', '${escapeHtml(item.row.muscle_group_id)}', '${escapeHtml(item.row.muscle_group_name || "").replace(/'/g, "\\'")}')"
-                 onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
-              <strong>${escapeHtml(item.label)}</strong>
-              ${item.row.exercise_notes ? `<div style="font-size:12px;color:#6b7280;">${escapeHtml(item.row.exercise_notes)}</div>` : ""}
-            </div>
-          `);
-        } catch (error) {
-          dropdown.style.display = "none";
-        }
-      }
-
-      function selecionarCatalogoEdicao(workoutId, catalogId, catalogName, groupId, groupName) {
-        const catSearch = document.getElementById(`tab_cat_search_${workoutId}`);
-        const catId = document.getElementById(`tab_cat_id_${workoutId}`);
-        const catDropdown = document.getElementById(`tab_cat_dropdown_${workoutId}`);
-        const mgSearch = document.getElementById(`tab_mg_search_${workoutId}`);
-        const mgId = document.getElementById(`tab_mg_id_${workoutId}`);
-        if (catSearch) catSearch.value = catalogName;
-        if (catId) catId.value = catalogId;
-        if (catDropdown) catDropdown.style.display = "none";
-        if (groupId && mgId) mgId.value = groupId;
-        if (groupName && mgSearch) mgSearch.value = groupName;
-
-        const state = getWorkoutSelectionState(workoutId);
-        state.exerciseId = catalogId;
-        state.exerciseName = catalogName;
-        if (groupId) {
-          state.groupId = groupId;
-          state.groupName = groupName || state.groupName;
-        }
-
-        resetComboFields(workoutId, "exercise");
-      }
-
-      async function buscarVariacaoEdicao(workoutId, termo) {
-        const dropdown = document.getElementById(`tab_var_dropdown_${workoutId}`);
-        if (!dropdown) return;
-        const state = getWorkoutSelectionState(workoutId);
-        if (!state.exerciseId) {
-          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Selecione um exercício primeiro.</div>';
-          dropdown.style.display = "block";
-          return;
-        }
-
-        try {
-          await carregarComboTreeEdicao();
-          const query = normalizeComboSearch(termo || "");
-          const options = uniqueComboOptions(
-            getComboRowsForWorkout(workoutId, "variation"),
-            (row) => row.exercise_variation_id,
-            (row) => row.exercise_variation_name || "Execução",
-          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
-
-          renderComboDropdown(dropdown, options, (item) => `
-            <div class="autocomplete-item"
-                 onclick="selecionarVariacaoEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
-                 onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
-              <strong>${escapeHtml(item.label)}</strong>
-            </div>
-          `);
-        } catch (error) {
-          dropdown.style.display = "none";
-        }
-      }
-
-      function selecionarVariacaoEdicaoItem(workoutId, variationId, variationName) {
-        const varSearch = document.getElementById(`tab_var_search_${workoutId}`);
-        if (varSearch) varSearch.value = "";
-        const varDropdown = document.getElementById(`tab_var_dropdown_${workoutId}`);
-        if (varDropdown) varDropdown.style.display = "none";
-        if (!tabVarState[workoutId]) tabVarState[workoutId] = [];
-        if (!tabVarState[workoutId].find((i) => i.id === variationId)) {
-          tabVarState[workoutId].push({ id: variationId, name: variationName });
-        }
-        renderTabVarTags(workoutId);
-        resetComboFields(workoutId, "variation");
-      }
-
-      async function buscarEquipamentoEdicao(workoutId, termo) {
-        const dropdown = document.getElementById(`tab_equip_dropdown_${workoutId}`);
-        if (!dropdown) return;
-        const state = getWorkoutSelectionState(workoutId);
-        if (!state.exerciseId) {
-          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Selecione um exercício primeiro.</div>';
-          dropdown.style.display = "block";
-          return;
-        }
-
-        try {
-          await carregarComboTreeEdicao();
-          const query = normalizeComboSearch(termo || "");
-          const rows = getComboRowsForWorkout(workoutId, "equipment");
-          const options = uniqueComboOptions(
-            rows,
-            (row) => row.equipment_id || row.exercise_catalog_id,
-            (row) => row.equipment_name || "Equipamento",
-          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
-
-          renderComboDropdown(dropdown, options, (item) => `
-            <div class="autocomplete-item"
-                 onclick="selecionarEquipamentoEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
-                 onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
-              ${escapeHtml(item.label)}
-            </div>
-          `);
-        } catch (error) {
-          dropdown.style.display = "none";
-        }
-      }
-
-      function selecionarEquipamentoEdicaoItem(workoutId, equipId, equipName) {
-        const search = document.getElementById(`tab_equip_search_${workoutId}`);
-        if (search) search.value = "";
-        const dropdown = document.getElementById(`tab_equip_dropdown_${workoutId}`);
-        if (dropdown) dropdown.style.display = "none";
-        if (!tabEquipState[workoutId]) tabEquipState[workoutId] = [];
-        if (!tabEquipState[workoutId].find((i) => i.id === equipId)) {
-          tabEquipState[workoutId].push({ id: equipId, name: equipName });
-        }
-        renderTabEquipTags(workoutId);
-        resetComboFields(workoutId, "equipment");
-      }
-
-      async function buscarPegadaPisadaEdicao(workoutId, termo) {
-        const dropdown = document.getElementById(`tab_grip_dropdown_${workoutId}`);
-        if (!dropdown) return;
-        const state = getWorkoutSelectionState(workoutId);
-        if (!state.exerciseId) {
-          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Selecione um exercício primeiro.</div>';
-          dropdown.style.display = "block";
-          return;
-        }
-
-        try {
-          await carregarComboTreeEdicao();
-          const query = normalizeComboSearch(termo || "");
-          const rows = getComboRowsForWorkout(workoutId, "grip");
-          const options = uniqueComboOptions(
-            rows,
-            (row) => row.grip_footing_id || row.exercise_catalog_id,
-            (row) => row.grip_footing_name || "Pegada/Pisada",
-          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
-
-          renderComboDropdown(dropdown, options, (item) => `
-            <div class="autocomplete-item"
-                 onclick="selecionarPegadaPisadaEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
-                 onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
-              ${escapeHtml(item.label)}
-            </div>
-          `);
-        } catch (error) {
-          dropdown.style.display = "none";
-        }
-      }
-
-      function selecionarPegadaPisadaEdicaoItem(workoutId, gripId, gripName) {
-        const search = document.getElementById(`tab_grip_search_${workoutId}`);
-        if (search) search.value = "";
-        const dropdown = document.getElementById(`tab_grip_dropdown_${workoutId}`);
-        if (dropdown) dropdown.style.display = "none";
-        if (!tabGripState[workoutId]) tabGripState[workoutId] = [];
-        if (!tabGripState[workoutId].find((i) => i.id === gripId)) {
-          tabGripState[workoutId].push({ id: gripId, name: gripName });
-        }
-        renderTabGripTags(workoutId);
-        resetComboFields(workoutId, "grip");
-      }
-
-      async function buscarMetodoEdicao(workoutId, termo) {
-        const dropdown = document.getElementById(`tab_method_dropdown_${workoutId}`);
-        if (!dropdown) return;
-        const state = getWorkoutSelectionState(workoutId);
-        if (!state.exerciseId) {
-          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Selecione um exercício primeiro.</div>';
-          dropdown.style.display = "block";
-          return;
-        }
-
-        try {
-          await carregarComboTreeEdicao();
-          const query = normalizeComboSearch(termo || "");
-          const rows = getComboRowsForWorkout(workoutId, "method");
-          const options = uniqueComboOptions(
-            rows,
-            (row) => row.method_id || row.exercise_catalog_id,
-            (row) => row.method_name || "Método",
-          ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
-
-          renderComboDropdown(dropdown, options, (item) => `
-            <div class="autocomplete-item"
-                 onclick="selecionarMetodoEdicaoItem('${workoutId}', '${escapeHtml(item.id)}', '${escapeHtml(item.label).replace(/'/g, "\\'")}')"
-                 onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
-              ${escapeHtml(item.label)}
-            </div>
-          `);
-        } catch (error) {
-          dropdown.style.display = "none";
-        }
-      }
-
-      function selecionarMetodoEdicaoItem(workoutId, methodId, methodName) {
-        const search = document.getElementById(`tab_method_search_${workoutId}`);
-        if (search) search.value = "";
-        const dropdown = document.getElementById(`tab_method_dropdown_${workoutId}`);
-        if (dropdown) dropdown.style.display = "none";
-        if (!tabMethodState[workoutId]) tabMethodState[workoutId] = [];
-        if (!tabMethodState[workoutId].find((i) => i.id === methodId)) {
-          tabMethodState[workoutId].push({ id: methodId, name: methodName });
-        }
-        renderTabMethodTags(workoutId);
-      }
-
-      async function adicionarExercicioTreinoNaAba(workoutId) {
-        const variationIds = (document.getElementById(`tab_add_var_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
-        const catalogId = document.getElementById(`tab_cat_id_${workoutId}`)?.value;
-        const equipIds = (document.getElementById(`tab_equip_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
-        const gripIds = (document.getElementById(`tab_grip_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
-        const methodIds = (document.getElementById(`tab_method_ids_${workoutId}`)?.value || "").split(",").filter(Boolean);
-        const targetSets = Number(
-          document.getElementById(`tab_add_sets_${workoutId}`)?.value || 0,
-        );
-        const targetReps = Number(
-          document.getElementById(`tab_add_reps_${workoutId}`)?.value || 0,
-        );
-        const orderIndex = Number(
-          document.getElementById(`tab_next_order_${workoutId}`)?.value || 0,
-        );
-
-        if (!catalogId) {
-          showAlert("treinosAlert", "Selecione um exercício.", "error");
-          return;
-        }
-
-        if (!targetSets || !targetReps || targetSets < 1 || targetReps < 1) {
-          showAlert("treinosAlert", "Informe séries e repetições válidas.", "error");
-          return;
-        }
-
-        const weightRaw = document.getElementById(`tab_add_weight_${workoutId}`)?.value;
-        const restRaw = document.getElementById(`tab_add_rest_${workoutId}`)?.value;
-        const customDesc = document.getElementById(`tab_desc_${workoutId}`)?.value?.trim();
-
-        try {
-          let localOrder = Number.isFinite(orderIndex) ? orderIndex : 0;
-          const variationLoop = variationIds.length ? variationIds : [null];
-          const equipLoop = equipIds.length ? equipIds : [null];
-          const gripLoop = gripIds.length ? gripIds : [null];
-          const methodLoop = methodIds.length ? methodIds : [null];
-          for (const variationId of variationLoop) {
-            for (const equipId of equipLoop) {
-              for (const gripId of gripLoop) {
-                for (const methodId of methodLoop) {
-                  const payload = {
-                    ...(variationId ? { exercise_variation_id: variationId } : {}),
-                    ...(catalogId ? { exercise_catalog_id: catalogId } : {}),
-                    ...(equipId ? { equipment_id: equipId } : {}),
-                    ...(gripId ? { grip_footing_id: gripId } : {}),
-                    ...(methodId ? { method_id: methodId } : {}),
-                    target_sets: targetSets,
-                    target_reps: targetReps,
-                    target_weight: weightRaw === "" ? null : Number(weightRaw),
-                    order_index: localOrder,
-                    rest_seconds: restRaw === "" ? null : Number(restRaw),
-                    custom_description: customDesc || null,
-                  };
-                  localOrder += 1;
-                  const response = await fetch(
-                    `${getApiBaseUrl()}/api/workouts/${workoutId}/exercises`,
-                    {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${authToken}`,
-                      },
-                      body: JSON.stringify(payload),
-                    },
-                  );
-
-                  if (!response.ok) {
-                    const err = await response.json().catch(() => ({}));
-                    throw new Error(err.message || "Erro ao adicionar exercício");
-                  }
-                }
-              }
-            }
-          }
-
-          const mgSearch = document.getElementById(`tab_mg_search_${workoutId}`);
-          const mgId = document.getElementById(`tab_mg_id_${workoutId}`);
-          const catSearch = document.getElementById(`tab_cat_search_${workoutId}`);
-          const catId = document.getElementById(`tab_cat_id_${workoutId}`);
-          const varId = document.getElementById(`tab_add_var_id_${workoutId}`);
-          const varIds = document.getElementById(`tab_add_var_ids_${workoutId}`);
-          const varSearch = document.getElementById(`tab_var_search_${workoutId}`);
-          const equipSearch = document.getElementById(`tab_equip_search_${workoutId}`);
-          const gripSearch = document.getElementById(`tab_grip_search_${workoutId}`);
-          const methodSearch = document.getElementById(`tab_method_search_${workoutId}`);
-          const equipHidden = document.getElementById(`tab_equip_id_${workoutId}`);
-          const equipIdsHidden = document.getElementById(`tab_equip_ids_${workoutId}`);
-          const gripHidden = document.getElementById(`tab_grip_id_${workoutId}`);
-          const gripIdsHidden = document.getElementById(`tab_grip_ids_${workoutId}`);
-          const methodHidden = document.getElementById(`tab_method_id_${workoutId}`);
-          const methodIdsHidden = document.getElementById(`tab_method_ids_${workoutId}`);
-          if (mgSearch) mgSearch.value = "";
-          if (mgId) mgId.value = "";
-          if (catSearch) catSearch.value = "";
-          if (catId) catId.value = "";
-          if (varId) varId.value = "";
-          if (varIds) varIds.value = "";
-          if (varSearch) varSearch.value = "";
-          if (equipSearch) equipSearch.value = "";
-          if (gripSearch) gripSearch.value = "";
-          if (methodSearch) methodSearch.value = "";
-          if (equipHidden) equipHidden.value = "";
-          if (equipIdsHidden) equipIdsHidden.value = "";
-          if (gripHidden) gripHidden.value = "";
-          if (gripIdsHidden) gripIdsHidden.value = "";
-          if (methodHidden) methodHidden.value = "";
-          if (methodIdsHidden) methodIdsHidden.value = "";
-          tabWorkoutSelectionState[workoutId] = { groupId: "", groupName: "", exerciseId: "", exerciseName: "" };
-          tabVarState[workoutId] = [];
-          tabEquipState[workoutId] = [];
-          tabGripState[workoutId] = [];
-          tabMethodState[workoutId] = [];
-          renderTabVarTags(workoutId);
-          renderTabEquipTags(workoutId);
-          renderTabGripTags(workoutId);
-          renderTabMethodTags(workoutId);
-          updateIAButtonStateEdicao(workoutId);
-
-          const nextOrderInput = document.getElementById(`tab_next_order_${workoutId}`);
-          if (nextOrderInput) {
-            nextOrderInput.value = String(localOrder);
-          }
-
-          showAlert("treinosAlert", "Exercício adicionado ao treino", "success");
-          await carregarTreinosAluno();
-          if (currentEditingStudentId) {
-            await carregarDetalhesAlunoEditor(currentEditingStudentId);
-          }
-        } catch (error) {
-          showAlert("treinosAlert", error.message || "Erro ao adicionar exercício", "error");
-        }
       }
 
       async function verificarStatusWhatsApp() {
@@ -9144,7 +8903,7 @@
           headerStatus.className = "whatsapp-status-indicator disconnected";
           headerStatus.innerHTML = `
             <span class="status-dot disconnected"></span>
-            <span>Bot: indisponível</span>
+            <span>Bot: indispon�vel</span>
           `;
         }
       }
@@ -9183,8 +8942,8 @@
             container.classList.remove("hidden");
             container.innerHTML = `
               <div style="padding: 20px; background: rgba(115, 213, 55, 0.2); border-radius: 8px; margin-top: 15px;">
-                <h3 style="color: #024d3a; margin-bottom: 10px;">&#9989; WhatsApp Já Conectado</h3>
-                <p style="color: #047857;">Seu WhatsApp já está conectado e funcionando.</p>
+                <h3 style="color: #024d3a; margin-bottom: 10px;">&#9989; WhatsApp J� Conectado</h3>
+                <p style="color: #047857;">Seu WhatsApp j� est� conectado e funcionando.</p>
                 <p style="color: #047857; margin-top: 8px; font-size: 14px;">Se quiser reconectar, clique em "Desconectar" primeiro.</p>
               </div>
             `;
@@ -9224,7 +8983,7 @@
                 <h3>Escaneie o QR Code com seu WhatsApp</h3>
                 <img src="${qrImage}" alt="QR Code">
                 <p style="color: #6b7280;">Abra o WhatsApp > Aparelhos conectados > Conectar aparelho</p>
-                <p style="color: #6b7280; font-size: 12px; margin-top: 10px;">O QR Code expira em alguns segundos. Atualize se necessário.</p>
+                <p style="color: #6b7280; font-size: 12px; margin-top: 10px;">O QR Code expira em alguns segundos. Atualize se necess�rio.</p>
               </div>
             `;
 
@@ -9234,9 +8993,9 @@
             const pairingCode = data.pairingCode || data.code;
             container.innerHTML = `
               <div style="padding: 20px; background: #eff6ff; border-radius: 8px; margin-top: 15px;">
-                <h3 style="color: #1e40af; margin-bottom: 10px;">Use o Código de Pareamento</h3>
+                <h3 style="color: #1e40af; margin-bottom: 10px;">Use o C�digo de Pareamento</h3>
                 <p style="color: #1e3a8a; font-size: 28px; letter-spacing: 2px; font-weight: 700; margin: 8px 0;">${pairingCode}</p>
-                <p style="color: #1e40af;">No WhatsApp, vá em Aparelhos conectados e informe este código.</p>
+                <p style="color: #1e40af;">No WhatsApp, v� em Aparelhos conectados e informe este c�digo.</p>
               </div>
             `;
           } else {
@@ -9247,7 +9006,7 @@
           const container = document.getElementById("qrCodeContainer");
           container.classList.remove("hidden");
           container.innerHTML =
-            '<p style="color: #ef4444;">Erro ao conectar com a Evolution API. Verifique a configuração.</p>';
+            '<p style="color: #ef4444;">Erro ao conectar com a Evolution API. Verifique a configura��o.</p>';
         }
       }
 
@@ -9296,7 +9055,7 @@
       }
 
       // ============================================
-      // FUNÇÕES DE CONFIGURAÇÃO
+      // FUN��ES DE CONFIGURA��O
       // ============================================
 
       async function carregarConfiguracoes() {
@@ -9309,7 +9068,7 @@
               personalData.email || "-";
           }
         } catch (error) {
-          console.error("Erro ao carregar configurações:", error);
+          console.error("Erro ao carregar configura��es:", error);
         }
       }
     </script>

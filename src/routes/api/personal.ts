@@ -2411,16 +2411,21 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
   app.get("/exercise-catalog", async (request) => {
     const { personalId } = await getAuthenticatedPersonal(app, request);
-    const query = request.query as { search?: string; limit?: string };
+    const query = request.query as {
+      search?: string;
+      limit?: string;
+      muscle_group_id?: string;
+    };
     const search = (query.search ?? "").trim();
     const limit = Math.min(
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
       1000,
     );
+    const muscleGroupId = (query.muscle_group_id ?? "").trim();
 
     let q = supabaseAdmin
       .from("exercise_catalog")
-      .select("id,name,notes")
+      .select("id,name,notes,muscle_group_id,muscle_groups(name)")
       .or(`personal_id.is.null,personal_id.eq.${personalId}`)
       .order("name", { ascending: true });
 
@@ -2428,25 +2433,54 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       q = q.ilike("name", `%${search}%`);
     }
 
+    if (muscleGroupId) {
+      q = q.eq("muscle_group_id", muscleGroupId);
+    }
+
     const { data, error } = await q.limit(limit);
     if (error) throw app.httpErrors.badRequest(error.message);
-    return data ?? [];
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      notes: row.notes,
+      muscle_group_id: row.muscle_group_id ?? null,
+      muscle_group_name: row.muscle_groups?.name ?? null,
+    }));
   });
 
   app.post("/exercise-catalog", async (request) => {
     const { personalId } = await getAuthenticatedPersonal(app, request);
-    const body = request.body as { name?: string; notes?: string | null };
+    const body = request.body as {
+      name?: string;
+      notes?: string | null;
+      muscle_group_id?: string | null;
+    };
     const name = z.string().min(2).max(120).parse((body?.name ?? "").trim());
     const notes = body?.notes?.trim() || null;
+    const muscleGroupId = NullableUuidInput.optional().parse(
+      body?.muscle_group_id ?? null,
+    );
 
     const { data, error } = await supabaseAdmin
       .from("exercise_catalog")
-      .insert({ name, notes, personal_id: personalId })
-      .select("id,name,notes,personal_id")
+      .insert({
+        name,
+        notes,
+        personal_id: personalId,
+        muscle_group_id: muscleGroupId ?? null,
+      })
+      .select("id,name,notes,personal_id,muscle_group_id,muscle_groups(name)")
       .single();
 
     if (error) throw app.httpErrors.badRequest(error.message);
-    return data;
+    return {
+      id: (data as any).id,
+      name: (data as any).name,
+      notes: (data as any).notes,
+      personal_id: (data as any).personal_id,
+      muscle_group_id: (data as any).muscle_group_id ?? null,
+      muscle_group_name: (data as any).muscle_groups?.name ?? null,
+    };
   });
 
   // ── Muscle groups CRUD ───────────────────────────────────────────────────────
@@ -2540,20 +2574,37 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .string()
       .uuid()
       .parse((request.params as { id?: string }).id);
-    const body = request.body as { notes?: string | null };
-    const notes = body?.notes?.trim() || null;
+    const body = request.body as {
+      notes?: string | null;
+      muscle_group_id?: string | null;
+    };
+    const update: Record<string, unknown> = {};
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, "notes")) {
+      update.notes = body?.notes?.trim() || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, "muscle_group_id")) {
+      update.muscle_group_id = NullableUuidInput.optional().parse(
+        body?.muscle_group_id ?? null,
+      );
+    }
 
     const { data, error } = await supabaseAdmin
       .from("exercise_catalog")
-      .update({ notes })
+      .update(update)
       .eq("id", id)
       .or(`personal_id.is.null,personal_id.eq.${personalId}`)
-      .select("id,name,notes")
+      .select("id,name,notes,muscle_group_id,muscle_groups(name)")
       .maybeSingle();
 
     if (error) throw app.httpErrors.badRequest(error.message);
     if (!data) throw app.httpErrors.notFound("Exercise not found");
-    return data;
+    return {
+      id: (data as any).id,
+      name: (data as any).name,
+      notes: (data as any).notes,
+      muscle_group_id: (data as any).muscle_group_id ?? null,
+      muscle_group_name: (data as any).muscle_groups?.name ?? null,
+    };
   });
 
   app.post("/exercise-catalog/reset-base", async (request) => {

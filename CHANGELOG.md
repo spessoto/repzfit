@@ -6,6 +6,20 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-14] – Exercícios cadastrados completos na seleção de treino (v1.2.0)
+
+### Corrigido
+- Corrigida a causa raiz de exercícios cadastrados (ex.: "Abdominal com anilha") não aparecerem na busca ao montar um treino: o seletor da aba de edição de treino carregava um conjunto de funções de busca duplicado e desatualizado, que sobrescrevia silenciosamente a versão já corrigida e limitava a lista às combinações pré-cadastradas da planilha original. As duplicidades foram removidas.
+- O campo Exercício (tanto na criação quanto na edição de treino) agora busca diretamente em todo o catálogo cadastrado, em vez de depender apenas de combinações pré-existentes.
+
+### Alterado
+- Grupo muscular agora é um vínculo opcional do próprio exercício (`exercise_catalog.muscle_group_id`), usado apenas como filtro: ao selecioná-lo, a lista de exercícios mostra todas as opções cadastradas ligadas àquele grupo.
+- O formulário de cadastro de exercício ganhou um seletor opcional de grupo muscular, e a listagem de exercícios permite atribuir/alterar o grupo de cada exercício já cadastrado.
+- O filtro de grupo muscular no editor de treino passou a listar todos os grupos cadastrados (via `/api/muscle-groups`), não apenas os presentes nas combinações antigas.
+
+### Migration executada
+- `supabase/migrations/202607140002_add_muscle_group_to_exercise_catalog.sql` (adiciona `muscle_group_id` a `exercise_catalog` e faz backfill a partir das combinações pré-existentes).
+
 ## [2026-07-14] – Autocomplete completo nos campos de treino (v1.1.9)
 
 ### Alterado
