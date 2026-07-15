@@ -6,6 +6,18 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-14] – Criação de treino com filtros flexíveis e fallback de variações (v1.1.7)
+
+### Alterado
+- O grupo muscular na criação e edição de treino passou a funcionar como filtro opcional para simplificar a seleção de exercícios.
+- Os campos de Equipamento, Execução, Pegada/Pisada e Método passaram a buscar e aceitar qualquer valor registrado nos catálogos, sem depender apenas das combinações relacionais.
+
+### Corrigido
+- O cadastro de treino deixou de falhar com a mensagem `Exercise variation is not linked to a legacy exercise. Please re-import exercises.` quando a variação selecionada não possui vínculo legado.
+
+### Operação de banco executada
+- Nenhuma migration nova foi necessária para esta correção; o esquema remoto já estava sincronizado com as migrations locais.
+
 ## [2026-07-13] – Correção do login no painel (v1.1.6)
 
 ### Corrigido

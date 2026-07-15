@@ -689,7 +689,19 @@
         margin-top: 8px;
       }
 
+      .workout-optional-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      .workout-optional-grid .form-group {
+        margin-bottom: 0;
+      }
+
       .workout-add-grid .full,
+      .workout-optional-grid .full,
       .workout-metrics-grid.full {
         grid-column: 1 / -1;
       }
@@ -1299,6 +1311,10 @@
           grid-template-columns: 1fr;
         }
 
+        .workout-optional-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
         .student-report-grid,
         .student-report-metrics,
         .finance-list-grid,
@@ -1365,6 +1381,10 @@
 
         .exercise-fields-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .workout-optional-grid {
+          grid-template-columns: 1fr;
         }
 
         .card table {
@@ -1443,7 +1463,7 @@
                 <input
                   type="password"
                   id="loginPassword"
-                  placeholder="••••••••"
+                  placeholder="Digite sua senha"
                   style="padding-right: 95px"
                 />
                 <button
@@ -1459,7 +1479,7 @@
                     font-size: 12px;
                   "
                 >
-                  👁️ Ver
+                  Ver
                 </button>
               </div>
             </div>
@@ -1494,7 +1514,7 @@
               class="tab active"
               onclick="navigatePersonalPage('alunos')"
             >
-              <span class="tab-icon" aria-hidden="true">●</span>
+              <span class="tab-icon" aria-hidden="true">&#128101;</span>
               <span class="tab-label">Alunos</span>
             </button>
             <button
@@ -1510,7 +1530,7 @@
               class="tab"
               onclick="navigatePersonalPage('exercicios')"
             >
-              <span class="tab-icon" aria-hidden="true">■</span>
+              <span class="tab-icon" aria-hidden="true">&#127947;</span>
               <span class="tab-label">Exercícios</span>
             </button>
             <button
@@ -1518,7 +1538,7 @@
               class="tab"
               onclick="navigatePersonalPage('treinos')"
             >
-              <span class="tab-icon" aria-hidden="true">▲</span>
+              <span class="tab-icon" aria-hidden="true">&#128170;</span>
               <span class="tab-label">Treinos</span>
             </button>
             <button
@@ -1526,7 +1546,7 @@
               class="tab"
               onclick="navigatePersonalPage('configuracoes')"
             >
-              <span class="tab-icon" aria-hidden="true">⚙</span>
+              <span class="tab-icon" aria-hidden="true">&#9881;</span>
               <span class="tab-label">Configurações</span>
             </button>
             <button
@@ -1534,7 +1554,7 @@
               class="tab hidden"
               onclick="switchTab('admin')"
             >
-              <span class="tab-icon" aria-hidden="true">◉</span>
+              <span class="tab-icon" aria-hidden="true">&#128100;</span>
               <span class="tab-label">Usuários</span>
             </button>
             <button
@@ -1542,7 +1562,7 @@
               class="tab hidden"
               onclick="switchTab('adminSettings')"
             >
-              <span class="tab-icon" aria-hidden="true">⚙</span>
+              <span class="tab-icon" aria-hidden="true">&#9881;</span>
               <span class="tab-label">Configurações</span>
             </button>
             <button
@@ -1550,7 +1570,7 @@
               class="tab hidden"
               onclick="switchTab('adminLogs')"
             >
-              <span class="tab-icon" aria-hidden="true">▦</span>
+              <span class="tab-icon" aria-hidden="true">&#128221;</span>
               <span class="tab-label">Logs do Sistema</span>
             </button>
           </div>
@@ -1565,7 +1585,7 @@
                 title="Editar perfil"
                 onclick="openPersonalProfileModal()"
               >
-                ✎
+                &#9998;
               </button>
             </div>
             <button class="btn btn-secondary" onclick="logout()">Sair</button>
@@ -1686,7 +1706,7 @@
                   Editar Aluno: <span id="studentEditorTitleName">-</span>
                 </h2>
                 <button class="btn btn-secondary" onclick="closeAlunoEditor()">
-                  ← Voltar para Alunos
+                  &#8592; Voltar para Alunos
                 </button>
               </div>
               <p style="color: #6b7280; margin-top: 8px">
@@ -2079,7 +2099,7 @@
           <!-- Configurações Tab -->
           <div id="configuracoesTab" class="tab-content">
             <div class="card">
-              <h2>⚙️ Configurações</h2>
+              <h2>Configurações</h2>
 
               <!-- Informações do Personal -->
               <div
@@ -2091,7 +2111,7 @@
                 "
               >
                 <h3 style="color: #374151; margin-bottom: 10px">
-                  👤 Informações da Conta
+                  ?Informações da Conta
                 </h3>
                 <p style="color: #6b7280; margin: 5px 0">
                   <strong>Nome:</strong> <span id="configNome">-</span>
@@ -2433,13 +2453,13 @@
                 "
               >
                 <button class="btn btn-secondary" onclick="adminLogsPrevPage()" id="adminLogsPrevBtn" disabled>
-                  ← Anterior
+                  &#8592; Anterior
                 </button>
                 <span id="adminLogsPageInfo" style="color: #6b7280; font-weight: 500">
                   Página 1 de 1
                 </span>
                 <button class="btn btn-secondary" onclick="adminLogsNextPage()" id="adminLogsNextBtn" disabled>
-                  Próxima →
+                  Próxima &#8594;
                 </button>
               </div>
             </div>
@@ -3014,7 +3034,7 @@
 
         loginPasswordVisible = !loginPasswordVisible;
         input.type = loginPasswordVisible ? "text" : "password";
-        btn.textContent = loginPasswordVisible ? "🙈 Ocultar" : "👁️ Ver";
+        btn.textContent = loginPasswordVisible ? "Ocultar" : "Ver";
       }
 
       // Event listeners para login com Enter
@@ -4101,7 +4121,7 @@
                                 : ex.exercises;
                               return `
                               <div class="exercise-row">
-                                <p class="exercise-title">🏋️ ${escapeHtml(exData?.name || "Exercício")}</p>
+                                <p class="exercise-title">&#127947; ${escapeHtml(exData?.name || "Exercício")}</p>
                                 <div class="exercise-fields-grid">
                                   <div class="exercise-field">
                                     <label for="we_sets_${ex.id}">Séries</label>
@@ -4772,9 +4792,9 @@
 
         root.innerHTML = `
           <div class="student-calendar-header">
-            <button class="btn btn-secondary" onclick="changeStudentReportCalendarMonth(-1)">◀</button>
+            <button class="btn btn-secondary" onclick="changeStudentReportCalendarMonth(-1)">&#8592;</button>
             <strong style="text-transform:capitalize;">${escapeHtml(monthLabel)}</strong>
-            <button class="btn btn-secondary" onclick="changeStudentReportCalendarMonth(1)">▶</button>
+            <button class="btn btn-secondary" onclick="changeStudentReportCalendarMonth(1)">&#8594;</button>
           </div>
           <table class="student-calendar-grid">
             <thead>
@@ -4947,7 +4967,7 @@
 
         root.innerHTML = `
           <div style="margin-bottom:8px;color:#475569;font-size:13px;">
-            ${escapeHtml(new Date(first.date).toLocaleDateString("pt-BR"))} (${first.weight.toFixed(1)}kg) → ${escapeHtml(new Date(last.date).toLocaleDateString("pt-BR"))} (${last.weight.toFixed(1)}kg)
+            ${escapeHtml(new Date(first.date).toLocaleDateString("pt-BR"))} (${first.weight.toFixed(1)}kg) &#8594; ${escapeHtml(new Date(last.date).toLocaleDateString("pt-BR"))} (${last.weight.toFixed(1)}kg)
           </div>
           <svg viewBox="0 0 ${width} ${height}" width="100%" height="260" role="img" aria-label="Gráfico temporal do peso do aluno">
             <line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" stroke="#cbd5e1" />
@@ -5735,11 +5755,11 @@
           const isConnected = data.state === "open";
           const statusClass = isConnected ? "connected" : "disconnected";
           const statusText = isConnected ? "Conectado" : "Desconectado";
-          const statusIcon = isConnected ? "✓" : "✕";
+          const statusIcon = isConnected ? "&#9989;" : "&#10060;";
           statusEl.innerHTML = `<span class="status-badge status-${statusClass}">${statusIcon} ${statusText}</span>`;
         } catch (error) {
           statusEl.innerHTML =
-            '<span class="status-badge status-disconnected">✕ Erro ao verificar</span>';
+            '<span class="status-badge status-disconnected">&#9888; Erro ao verificar</span>';
         }
       }
 
@@ -5767,7 +5787,7 @@
             container.classList.remove("hidden");
             container.innerHTML = `
               <div style="padding: 20px; background: rgba(115, 213, 55, 0.2); border-radius: 8px; margin-top: 12px;">
-                <h3 style="color: #024d3a; margin-bottom: 10px;">✓ WhatsApp já conectado</h3>
+                <h3 style="color: #024d3a; margin-bottom: 10px;">&#9989; WhatsApp já conectado</h3>
                 <p style="color: #047857;">A instância unificada já está pronta para uso.</p>
               </div>
             `;
@@ -6747,7 +6767,6 @@
 
       function getNovoTreinoRows(index, field) {
         const state = getNovoTreinoState(index);
-        const variationIds = (exVarState[index] || []).map((item) => item.id);
         const rows = tabComboTreeState.rows || [];
 
         return rows.filter((row) => {
@@ -6756,9 +6775,6 @@
           }
           if (field !== "exercise" && state.exerciseId && row.exercise_catalog_id !== state.exerciseId) {
             return false;
-          }
-          if ((field === "equipment" || field === "grip" || field === "method") && variationIds.length) {
-            return variationIds.includes(row.exercise_variation_id);
           }
           return true;
         });
@@ -6806,7 +6822,14 @@
           clearInput(`exgrip_ids_${index}`);
           clearInput(`exmethod_id_${index}`);
           clearInput(`exmethod_ids_${index}`);
-          limparEstadoNovoTreino(index);
+          exVarState[index] = [];
+          exEquipState[index] = [];
+          exGripState[index] = [];
+          exMethodState[index] = [];
+          renderVarTags(index);
+          renderEquipTags(index);
+          renderGripTags(index);
+          renderMethodTags(index);
         }
 
         if (fromField === "exercise") {
@@ -6897,11 +6920,11 @@
 
           <div class="workout-add-grid">
             <div class="form-group" style="position: relative;">
-              <label>Grupo muscular *</label>
+              <label>Grupo muscular <small style="font-weight:400;color:#6b7280;">(filtro opcional)</small></label>
               <input
                 type="text"
                 id="exmg_search_${index}"
-                placeholder="Clique para ver os grupos..."
+                placeholder="Opcional: clique para filtrar os grupos..."
                 autocomplete="off"
                 oninput="buscarGrupoMuscular(${index}, this.value)"
                 onfocus="buscarGrupoMuscular(${index}, this.value)"
@@ -6915,7 +6938,7 @@
               <input
                 type="text"
                 id="excat_search_${index}"
-                placeholder="Selecione o grupo muscular primeiro..."
+                placeholder="Digite para buscar exercício (grupo opcional)..."
                 autocomplete="off"
                 oninput="buscarCatalogo(${index}, this.value)"
                 onfocus="buscarCatalogo(${index}, this.value)"
@@ -6925,42 +6948,44 @@
             </div>
           </div>
 
-          <div id="exequip_wrapper_${index}" class="form-group" style="position:relative;">
-            <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-            <div id="exequip_tags_${index}" class="tag-container"></div>
-            <input type="text" id="exequip_search_${index}" placeholder="Digite para buscar equipamento..." autocomplete="off"
-                   oninput="buscarEquipamento(${index}, this.value)" onfocus="buscarEquipamento(${index}, this.value)" />
-            <input type="hidden" id="exequip_id_${index}" />
-            <input type="hidden" id="exequip_ids_${index}" />
-            <div id="exequip_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
-          </div>
+          <div class="workout-optional-grid">
+            <div id="exequip_wrapper_${index}" class="form-group" style="position:relative;">
+              <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+              <div id="exequip_tags_${index}" class="tag-container"></div>
+              <input type="text" id="exequip_search_${index}" placeholder="Digite para buscar equipamento..." autocomplete="off"
+                     oninput="buscarEquipamento(${index}, this.value)" onfocus="buscarEquipamento(${index}, this.value)" />
+              <input type="hidden" id="exequip_id_${index}" />
+              <input type="hidden" id="exequip_ids_${index}" />
+              <div id="exequip_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+            </div>
 
-          <div id="exvar_wrapper_${index}" class="form-group" style="position:relative;">
-            <label>Execução <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-            <div id="exvar_tags_${index}" class="tag-container"></div>
-            <input type="text" id="exvar_search_${index}" placeholder="Digite para buscar execução..." autocomplete="off"
-                   oninput="buscarVariacao(${index}, this.value)" onfocus="buscarVariacao(${index}, this.value)" />
-            <div id="exvar_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
-          </div>
+            <div id="exvar_wrapper_${index}" class="form-group" style="position:relative;">
+              <label>Execução <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+              <div id="exvar_tags_${index}" class="tag-container"></div>
+              <input type="text" id="exvar_search_${index}" placeholder="Digite para buscar execução..." autocomplete="off"
+                     oninput="buscarVariacao(${index}, this.value)" onfocus="buscarVariacao(${index}, this.value)" />
+              <div id="exvar_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+            </div>
 
-          <div id="exgrip_wrapper_${index}" class="form-group" style="position:relative;">
-            <label>Pegada/Pisada <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-            <div id="exgrip_tags_${index}" class="tag-container"></div>
-            <input type="text" id="exgrip_search_${index}" placeholder="Digite para buscar pegada/pisada..." autocomplete="off"
-                   oninput="buscarPegadaPisada(${index}, this.value)" onfocus="buscarPegadaPisada(${index}, this.value)" />
-            <input type="hidden" id="exgrip_id_${index}" />
-            <input type="hidden" id="exgrip_ids_${index}" />
-            <div id="exgrip_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
-          </div>
+            <div id="exgrip_wrapper_${index}" class="form-group" style="position:relative;">
+              <label>Pegada/Pisada <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+              <div id="exgrip_tags_${index}" class="tag-container"></div>
+              <input type="text" id="exgrip_search_${index}" placeholder="Digite para buscar pegada/pisada..." autocomplete="off"
+                     oninput="buscarPegadaPisada(${index}, this.value)" onfocus="buscarPegadaPisada(${index}, this.value)" />
+              <input type="hidden" id="exgrip_id_${index}" />
+              <input type="hidden" id="exgrip_ids_${index}" />
+              <div id="exgrip_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+            </div>
 
-          <div id="exmethod_wrapper_${index}" class="form-group" style="position:relative;">
-            <label>Método <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-            <div id="exmethod_tags_${index}" class="tag-container"></div>
-            <input type="text" id="exmethod_search_${index}" placeholder="Digite para buscar método..." autocomplete="off"
-                   oninput="buscarMetodo(${index}, this.value)" onfocus="buscarMetodo(${index}, this.value)" />
-            <input type="hidden" id="exmethod_id_${index}" />
-            <input type="hidden" id="exmethod_ids_${index}" />
-            <div id="exmethod_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+            <div id="exmethod_wrapper_${index}" class="form-group" style="position:relative;">
+              <label>Método <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+              <div id="exmethod_tags_${index}" class="tag-container"></div>
+              <input type="text" id="exmethod_search_${index}" placeholder="Digite para buscar método..." autocomplete="off"
+                     oninput="buscarMetodo(${index}, this.value)" onfocus="buscarMetodo(${index}, this.value)" />
+              <input type="hidden" id="exmethod_id_${index}" />
+              <input type="hidden" id="exmethod_ids_${index}" />
+              <div id="exmethod_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+            </div>
           </div>
 
           <div id="exmeta_wrapper_${index}" style="display:block;">
@@ -6999,13 +7024,14 @@
         exerciciosDoTreino.push({ index });
       }
 
-      // ── Estado in-memory para multi-seleção ──────────────────────────────────
+      // -- Estado in-memory para multi-seleção ----------------------------------
       const exVarState = {};    // { [index]: [{id, name}] }
       const exEquipState = {};  // { [index]: [{id, name}] }
       const exGripState = {};   // { [index]: [{id, name}] }
       const exMethodState = {}; // { [index]: [{id, name}] }
 
-      // Caches para seleção em cascata – Novo Treino
+      // Caches para seleção em cascata - Novo Treino
+      const grupoMuscularBuscaTimeout = {};
       let catalogoBuscaTimeout = {};
       let variacaoBuscaTimeout = {};
       let equipamentoBuscaTimeout = {};
@@ -7016,7 +7042,7 @@
         if (grupoMuscularBuscaTimeout[index]) clearTimeout(grupoMuscularBuscaTimeout[index]);
         const dropdown = document.getElementById(`exmg_dropdown_${index}`);
         if (!dropdown) return;
-        const query = normalizeSearchComparable(termo || "");
+        const query = normalizeComboSearch(termo || "");
         grupoMuscularBuscaTimeout[index] = setTimeout(async () => {
           try {
             await carregarTreeNovoTreino();
@@ -7024,7 +7050,7 @@
               getNovoTreinoRows(index, "group"),
               (row) => row.muscle_group_id,
               (row) => row.muscle_group_name || "Grupo muscular",
-            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+            ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
 
             renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
@@ -7137,13 +7163,7 @@
         if (catalogoBuscaTimeout[index]) clearTimeout(catalogoBuscaTimeout[index]);
         const dropdown = document.getElementById(`excat_dropdown_${index}`);
         if (!dropdown) return;
-        const state = getNovoTreinoState(index);
-        if (!state.groupId) {
-          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;text-align:center;">Selecione um grupo muscular primeiro.</div>';
-          dropdown.style.display = "block";
-          return;
-        }
-        const query = normalizeSearchComparable(termo || "");
+        const query = normalizeComboSearch(termo || "");
         catalogoBuscaTimeout[index] = setTimeout(async () => {
           try {
             await carregarTreeNovoTreino();
@@ -7151,7 +7171,7 @@
               getNovoTreinoRows(index, "exercise"),
               (row) => row.exercise_catalog_id,
               (row) => row.exercise_catalog_name || "Exercício",
-            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+            ).filter((item) => !query || normalizeComboSearch(item.label).includes(query));
 
             renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
@@ -7202,15 +7222,18 @@
           dropdown.style.display = "block";
           return;
         }
-        const query = normalizeSearchComparable(termo || "");
+        const query = normalizeComboSearch(termo || "");
         variacaoBuscaTimeout[index] = setTimeout(async () => {
           try {
-            await carregarTreeNovoTreino();
-            const options = uniqueComboOptions(
-              getNovoTreinoRows(index, "variation"),
-              (row) => row.exercise_variation_id,
-              (row) => row.exercise_variation_name || "Execução",
-            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+            const response = await fetch(
+              `${getApiBaseUrl()}/api/exercise-variations?search=${encodeURIComponent(query)}&limit=20`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
+            if (!response.ok) return;
+            const items = await response.json();
+            const options = (Array.isArray(items) ? items : [])
+              .map((item) => ({ id: item.id, label: item.name }))
+              .filter((item) => !query || normalizeComboSearch(item.label).includes(query));
 
             renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
@@ -7245,15 +7268,18 @@
           dropdown.style.display = "block";
           return;
         }
-        const query = normalizeSearchComparable(termo || "");
+        const query = normalizeComboSearch(termo || "");
         equipamentoBuscaTimeout[index] = setTimeout(async () => {
           try {
-            await carregarTreeNovoTreino();
-            const options = uniqueComboOptions(
-              getNovoTreinoRows(index, "equipment"),
-              (row) => row.equipment_id,
-              (row) => row.equipment_name || "Equipamento",
-            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+            const response = await fetch(
+              `${getApiBaseUrl()}/api/equipment-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
+            if (!response.ok) return;
+            const items = await response.json();
+            const options = (Array.isArray(items) ? items : [])
+              .map((item) => ({ id: item.id, label: item.name }))
+              .filter((item) => !query || normalizeComboSearch(item.label).includes(query));
 
             renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
@@ -7286,15 +7312,18 @@
           dropdown.style.display = "block";
           return;
         }
-        const query = normalizeSearchComparable(termo || "");
+        const query = normalizeComboSearch(termo || "");
         gripBuscaTimeout[index] = setTimeout(async () => {
           try {
-            await carregarTreeNovoTreino();
-            const options = uniqueComboOptions(
-              getNovoTreinoRows(index, "grip"),
-              (row) => row.grip_footing_id,
-              (row) => row.grip_footing_name || "Pegada/Pisada",
-            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+            const response = await fetch(
+              `${getApiBaseUrl()}/api/grip-footing-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
+            if (!response.ok) return;
+            const items = await response.json();
+            const options = (Array.isArray(items) ? items : [])
+              .map((item) => ({ id: item.id, label: item.name }))
+              .filter((item) => !query || normalizeComboSearch(item.label).includes(query));
 
             renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
@@ -7327,15 +7356,18 @@
           dropdown.style.display = "block";
           return;
         }
-        const query = normalizeSearchComparable(termo || "");
+        const query = normalizeComboSearch(termo || "");
         methodBuscaTimeout[index] = setTimeout(async () => {
           try {
-            await carregarTreeNovoTreino();
-            const options = uniqueComboOptions(
-              getNovoTreinoRows(index, "method"),
-              (row) => row.method_id,
-              (row) => row.method_name || "Método",
-            ).filter((item) => !query || normalizeSearchComparable(item.label).includes(query));
+            const response = await fetch(
+              `${getApiBaseUrl()}/api/method-catalog?search=${encodeURIComponent(query)}&limit=20`,
+              { headers: { Authorization: `Bearer ${authToken}` } },
+            );
+            if (!response.ok) return;
+            const items = await response.json();
+            const options = (Array.isArray(items) ? items : [])
+              .map((item) => ({ id: item.id, label: item.name }))
+              .filter((item) => !query || normalizeComboSearch(item.label).includes(query));
 
             renderComboDropdown(dropdown, options, (item) => `
               <div class="autocomplete-item"
@@ -7615,7 +7647,7 @@
                               .map(
                                 (ex) => `
                             <div class="exercise-row" style="margin-bottom:8px;">
-                              <p class="exercise-title">🏋️ ${escapeHtml(ex.name || "Exercício")}</p>
+                              <p class="exercise-title">&#127947; ${escapeHtml(ex.name || "Exercício")}</p>
                               <p style="margin:4px 0; font-size:12px; color:#6b7280;">Descrição padrão: ${escapeHtml(ex.description_default || ex.description || "-")}</p>
                               <div class="exercise-fields-grid">
                                 <div class="exercise-field">
@@ -7656,11 +7688,11 @@
 
                         <div class="workout-add-grid">
                           <div class="form-group" style="position: relative;">
-                            <label>Grupo muscular</label>
+                            <label>Grupo muscular <small style="font-weight:400;color:#6b7280;">(filtro opcional)</small></label>
                             <input
                               type="text"
                               id="tab_mg_search_${treino.id}"
-                              placeholder="Clique para ver os grupos..."
+                              placeholder="Opcional: clique para filtrar os grupos..."
                               autocomplete="off"
                               oninput="buscarGrupoMuscularEdicao('${treino.id}', this.value)"
                               onfocus="buscarGrupoMuscularEdicao('${treino.id}', this.value)"
@@ -7674,7 +7706,7 @@
                             <input
                               type="text"
                               id="tab_cat_search_${treino.id}"
-                              placeholder="Selecione o grupo muscular primeiro..."
+                              placeholder="Digite para buscar exercício (grupo opcional)..."
                               autocomplete="off"
                               oninput="buscarCatalogoEdicao('${treino.id}', this.value)"
                               onfocus="buscarCatalogoEdicao('${treino.id}', this.value)"
@@ -7683,42 +7715,44 @@
                             <div id="tab_cat_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
                           </div>
 
-                          <div id="tab_var_wrapper_${treino.id}" class="form-group" style="margin-bottom:0; position:relative;">
-                            <label>Execução <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-                            <div id="tab_var_tags_${treino.id}" class="tag-container"></div>
-                            <input type="text" id="tab_var_search_${treino.id}" placeholder="Digite para buscar execução..." autocomplete="off"
-                                   oninput="buscarVariacaoEdicao('${treino.id}', this.value)" onfocus="buscarVariacaoEdicao('${treino.id}', this.value)" />
-                            <div id="tab_var_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
-                          </div>
+                          <div class="workout-optional-grid full">
+                            <div id="tab_equip_wrapper_${treino.id}" class="form-group" style="position:relative;">
+                              <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                              <div id="tab_equip_tags_${treino.id}" class="tag-container"></div>
+                              <input type="text" id="tab_equip_search_${treino.id}" placeholder="Digite para buscar equipamento..." autocomplete="off"
+                                     oninput="buscarEquipamentoEdicao('${treino.id}', this.value)" onfocus="buscarEquipamentoEdicao('${treino.id}', this.value)" />
+                              <input type="hidden" id="tab_equip_id_${treino.id}" />
+                              <input type="hidden" id="tab_equip_ids_${treino.id}" />
+                              <div id="tab_equip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                            </div>
 
-                          <div id="tab_equip_wrapper_${treino.id}" class="form-group" style="margin-bottom:0; position:relative;">
-                            <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-                            <div id="tab_equip_tags_${treino.id}" class="tag-container"></div>
-                            <input type="text" id="tab_equip_search_${treino.id}" placeholder="Digite para buscar equipamento..." autocomplete="off"
-                                   oninput="buscarEquipamentoEdicao('${treino.id}', this.value)" onfocus="buscarEquipamentoEdicao('${treino.id}', this.value)" />
-                            <input type="hidden" id="tab_equip_id_${treino.id}" />
-                            <input type="hidden" id="tab_equip_ids_${treino.id}" />
-                            <div id="tab_equip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
-                          </div>
+                            <div id="tab_var_wrapper_${treino.id}" class="form-group" style="position:relative;">
+                              <label>Execução <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                              <div id="tab_var_tags_${treino.id}" class="tag-container"></div>
+                              <input type="text" id="tab_var_search_${treino.id}" placeholder="Digite para buscar execução..." autocomplete="off"
+                                     oninput="buscarVariacaoEdicao('${treino.id}', this.value)" onfocus="buscarVariacaoEdicao('${treino.id}', this.value)" />
+                              <div id="tab_var_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                            </div>
 
-                          <div id="tab_grip_wrapper_${treino.id}" class="form-group" style="margin-bottom:0; position:relative;">
-                            <label>Pegada/Pisada <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-                            <div id="tab_grip_tags_${treino.id}" class="tag-container"></div>
-                            <input type="text" id="tab_grip_search_${treino.id}" placeholder="Digite para buscar pegada/pisada..." autocomplete="off"
-                                   oninput="buscarPegadaPisadaEdicao('${treino.id}', this.value)" onfocus="buscarPegadaPisadaEdicao('${treino.id}', this.value)" />
-                            <input type="hidden" id="tab_grip_id_${treino.id}" />
-                            <input type="hidden" id="tab_grip_ids_${treino.id}" />
-                            <div id="tab_grip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
-                          </div>
+                            <div id="tab_grip_wrapper_${treino.id}" class="form-group" style="position:relative;">
+                              <label>Pegada/Pisada <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                              <div id="tab_grip_tags_${treino.id}" class="tag-container"></div>
+                              <input type="text" id="tab_grip_search_${treino.id}" placeholder="Digite para buscar pegada/pisada..." autocomplete="off"
+                                     oninput="buscarPegadaPisadaEdicao('${treino.id}', this.value)" onfocus="buscarPegadaPisadaEdicao('${treino.id}', this.value)" />
+                              <input type="hidden" id="tab_grip_id_${treino.id}" />
+                              <input type="hidden" id="tab_grip_ids_${treino.id}" />
+                              <div id="tab_grip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                            </div>
 
-                          <div id="tab_method_wrapper_${treino.id}" class="form-group" style="margin-bottom:0; position:relative;">
-                            <label>Método <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
-                            <div id="tab_method_tags_${treino.id}" class="tag-container"></div>
-                            <input type="text" id="tab_method_search_${treino.id}" placeholder="Digite para buscar método..." autocomplete="off"
-                                   oninput="buscarMetodoEdicao('${treino.id}', this.value)" onfocus="buscarMetodoEdicao('${treino.id}', this.value)" />
-                            <input type="hidden" id="tab_method_id_${treino.id}" />
-                            <input type="hidden" id="tab_method_ids_${treino.id}" />
-                            <div id="tab_method_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                            <div id="tab_method_wrapper_${treino.id}" class="form-group" style="position:relative;">
+                              <label>Método <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                              <div id="tab_method_tags_${treino.id}" class="tag-container"></div>
+                              <input type="text" id="tab_method_search_${treino.id}" placeholder="Digite para buscar método..." autocomplete="off"
+                                     oninput="buscarMetodoEdicao('${treino.id}', this.value)" onfocus="buscarMetodoEdicao('${treino.id}', this.value)" />
+                              <input type="hidden" id="tab_method_id_${treino.id}" />
+                              <input type="hidden" id="tab_method_ids_${treino.id}" />
+                              <div id="tab_method_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                            </div>
                           </div>
 
                           <div id="tab_meta_wrapper_${treino.id}" class="form-group full" style="display:block; margin-bottom:0;">
@@ -8514,7 +8548,6 @@
 
       function getComboRowsForWorkout(workoutId, field) {
         const state = getWorkoutSelectionState(workoutId);
-        const variationIds = (tabVarState[workoutId] || []).map((item) => item.id);
         const rows = tabComboTreeState.rows || [];
         return rows.filter((row) => {
           if (field !== "group" && state.groupId && row.muscle_group_id !== state.groupId) {
@@ -8522,11 +8555,6 @@
           }
           if (field !== "exercise" && state.exerciseId && row.exercise_catalog_id !== state.exerciseId) {
             return false;
-          }
-          if ((field === "equipment" || field === "grip" || field === "method") && variationIds.length) {
-            if (!variationIds.includes(row.exercise_variation_id)) {
-              return false;
-            }
           }
           return true;
         });
@@ -8694,13 +8722,6 @@
       async function buscarCatalogoEdicao(workoutId, termo) {
         const dropdown = document.getElementById(`tab_cat_dropdown_${workoutId}`);
         if (!dropdown) return;
-        const state = getWorkoutSelectionState(workoutId);
-        if (!state.groupId) {
-          dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Selecione um grupo muscular primeiro.</div>';
-          dropdown.style.display = "block";
-          return;
-        }
-
         try {
           await carregarComboTreeEdicao();
           const query = normalizeComboSearch(termo || "");
@@ -9151,7 +9172,7 @@
             container.classList.remove("hidden");
             container.innerHTML = `
               <div style="padding: 20px; background: rgba(115, 213, 55, 0.2); border-radius: 8px; margin-top: 15px;">
-                <h3 style="color: #024d3a; margin-bottom: 10px;">✓ WhatsApp Já Conectado</h3>
+                <h3 style="color: #024d3a; margin-bottom: 10px;">&#9989; WhatsApp Já Conectado</h3>
                 <p style="color: #047857;">Seu WhatsApp já está conectado e funcionando.</p>
                 <p style="color: #047857; margin-top: 8px; font-size: 14px;">Se quiser reconectar, clique em "Desconectar" primeiro.</p>
               </div>
@@ -9291,3 +9312,8 @@
     <script defer src="/_vercel/speed-insights/script.js"></script>
   </body>
 </html>
+
+
+
+
+

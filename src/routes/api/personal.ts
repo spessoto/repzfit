@@ -936,34 +936,28 @@ async function resolveWorkoutExerciseReference(params: {
       throw app.httpErrors.notFound("Exercise variation not found");
     }
 
-    if (!variation.legacy_exercise_id) {
-      // Fallback: use the exercise catalog's legacy exercise link
-      if (exerciseCatalogId) {
-        const { data: catalog, error: catalogErr } = await supabaseAdmin
-          .from("exercise_catalog")
-          .select("legacy_exercise_id")
-          .eq("id", exerciseCatalogId)
-          .maybeSingle();
-        if (!catalogErr && (catalog as any)?.legacy_exercise_id) {
-          return {
-            exerciseId: (catalog as any).legacy_exercise_id as string,
-            exerciseVariationId,
-          };
-        }
+    let resolvedExerciseId = variation.legacy_exercise_id ?? null;
+
+    if (!resolvedExerciseId && exerciseCatalogId) {
+      const { data: catalog, error: catalogErr } = await supabaseAdmin
+        .from("exercise_catalog")
+        .select("legacy_exercise_id")
+        .eq("id", exerciseCatalogId)
+        .maybeSingle();
+
+      if (!catalogErr && (catalog as any)?.legacy_exercise_id) {
+        resolvedExerciseId = (catalog as any).legacy_exercise_id as string;
       }
-      throw app.httpErrors.badRequest(
-        "Exercise variation is not linked to a legacy exercise. Please re-import exercises.",
-      );
     }
 
-    if (exerciseId && exerciseId !== variation.legacy_exercise_id) {
+    if (exerciseId && resolvedExerciseId && exerciseId !== resolvedExerciseId) {
       throw app.httpErrors.badRequest(
         "exercise_id does not match provided exercise_variation_id",
       );
     }
 
     return {
-      exerciseId: variation.legacy_exercise_id as string,
+      exerciseId: resolvedExerciseId ?? exerciseId ?? null,
       exerciseVariationId,
     };
   }
