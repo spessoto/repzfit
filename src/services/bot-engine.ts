@@ -36,7 +36,7 @@ type BotStateRow = {
 
 type WorkoutExercise = {
   id: string;
-  exercise_id: string;
+  exercise_id: string | null;
   exercise_catalog_id?: string | null;
   exercise_variation_id?: string | null;
   equipment_id?: string | null;
@@ -725,7 +725,7 @@ async function getWorkoutExercises(
       order_index,
       rest_seconds,
       custom_description,
-      exercise_catalog ( name ),
+      exercise_catalog ( name, muscle_groups ( name ) ),
       exercise_variations ( name ),
       equipment_catalog ( name ),
       grip_footing_catalog ( name ),
@@ -771,6 +771,9 @@ function mapWorkoutExerciseRow(item: any): WorkoutExercise {
   const exerciseName = variationName
     ? `${baseName} - ${variationName}`
     : baseName;
+  const catalogMuscleGroup = Array.isArray(catalog?.muscle_groups)
+    ? catalog?.muscle_groups[0]
+    : catalog?.muscle_groups;
 
   return {
     id: item.id,
@@ -782,7 +785,7 @@ function mapWorkoutExerciseRow(item: any): WorkoutExercise {
     method_id: item.method_id ?? null,
     exercise_name: exerciseName,
     variation_name: variationName,
-    muscle_group: item.exercises?.muscle_group ?? null,
+    muscle_group: catalogMuscleGroup?.name ?? item.exercises?.muscle_group ?? null,
     equipment: equipment?.name ?? item.exercises?.equipment ?? null,
     equipment_name: equipment?.name ?? null,
     grip_footing_name: gripFooting?.name ?? null,
@@ -3200,7 +3203,7 @@ async function fireExpiredRest(
     const { data: exRow } = await supabaseAdmin
       .from("workout_exercises")
       .select(
-        "target_sets,target_reps,target_weight,order_index,exercise_id,exercise_catalog_id,exercise_variation_id,equipment_id,grip_footing_id,method_id,custom_description,exercise_catalog(name),exercise_variations(name),equipment_catalog(name),grip_footing_catalog(name),method_catalog(name),exercises(name,muscle_group,equipment,description)",
+        "target_sets,target_reps,target_weight,order_index,exercise_id,exercise_catalog_id,exercise_variation_id,equipment_id,grip_footing_id,method_id,custom_description,exercise_catalog(name,muscle_groups(name)),exercise_variations(name),equipment_catalog(name),grip_footing_catalog(name),method_catalog(name),exercises(name,muscle_group,equipment,description)",
       )
       .eq("id", nextExerciseId)
       .single();
@@ -3249,6 +3252,9 @@ async function fireExpiredRest(
     const exerciseName = variationName
       ? `${baseName} - ${variationName}`
       : baseName;
+    const catalogMuscleGroup = Array.isArray(catalog?.muscle_groups)
+      ? catalog?.muscle_groups[0]
+      : catalog?.muscle_groups;
 
     const nextExercise: WorkoutExercise = {
       id: nextExerciseId,
@@ -3260,7 +3266,7 @@ async function fireExpiredRest(
       method_id: ex.method_id ?? null,
       exercise_name: exerciseName,
       variation_name: variationName,
-      muscle_group: exercise?.muscle_group ?? null,
+      muscle_group: catalogMuscleGroup?.name ?? exercise?.muscle_group ?? null,
       equipment: equipment?.name ?? exercise?.equipment ?? null,
       equipment_name: equipment?.name ?? null,
       grip_footing_name: gripFooting?.name ?? null,

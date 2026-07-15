@@ -6,6 +6,13 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-14] – Grupo muscular no fluxo do bot para exercícios sem vínculo legado (v1.2.2)
+
+### Corrigido
+- Revisão completa do fluxo de conversa do bot (`src/services/bot-engine.ts`) em busca de efeitos colaterais das mudanças recentes em exercícios/treinos.
+- O bot deixou de mostrar o grupo muscular ("💪 Músculo: ...") para exercícios cadastrados apenas no catálogo novo (sem vínculo legado): a busca só lia `exercises.muscle_group` e ignorava o `muscle_group_id` opcional adicionado ao `exercise_catalog`. Isso afetava a mensagem de início de exercício, o menu de seleção de exercícios e o aviso de fim de descanso ao avançar para o próximo exercício.
+- Corrigido o tipo `WorkoutExercise.exercise_id` para refletir que ele pode ser `null` (exercício sem vínculo legado), evitando inconsistência de tipos com o novo modelo de dados.
+
 ## [2026-07-14] – Exercício como único campo obrigatório e IA sem dependência de campos opcionais (v1.2.1)
 
 ### Corrigido
