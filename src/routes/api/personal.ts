@@ -2603,23 +2603,23 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .uuid()
       .parse((request.params as { id?: string }).id);
 
-    const { data: used, error: usedErr } = await supabaseAdmin
-      .from("workout_exercises")
-      .select("id")
-      .eq("exercise_catalog_id", id)
-      .limit(1);
-    if (usedErr) throw app.httpErrors.badRequest(usedErr.message);
-    if ((used ?? []).length > 0) {
-      throw app.httpErrors.badRequest(
-        "Exercise is already used in workouts and cannot be removed.",
-      );
-    }
+    const { data: existing, error: existingErr } = await supabaseAdmin
+      .from("exercise_catalog")
+      .select("id,personal_id")
+      .eq("id", id)
+      .or(`personal_id.is.null,personal_id.eq.${personalId}`)
+      .maybeSingle();
+    if (existingErr) throw app.httpErrors.badRequest(existingErr.message);
+    if (!existing) throw app.httpErrors.notFound("Exercise not found");
 
+    // Referências em workout_exercises (e caches associados) perdem o vínculo
+    // automaticamente via ON DELETE SET NULL/CASCADE, então não é preciso
+    // bloquear a exclusão quando o exercício já foi usado em algum treino.
     const { error } = await supabaseAdmin
       .from("exercise_catalog")
       .delete()
       .eq("id", id)
-      .eq("personal_id", personalId);
+      .or(`personal_id.is.null,personal_id.eq.${personalId}`);
 
     if (error) throw app.httpErrors.badRequest(error.message);
     return { success: true };

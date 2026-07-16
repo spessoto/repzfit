@@ -6,6 +6,20 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-07-16] – Correção da exclusão de exercícios no cadastro (v1.2.3)
+
+### Corrigido
+- Corrigida a exclusão de exercícios no endpoint `DELETE /api/exercise-catalog/:id`: exercícios compartilhados da base (`personal_id = NULL`), como "Abdominal máquina", não eram removidos por causa de filtro incorreto por `personal_id`.
+- Removido bloqueio indevido que impedia apagar exercícios já usados em treinos. O banco já trata as referências automaticamente via `ON DELETE SET NULL`/`ON DELETE CASCADE` no modelo atual.
+
+### Alterado
+- O delete de `exercise_catalog` agora aceita registros `personal_id IS NULL` e do personal autenticado, alinhando o comportamento com o restante das rotas de catálogo.
+
+### Operação de banco executada
+- Nenhuma migration nova foi necessária para esta correção de lógica de API.
+
+---
+
 ## [2026-07-14] – Grupo muscular no fluxo do bot para exercícios sem vínculo legado (v1.2.2)
 
 ### Corrigido
