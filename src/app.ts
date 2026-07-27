@@ -31,6 +31,10 @@ function getAllowedOrigins(): string[] {
     origins.add(env.FRONTEND_URL);
   }
 
+  // Domínios de produção sempre permitidos
+  origins.add("https://app.ezpersonal.com.br");
+  origins.add("https://ezpersonal.com.br");
+
   // Localhost para desenvolvimento
   origins.add("http://localhost:3000");
   origins.add("http://localhost:3333");
@@ -91,8 +95,13 @@ export async function buildApp(options: BuildAppOptions = {}) {
         return;
       }
 
-      // Permitir apenas domínios Vercel específicos do projeto
-      if (/^https:\/\/repzfit-[a-z0-9-]+\.vercel\.app$/i.test(origin)) {
+                  // Permitir qualquer deploy/alias Vercel do projeto repzfit
+      // Cobre: repzfit-<hash>.vercel.app, repzfit-git-main-*.vercel.app,
+      //        repzfit-agencia-*.vercel.app, project-pxgam*.vercel.app
+      if (
+        /^https:\/\/repzfit(-[a-z0-9-]+)?\.vercel\.app$/i.test(origin) ||
+        /^https:\/\/project-pxgam[a-z0-9-]*\.vercel\.app$/i.test(origin)
+      ) {
         callback(null, true);
         return;
       }
