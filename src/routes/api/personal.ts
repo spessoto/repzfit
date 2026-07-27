@@ -3794,6 +3794,31 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     },
   );
 
+  // Batch reorder exercises within a workout
+  app.patch("/workouts/:workout_id/exercises/reorder", async (request, reply) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const workoutId = z
+      .string()
+      .uuid()
+      .parse((request.params as { workout_id?: string }).workout_id);
+    const items = z
+      .array(z.object({ id: z.string().uuid(), order_index: z.number().int().nonnegative() }))
+      .parse(request.body);
+    const client = getRlsClient(token);
+
+    await Promise.all(
+      items.map(({ id, order_index }) =>
+        client
+          .from("workout_exercises")
+          .update({ order_index })
+          .eq("id", id)
+          .eq("workout_id", workoutId),
+      ),
+    );
+
+    return reply.code(204).send();
+  });
+
   app.get("/workouts/student/:student_id", async (request) => {
     const { token } = await getAuthenticatedPersonal(app, request);
     const studentId = z
@@ -3805,7 +3830,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("student_workouts")
       .select(
-        "id,student_id,workout_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,grip_footing_id,method_id,created_at))",
+        "id,student_id,workout_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,workout_id,exercise_id,exercise_catalog_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,grip_footing_id,method_id,created_at,exercise_catalog(name),exercise_variations(name),exercises(id,name))),"
       )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
@@ -3819,8 +3844,26 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         ? assignment.workouts[0]
         : assignment.workouts;
 
+      // Normalise workout_exercises so the frontend always has a resolved name
+      const rawExercises: any[] = Array.isArray(workout?.workout_exercises)
+        ? workout.workout_exercises
+        : [];
+      const normalisedExercises = rawExercises.map((we: any) => {
+        const catalog = Array.isArray(we.exercise_catalog)
+          ? we.exercise_catalog[0]
+          : we.exercise_catalog;
+        const variation = Array.isArray(we.exercise_variations)
+          ? we.exercise_variations[0]
+          : we.exercise_variations;
+        const legacy = Array.isArray(we.exercises) ? we.exercises[0] : we.exercises;
+        const baseName = catalog?.name ?? legacy?.name ?? "Exercicio";
+        const fullName = variation?.name ? (baseName + " - " + variation.name) : baseName;
+        return { ...we, _display_name: fullName };
+      });
+
       return {
         ...(workout ?? {}),
+        workout_exercises: normalisedExercises,
         assignment_start_date: assignment.start_date,
         assignment_valid_until: assignment.valid_until,
         assignment_tracking_mode: assignment.tracking_mode ?? "per_rep",

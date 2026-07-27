@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
@@ -786,6 +786,29 @@
 
       .exercise-actions .btn {
         min-width: 92px;
+      }
+
+      /* Drag & drop reorder */
+      .exercise-row[draggable] {
+        cursor: grab;
+      }
+      .exercise-row.drag-over {
+        border: 2px dashed #6366f1;
+        background: #eef2ff;
+      }
+      .exercise-row.dragging {
+        opacity: 0.4;
+        cursor: grabbing;
+      }
+      .drag-handle {
+        display: inline-flex;
+        align-items: center;
+        color: #94a3b8;
+        margin-right: 6px;
+        cursor: grab;
+        font-size: 16px;
+        line-height: 1;
+        user-select: none;
       }
 
       .catalog-manager-grid {
@@ -4115,50 +4138,50 @@
                   <button class="btn btn-primary" onclick="salvarTreinoAluno('${workout.id}')">Salvar treino</button>
                   <button class="btn btn-secondary" style="margin-left:8px;" onclick="desvincularTreinoDoAluno('${workout.id}')">Desvincular do aluno</button>
 
+
                   <div style="margin-top: 10px;">
-                    <h4 class="workout-section-title">Exercícios</h4>
+                    <h4 class="workout-section-title">Exerc&#237;cios</h4>
                     ${
                       exercises.length > 0
-                        ? exercises
-                            .sort((a, b) => a.order_index - b.order_index)
-                            .map((ex) => {
-                              const exData = Array.isArray(ex.exercises)
-                                ? ex.exercises[0]
-                                : ex.exercises;
-                              return `
-                              <div class="exercise-row">
-                                <p class="exercise-title">&#127947; ${escapeHtml(exData?.name || "Exercício")}</p>
-                                <div class="exercise-fields-grid">
-                                  <div class="exercise-field">
-                                    <label for="we_sets_${ex.id}">Séries</label>
-                                    <input type="number" min="1" id="we_sets_${ex.id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+                        ? (() => {
+                            const sorted = [...exercises].sort((a, b) => a.order_index - b.order_index);
+                            const containerId = `we_list_${workout.id}`;
+                            return `<div id="${containerId}" class="exercise-list-dnd">${
+                              sorted.map((ex) => {
+                                const catalog = Array.isArray(ex.exercise_catalog) ? ex.exercise_catalog[0] : ex.exercise_catalog;
+                                const variation = Array.isArray(ex.exercise_variations) ? ex.exercise_variations[0] : ex.exercise_variations;
+                                const legacy = Array.isArray(ex.exercises) ? ex.exercises[0] : ex.exercises;
+                                const displayName = ex._display_name || (catalog?.name ?? legacy?.name ?? "Exerc\u00edcio") + (variation?.name ? " - " + variation.name : "");
+                                return `
+                                <div class="exercise-row" draggable="true" data-we-id="${ex.id}" data-workout-id="${workout.id}" data-order="${ex.order_index}">
+                                  <p class="exercise-title"><span class="drag-handle" title="Arrastar para reordenar">&#9776;</span>&#127947; ${escapeHtml(displayName)}</p>
+                                  <div class="exercise-fields-grid">
+                                    <div class="exercise-field">
+                                      <label for="we_sets_${ex.id}">S&#233;ries</label>
+                                      <input type="number" min="1" id="we_sets_${ex.id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+                                    </div>
+                                    <div class="exercise-field">
+                                      <label for="we_reps_${ex.id}">Repeti&#231;&#245;es</label>
+                                      <input type="number" min="1" id="we_reps_${ex.id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
+                                    </div>
+                                    <div class="exercise-field">
+                                      <label for="we_weight_${ex.id}">Peso (kg)</label>
+                                      <input type="number" min="0" step="0.1" id="we_weight_${ex.id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
+                                    </div>
+                                    <div class="exercise-field">
+                                      <label for="we_rest_${ex.id}">Descanso (s)</label>
+                                      <input type="number" min="0" step="1" id="we_rest_${ex.id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" />
+                                    </div>
                                   </div>
-                                  <div class="exercise-field">
-                                    <label for="we_reps_${ex.id}">Repetições</label>
-                                    <input type="number" min="1" id="we_reps_${ex.id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
-                                  </div>
-                                  <div class="exercise-field">
-                                    <label for="we_weight_${ex.id}">Peso (kg)</label>
-                                    <input type="number" min="0" step="0.1" id="we_weight_${ex.id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
-                                  </div>
-                                  <div class="exercise-field">
-                                    <label for="we_rest_${ex.id}">Descanso (s)</label>
-                                    <input type="number" min="0" step="1" id="we_rest_${ex.id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" />
-                                  </div>
-                                  <div class="exercise-field">
-                                    <label for="we_order_${ex.id}">Ordem no treino</label>
-                                    <input type="number" min="0" id="we_order_${ex.id}" value="${escapeHtml(String(ex.order_index || 0))}" />
+                                  <div class="exercise-actions">
+                                    <button class="btn btn-primary" onclick="salvarExercicioTreino(${JSON.stringify(workout.id)},${JSON.stringify(ex.id)})">Salvar</button>
+                                    <button class="btn btn-danger" onclick="excluirExercicioTreino(${JSON.stringify(workout.id)},${JSON.stringify(ex.id)})">Excluir</button>
                                   </div>
                                 </div>
-                                <div class="exercise-actions">
-                                  <button class="btn btn-primary" onclick="salvarExercicioTreino('${workout.id}','${ex.id}')">Salvar</button>
-                                  <button class="btn btn-danger" onclick="excluirExercicioTreino('${workout.id}','${ex.id}')">Excluir</button>
-                                </div>
-                              </div>
-                            `;
-                            })
-                            .join("")
-                        : '<p style="color:#6b7280;">Sem exercícios neste treino.</p>'
+                              `}).join("")
+                            }</div>`;
+                          })()
+                        : '<p style="color:#6b7280;">Sem exerc&#237;cios neste treino.</p>'
                     }
                   </div>
                 </div>
@@ -4166,6 +4189,7 @@
             `;
           })
           .join("");
+        setTimeout(initAllDndLists, 0);
       }
 
       function renderAvailableWorkoutsForStudent(workouts) {
@@ -4444,6 +4468,81 @@
           );
         }
       }
+      // ── Drag & drop reorder ────────────────────────────────────────────────
+      let _dndDraggingEl = null;
+
+      function initDndList(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.querySelectorAll(".exercise-row[draggable]").forEach((row) => {
+          row.addEventListener("dragstart", _dndOnDragStart);
+          row.addEventListener("dragend",   _dndOnDragEnd);
+          row.addEventListener("dragover",  _dndOnDragOver);
+          row.addEventListener("dragleave", _dndOnDragLeave);
+          row.addEventListener("drop",      _dndOnDrop);
+        });
+      }
+
+      function _dndOnDragStart(e) {
+        _dndDraggingEl = this;
+        this.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", this.dataset.weId);
+      }
+
+      function _dndOnDragEnd() {
+        this.classList.remove("dragging");
+        document.querySelectorAll(".exercise-row.drag-over").forEach((el) => el.classList.remove("drag-over"));
+        _dndDraggingEl = null;
+      }
+
+      function _dndOnDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (this !== _dndDraggingEl) this.classList.add("drag-over");
+      }
+
+      function _dndOnDragLeave() {
+        this.classList.remove("drag-over");
+      }
+
+      function _dndOnDrop(e) {
+        e.preventDefault();
+        this.classList.remove("drag-over");
+        if (!_dndDraggingEl || _dndDraggingEl === this) return;
+        const container = this.closest(".exercise-list-dnd");
+        if (!container) return;
+        const rows = Array.from(container.querySelectorAll(".exercise-row[data-we-id]"));
+        const fromIdx = rows.indexOf(_dndDraggingEl);
+        const toIdx   = rows.indexOf(this);
+        if (fromIdx === -1 || toIdx === -1) return;
+        // Reorder DOM
+        if (fromIdx < toIdx) {
+          container.insertBefore(_dndDraggingEl, this.nextSibling);
+        } else {
+          container.insertBefore(_dndDraggingEl, this);
+        }
+        // Persist to API
+        const workoutId = _dndDraggingEl.dataset.workoutId;
+        const updatedRows = Array.from(container.querySelectorAll(".exercise-row[data-we-id]"));
+        const payload = updatedRows.map((el, idx) => ({ id: el.dataset.weId, order_index: idx }));
+        // Optimistically update data-order attrs
+        updatedRows.forEach((el, idx) => { el.dataset.order = idx; });
+        fetch(`${getApiBaseUrl()}/api/workouts/${workoutId}/exercises/reorder`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify(payload),
+        }).catch((err) => console.error("Erro ao salvar ordem:", err));
+      }
+
+      // Chamar apos renderizar listas de exercicios
+      function initAllDndLists() {
+        document.querySelectorAll(".exercise-list-dnd").forEach((container) => {
+          initDndList(container.id);
+        });
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
 
       async function salvarExercicioTreino(workoutId, workoutExerciseId) {
         try {
@@ -6992,7 +7091,8 @@
           "background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 15px; position: relative;";
         exercicioDiv.innerHTML = `
           <button onclick="removerExercicioDoTreino(${index})"
-                  style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 18px;">            &times;
+                  style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 18px;">
+            &times;
           </button>
 
           <div class="workout-add-grid">
@@ -7750,47 +7850,49 @@
                       </div>
                     </div>
                     <div style="margin-top: 10px; margin-bottom: 10px;">
-                      <h4 class="workout-section-title">Exercícios do treino</h4>
+                      <h4 class="workout-section-title">Exerc&#237;cios do treino</h4>
                       ${
                         exercises.length > 0
-                          ? exercises
-                              .map(
-                                (ex) => `
-                            <div class="exercise-row" style="margin-bottom:8px;">
-                              <p class="exercise-title">&#127947; ${escapeHtml(ex.name || "Exercício")}</p>
-                              <p style="margin:4px 0; font-size:12px; color:#6b7280;">Descrição padrão: ${escapeHtml(ex.description_default || ex.description || "-")}</p>
-                              <div class="exercise-fields-grid">
-                                <div class="exercise-field">
-                                  <label>Séries</label>
-                                  <input type="number" min="1" id="tw_sets_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+                          ? (() => {
+                              const sorted = [...exercises].sort((a, b) => a.order_index - b.order_index);
+                              const containerId = `tw_list_${treino.id}`;
+                              return `<div id="${containerId}" class="exercise-list-dnd">${
+                                sorted.map((ex) => `
+                                <div class="exercise-row" draggable="true" data-we-id="${ex.workout_exercise_id}" data-workout-id="${treino.id}" data-order="${ex.order_index}">
+                                  <p class="exercise-title"><span class="drag-handle" title="Arrastar para reordenar">&#9776;</span>&#127947; ${escapeHtml(ex.name || "Exerc\u00edcio")}</p>
+                                  <p style="margin:4px 0; font-size:12px; color:#6b7280;">Descri&#231;&#227;o padr&#227;o: ${escapeHtml(ex.description_default || ex.description || "-")}</p>
+                                  <div class="exercise-fields-grid">
+                                    <div class="exercise-field">
+                                      <label>S&#233;ries</label>
+                                      <input type="number" min="1" id="tw_sets_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+                                    </div>
+                                    <div class="exercise-field">
+                                      <label>Repeti&#231;&#245;es</label>
+                                      <input type="number" min="1" id="tw_reps_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
+                                    </div>
+                                    <div class="exercise-field">
+                                      <label>Peso (kg)</label>
+                                      <input type="number" min="0" step="0.1" id="tw_weight_${ex.workout_exercise_id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
+                                    </div>
+                                    <input type="hidden" id="tw_order_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.order_index || 0))}" />
+                                    <div class="exercise-field">
+                                      <label>Descanso (s)</label>
+                                      <input type="number" min="0" max="3600" step="5" id="tw_rest_${ex.workout_exercise_id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" placeholder="Ex: 60" />
+                                    </div>
+                                  </div>
+                                  <div class="form-group" style="margin-top:8px;">
+                                    <label>Descri&#231;&#227;o personalizada para este treino (opcional)</label>
+                                    <textarea id="tw_desc_${ex.workout_exercise_id}" rows="2" placeholder="Se vazio, usa a descri&#231;&#227;o padr&#227;o">${escapeHtml(ex.custom_description || "")}</textarea>
+                                  </div>
+                                  <div class="exercise-actions">
+                                    <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba(${JSON.stringify(treino.id)},${JSON.stringify(ex.workout_exercise_id)})">Salvar exerc&#237;cio</button>
+                                    <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba(${JSON.stringify(treino.id)},${JSON.stringify(ex.workout_exercise_id)})">Excluir exerc&#237;cio</button>
+                                  </div>
                                 </div>
-                                <div class="exercise-field">
-                                  <label>Repetições</label>
-                                  <input type="number" min="1" id="tw_reps_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
-                                </div>
-                                <div class="exercise-field">
-                                  <label>Peso (kg)</label>
-                                  <input type="number" min="0" step="0.1" id="tw_weight_${ex.workout_exercise_id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
-                                </div>
-                                <input type="hidden" id="tw_order_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.order_index || 0))}" />
-                                <div class="exercise-field">
-                                  <label>Descanso (s)</label>
-                                  <input type="number" min="0" max="3600" step="5" id="tw_rest_${ex.workout_exercise_id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" placeholder="Ex: 60" />
-                                </div>
-                              </div>
-                              <div class="form-group" style="margin-top:8px;">
-                                <label>Descrição personalizada para este treino (opcional)</label>
-                                <textarea id="tw_desc_${ex.workout_exercise_id}" rows="2" placeholder="Se vazio, usa a descrição padrão">${escapeHtml(ex.custom_description || "")}</textarea>
-                              </div>
-                              <div class="exercise-actions">
-                                <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Salvar exercício</button>
-                                <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Excluir exercício</button>
-                              </div>
-                            </div>
-                          `,
-                              )
-                              .join("")
-                          : '<p style="color:#6b7280;">Sem exercícios neste treino.</p>'
+                                `).join("")
+                              }</div>`;
+                            })()
+                          : '<p style="color:#6b7280;">Sem exerc&#237;cios neste treino.</p>'
                       }
 
                       <div style="margin-top: 12px; padding: 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">
@@ -7912,6 +8014,7 @@
               `;
             })
             .join("");
+          setTimeout(initAllDndLists, 0);
         } catch (error) {
           console.error("Erro ao carregar treinos:", error);
           document.getElementById("treinosLista").innerHTML =
