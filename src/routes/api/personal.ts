@@ -3525,7 +3525,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     await assertWorkoutOwnership(app, personalId, workoutId);
 
     const payload: Record<string, unknown> = { ...parsed.data };
-    if (payload.start_date === "") payload.start_date = null;
+    if (payload.start_date === "" || payload.start_date == null) delete payload.start_date;
     const { data, error } = await client
       .from("workouts")
       .update(payload)
