@@ -39,48 +39,4 @@ export async function transcribeAudioFromUrl(
   return data.text?.trim() ?? "";
 }
 
-export async function generateFallbackReply(context: {
-  studentName?: string;
-  state: string;
-  input: string;
-}): Promise<string> {
-  if (!env.OPENAI_API_KEY) {
-    return "Perfeito. Vamos continuar o treino. Me confirma o valor solicitado em formato numerico.";
-  }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4.1-mini",
-      temperature: 0.4,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Voce e um coach de treino via WhatsApp. Responda curto, motivador e sempre conduza para o proximo passo numerico do fluxo.",
-        },
-        {
-          role: "user",
-          content: `Estado: ${context.state}. Aluno disse: ${context.input}. Nome: ${context.studentName ?? "Aluno"}.`,
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    return "Bora! Me confirma o dado numerico para eu registrar certinho.";
-  }
-
-  const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-
-  return (
-    payload.choices?.[0]?.message?.content?.trim() ??
-    "Bora! Me confirma o dado numerico para eu registrar certinho."
-  );
-}

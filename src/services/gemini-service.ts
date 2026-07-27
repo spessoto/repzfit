@@ -263,24 +263,3 @@ Responda de forma motivadora e gentil, pedindo para ele confirmar o dado solicit
     return `Entendi! Mas preciso que você me confirme ${context.expectedInput} para eu registrar direitinho. Pode me passar? 💪`;
   }
 }
-
-/**
- * Verifica se a mensagem é uma intenção de iniciar treino
- * Aceita variações como: "iniciar treino", "começar treino", "bora treinar", etc.
- */
-export function isTrainingStartIntent(message: string): boolean {
-  const normalized = message.toLowerCase().trim();
-
-  // Padrões que indicam intenção de iniciar treino
-  const patterns = [
-    /iniciar\s+(treino|treinamento|sessao|exercicio)/,
-    /come[cç]ar\s+(treino|treinamento|sessao|exercicio)/,
-    /bora\s+(treinar|malhar|treino)/,
-    /vamos\s+(treinar|malhar|começar|come[cç]ar)/,
-    /quero\s+treinar/,
-    /inicio\s+(treino|treinamento)/,
-    /start\s+(treino|workout|training)/,
-  ];
-
-  return patterns.some((pattern) => pattern.test(normalized));
-}

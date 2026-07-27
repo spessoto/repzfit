@@ -36,10 +36,6 @@ function getAllowedOrigins(): string[] {
   origins.add("http://localhost:3333");
   origins.add("http://localhost:5173");
 
-  // URL de produção
-  origins.add("https://project-pxgam.vercel.app");
-  origins.add("https://app.ezpersonal.com.br");
-
   return Array.from(origins);
 }
 
@@ -52,15 +48,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
 
   const allowedOrigins = getAllowedOrigins();
 
-  if (
-    env.NODE_ENV === "production" &&
-    (env.ADMIN_PANEL_PASSWORD === "123456" ||
-      env.ADMIN_TOKEN_SECRET === "repzfit_admin_secret_change_me_2026")
-  ) {
-    app.log.warn(
-      "Security warning: default admin credentials are enabled in production. Configure ADMIN_PANEL_PASSWORD and ADMIN_TOKEN_SECRET.",
-    );
-  }
+    // Avisos de segurança já são emitidos em env.ts ao carregar o módulo.
 
   await app.register(sensible);
 

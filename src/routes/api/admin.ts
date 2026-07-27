@@ -1,10 +1,12 @@
-import crypto from "node:crypto";
+﻿import crypto from "node:crypto";
 
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { env } from "../../config/env.js";
 import { supabaseAdmin } from "../../config/supabase.js";
+import { normalizeBrazilWhatsappNumber } from "../../utils/whatsapp.js";
+import { buildWebhookUrlFromRequest } from "../../utils/request.js";
 import {
   ensureEvolutionWebhook,
   ensureEvolutionInstance,
@@ -91,35 +93,7 @@ type AdminTokenPayload = {
   exp: number;
 };
 
-function normalizeBrazilWhatsappNumber(
-  raw: string | null | undefined,
-): string | null {
-  if (!raw) return null;
 
-  let digits = String(raw).trim().replace(/\D+/g, "");
-  if (!digits) return null;
-
-  while (digits.startsWith("00")) {
-    digits = digits.slice(2);
-  }
-
-  if (digits.startsWith("0")) {
-    digits = digits.replace(/^0+/, "");
-  }
-
-  if (
-    digits.startsWith("55") &&
-    (digits.length === 12 || digits.length === 13)
-  ) {
-    return digits;
-  }
-
-  if (digits.length === 10 || digits.length === 11) {
-    return `55${digits}`;
-  }
-
-  return null;
-}
 
 function toB64Url(input: string): string {
   return Buffer.from(input, "utf8").toString("base64url");
@@ -213,27 +187,7 @@ function isStrongPassword(password: string): boolean {
   );
 }
 
-function buildWebhookUrlFromRequest(request: FastifyRequest): string {
-  const protoHeader = request.headers["x-forwarded-proto"];
-  const hostHeader =
-    request.headers["x-forwarded-host"] || request.headers.host;
 
-  const protocol =
-    typeof protoHeader === "string" && protoHeader.trim()
-      ? protoHeader.split(",")[0].trim()
-      : "https";
-
-  const host =
-    typeof hostHeader === "string" && hostHeader.trim()
-      ? hostHeader.split(",")[0].trim()
-      : null;
-
-  if (host) {
-    return `${protocol}://${host}/webhooks/evolution`;
-  }
-
-  return "https://app.ezpersonal.com.br/webhooks/evolution";
-}
 
 async function ensureEvolutionWebhookForRequest(
   app: FastifyInstance,
@@ -351,13 +305,17 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.badRequest(parsed.error.message);
     }
 
-    const email = parsed.data.email.trim().toLowerCase();
+        const email = parsed.data.email.trim().toLowerCase();
     const password = parsed.data.password;
 
-    if (
-      email !== env.ADMIN_PANEL_EMAIL.toLowerCase() ||
-      password !== env.ADMIN_PANEL_PASSWORD
-    ) {
+    const emailMatch =
+      email === env.ADMIN_PANEL_EMAIL.toLowerCase();
+    const passwordMatch = crypto.timingSafeEqual(
+      Buffer.from(password),
+      Buffer.from(env.ADMIN_PANEL_PASSWORD),
+    );
+
+    if (!emailMatch || !passwordMatch) {
       throw app.httpErrors.unauthorized("Invalid admin credentials");
     }
 
@@ -933,3 +891,4 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
     return { success: true };
   });
 }
+

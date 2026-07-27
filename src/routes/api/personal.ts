@@ -5,6 +5,8 @@ import { z } from "zod";
 
 import { env } from "../../config/env.js";
 import { supabaseAdmin } from "../../config/supabase.js";
+import { normalizeBrazilWhatsappNumber } from "../../utils/whatsapp.js";
+import { buildWebhookUrlFromRequest } from "../../utils/request.js";
 import {
   generateExerciseDescription,
   normalizeExerciseAIDescription,
@@ -265,36 +267,6 @@ const STUDENTS_SELECT_BASE =
 const PERSONAL_SELECT_FULL =
   "id,name,email,evolution_instance_name,phone,crf_registration,created_at";
 const PERSONAL_SELECT_BASE = "id,name,email,evolution_instance_name,created_at";
-
-function normalizeBrazilWhatsappNumber(
-  raw: string | null | undefined,
-): string | null {
-  if (!raw) return null;
-
-  let digits = String(raw).trim().replace(/\D+/g, "");
-  if (!digits) return null;
-
-  while (digits.startsWith("00")) {
-    digits = digits.slice(2);
-  }
-
-  if (digits.startsWith("0")) {
-    digits = digits.replace(/^0+/, "");
-  }
-
-  if (
-    digits.startsWith("55") &&
-    (digits.length === 12 || digits.length === 13)
-  ) {
-    return digits;
-  }
-
-  if (digits.length === 10 || digits.length === 11) {
-    return `55${digits}`;
-  }
-
-  return null;
-}
 
 function buildCompletedSessionSummaryFromLogs(logs: any[]): string | null {
   if (!Array.isArray(logs) || logs.length === 0) {
@@ -797,29 +769,6 @@ async function getAuthenticatedPersonal(
   }
 
   return { token, personalId: user.id, personal };
-}
-
-function buildWebhookUrlFromRequest(request: FastifyRequest): string {
-  const protoHeader = request.headers["x-forwarded-proto"];
-  const hostHeader =
-    request.headers["x-forwarded-host"] || request.headers.host;
-
-  const protocol =
-    typeof protoHeader === "string" && protoHeader.trim()
-      ? protoHeader.split(",")[0].trim()
-      : "https";
-
-  const host =
-    typeof hostHeader === "string" && hostHeader.trim()
-      ? hostHeader.split(",")[0].trim()
-      : null;
-
-  if (host) {
-    return `${protocol}://${host}/webhooks/evolution`;
-  }
-
-  // Fallback safe default for production.
-  return "https://app.ezpersonal.com.br/webhooks/evolution";
 }
 
 function sanitizeFileName(input: string): string {
@@ -4001,3 +3950,4 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     };
   });
 }
+

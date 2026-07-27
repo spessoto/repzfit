@@ -18,9 +18,9 @@ const EnvSchema = z.object({
   EVOLUTION_GLOBAL_KEY: z.string().min(1),
   EVOLUTION_WEBHOOK_SECRET: z.string().min(1),
   EVOLUTION_UNIFIED_INSTANCE_NAME: z.string().min(1),
-  FRONTEND_URL: z.url().optional(),
+    FRONTEND_URL: z.url().optional(),
   PASSWORD_RECOVERY_REDIRECT_URL: z.url().optional(),
-  CRON_SECRET: z.string().min(1).optional(),
+  CRON_SECRET: z.string().min(16).optional(),
   REST_TIMER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
 
   OPENAI_API_KEY: z.string().min(1).optional(),
@@ -44,3 +44,25 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+// Avisos de segurança — exibidos em qualquer ambiente
+const DEFAULT_PASSWORD = "123456";
+const DEFAULT_TOKEN_SECRET = "repzfit_admin_secret_change_me_2026";
+
+if (env.ADMIN_PANEL_PASSWORD === DEFAULT_PASSWORD) {
+  console.warn(
+    "[security] ADMIN_PANEL_PASSWORD está com o valor padrão inseguro. Defina uma senha forte antes de expor o serviço.",
+  );
+}
+
+if (env.ADMIN_TOKEN_SECRET === DEFAULT_TOKEN_SECRET) {
+  console.warn(
+    "[security] ADMIN_TOKEN_SECRET está com o valor padrão. Defina um segredo forte (mín. 32 chars) antes de expor o serviço.",
+  );
+}
+
+if (env.NODE_ENV === "production" && !env.CRON_SECRET) {
+  console.warn(
+    "[security] CRON_SECRET não definido em produção. O endpoint /api/internal/session-cleanup ficará desprotegido.",
+  );
+}

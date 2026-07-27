@@ -4,6 +4,19 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ## [Unreleased]
 
+### Corrigido / Melhorado
+- **Duplicação de código**: `normalizeBrazilWhatsappNumber` e `buildWebhookUrlFromRequest` extraídas para `src/utils/whatsapp.ts` e `src/utils/request.ts` — removidas 4 cópias redundantes.
+- **Código morto**: Estado `AWAITING_MONITORING_CHOICE` removido do bot (nunca era atingível após refactor do fluxo de rastreamento).
+- **Funções duplicadas**: `isTrainingStartIntent` removida de `gemini-service.ts` (versão interna do `bot-engine.ts` é a usada). `generateFallbackReply` removida de `openai-service.ts` (redundante com a versão do Gemini).
+- **Dependências mortas**: `node-fetch`, `@vercel/speed-insights` e `pg` removidos de `package.json` (nunca importados no código-fonte).
+- **Vulnerabilidades**: 4 vulnerabilidades corrigidas via `npm audit fix` (`brace-expansion`, `esbuild`, `fast-uri`, `find-my-way`). Vulnerabilidade do `xlsx` sem fix disponível — documentada e mitigada por uso exclusivo em rotas autenticadas.
+- **Segurança**: `ADMIN_PANEL_PASSWORD` comparada com `crypto.timingSafeEqual` em vez de `===` plaintext.
+- **Segurança**: Avisos de credenciais padrão (`ADMIN_PANEL_PASSWORD`, `ADMIN_TOKEN_SECRET`) agora emitidos em **todos** os ambientes (antes só em produção).
+- **Segurança**: Aviso emitido quando `CRON_SECRET` não está configurado em produção.
+- **Segurança**: Endpoint `/api/internal/rest-timer/poll` protegido com `CRON_SECRET`.
+- **URLs hardcoded**: Origens CORS de produção (`project-pxgam.vercel.app`, `app.ezpersonal.com.br`) removidas do código — controladas por `FRONTEND_URL`. Fallback do webhook usa `FRONTEND_URL` antes da constante.
+- **TypeScript**: Criado `tsconfig.scripts.json` — a pasta `scripts/` agora é verificada pelo typecheck. Scripts corrigidos: `pg` readicionado como devDependency, `node-fetch` substituído por `fetch` nativo, tipos explicitados.
+
 ---
 
 ## [2026-07-16] – Correção da exclusão de exercícios no cadastro (v1.2.3)
