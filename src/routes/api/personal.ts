@@ -1742,7 +1742,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data: assignments, error: workoutsError } = await client
       .from("student_workouts")
       .select(
-        "id,workout_id,student_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercises(id,name,description,muscle_group,equipment,gif_url)))",
+        "id,workout_id,student_id,start_date,valid_until,tracking_mode,created_at,workouts(id,name,day_of_week,created_at,workout_exercises(id,exercise_id,exercise_catalog_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercise_catalog(name),exercise_variations(name),exercises(id,name,description,muscle_group,equipment,gif_url)))",
       )
       .eq("student_id", id)
       .order("created_at", { ascending: false });
@@ -1756,8 +1756,17 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         ? assignment.workouts[0]
         : assignment.workouts;
 
+      const rawEx: any[] = Array.isArray(workout?.workout_exercises) ? workout.workout_exercises : [];
+      const normalisedEx = rawEx.map((we: any) => {
+        const cat = Array.isArray(we.exercise_catalog) ? we.exercise_catalog[0] : we.exercise_catalog;
+        const vari = Array.isArray(we.exercise_variations) ? we.exercise_variations[0] : we.exercise_variations;
+        const leg = Array.isArray(we.exercises) ? we.exercises[0] : we.exercises;
+        const base = cat?.name ?? leg?.name ?? "Exercicio";
+        return { ...we, _display_name: vari?.name ? base + " - " + vari.name : base };
+      });
       return {
         ...(workout ?? {}),
+        workout_exercises: normalisedEx,
         assignment_id: assignment.id,
         assignment_start_date: assignment.start_date,
         assignment_valid_until: assignment.valid_until,
