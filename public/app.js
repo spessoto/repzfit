@@ -1459,28 +1459,32 @@
                                 return `
                                 <div class="exercise-row" draggable="true" data-we-id="${ex.id}" data-workout-id="${workout.id}" data-order="${ex.order_index}">
                                   <p class="exercise-title"><span class="drag-handle" title="Arrastar para reordenar">&#9776;</span>&#127947; ${escapeHtml(displayName)}</p>
-                                  <div class="exercise-fields-grid">
-                                    <div class="exercise-field">
-                                      <label for="we_sets_${ex.id}">S&#233;ries</label>
-                                      <input type="number" min="1" id="we_sets_${ex.id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
-                                    </div>
-                                    <div class="exercise-field">
-                                      <label for="we_reps_${ex.id}">Repeti&#231;&#245;es</label>
-                                      <input type="number" min="1" id="we_reps_${ex.id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
-                                    </div>
-                                    <div class="exercise-field">
-                                      <label for="we_weight_${ex.id}">Peso (kg)</label>
-                                      <input type="number" min="0" step="0.1" id="we_weight_${ex.id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
-                                    </div>
-                                    <div class="exercise-field">
-                                      <label for="we_rest_${ex.id}">Descanso (s)</label>
-                                      <input type="number" min="0" step="1" id="we_rest_${ex.id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" />
-                                    </div>
-                                  </div>
-                                  <div class="exercise-actions">
-                                    <button class="btn btn-primary" onclick="salvarExercicioTreino(${JSON.stringify(workout.id)},${JSON.stringify(ex.id)})">Salvar</button>
-                                    <button class="btn btn-danger" onclick="excluirExercicioTreino(${JSON.stringify(workout.id)},${JSON.stringify(ex.id)})">Excluir</button>
-                                  </div>
+                                   <div class="exercise-fields-grid">
+                                     <div class="exercise-field">
+                                       <label for="we_sets_${ex.id}">S&#233;ries</label>
+                                       <input type="number" min="1" id="we_sets_${ex.id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+                                     </div>
+                                     <div class="exercise-field">
+                                       <label for="we_reps_${ex.id}">Repeti&#231;&#245;es</label>
+                                       <input type="number" min="1" id="we_reps_${ex.id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
+                                     </div>
+                                     <div class="exercise-field">
+                                       <label for="we_weight_${ex.id}">Peso (kg)</label>
+                                       <input type="number" min="0" step="0.1" id="we_weight_${ex.id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
+                                     </div>
+                                     <div class="exercise-field">
+                                       <label for="we_rest_${ex.id}">Descanso (s)</label>
+                                       <input type="number" min="0" step="1" id="we_rest_${ex.id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" />
+                                     </div>
+                                   </div>
+                                   <div class="form-group" style="margin-top:8px;">
+                                     <label for="we_desc_${ex.id}">Orienta&#231;&#245;es/observa&#231;&#245;es <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                                     <textarea id="we_desc_${ex.id}" rows="2" placeholder="Orientações personalizadas para este exercício neste treino">${escapeHtml(ex.custom_description || "")}</textarea>
+                                   </div>
+                                   <div class="exercise-actions">
+                                     <button class="btn btn-primary" onclick="salvarExercicioTreino(${JSON.stringify(workout.id)},${JSON.stringify(ex.id)})">Salvar</button>
+                                     <button class="btn btn-danger" onclick="excluirExercicioTreino(${JSON.stringify(workout.id)},${JSON.stringify(ex.id)})">Excluir</button>
+                                   </div>
                                 </div>
                               `}).join("")
                             }</div>`;
@@ -1866,7 +1870,7 @@
                       .value,
                   ),
             order_index: Number(
-              document.getElementById(`we_order_${workoutExerciseId}`).value,
+              document.getElementById(`we_order_${workoutExerciseId}`)?.value ?? 0,
             ),
             rest_seconds:
               document.getElementById(`we_rest_${workoutExerciseId}`).value ===
@@ -1876,6 +1880,8 @@
                     document.getElementById(`we_rest_${workoutExerciseId}`)
                       .value,
                   ),
+            custom_description:
+              document.getElementById(`we_desc_${workoutExerciseId}`)?.value?.trim() || null,
           };
 
           const response = await fetch(
@@ -3320,7 +3326,6 @@
       let pegadaPisadaBuscaAtual = "";
       let metodoBuscaAtual = "";
       let grupoMuscularBuscaAtual = "";
-      let observacoesBuscaAtual = "";
 
       let muscleGroupsSelectCache = null;
 
@@ -3375,7 +3380,6 @@
         if (groupSelect) groupSelect.value = "";
         showAlert("exerciciosAlert", "Exercício cadastrado com sucesso.", "success");
         await carregarCatalogoExercicios();
-        await carregarObservacoesExercicios();
       }
 
       async function criarGrupoMuscular() {
@@ -3771,71 +3775,6 @@
         }
       }
 
-      async function carregarObservacoesExercicios() {
-        try {
-          const searchParam = observacoesBuscaAtual
-            ? `?search=${encodeURIComponent(observacoesBuscaAtual)}&limit=80`
-            : "?limit=80";
-          const response = await fetch(
-            `${getApiBaseUrl()}/api/exercise-catalog${searchParam}`,
-            { headers: { Authorization: `Bearer ${authToken}` } },
-          );
-          if (response.status === 401) { handleUnauthorized(); return; }
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-          const exercicios = (await response.json()) || [];
-          const body = document.getElementById("observacoesCatalogBody");
-          if (!body) return;
-          if (!exercicios.length) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhum exercício encontrado.</span></div>';
-            return;
-          }
-          body.innerHTML = exercicios
-            .map((e) => `
-              <div class="catalog-row obs-row" style="flex-direction:column;align-items:stretch;gap:4px;">
-                <div class="catalog-row-title" style="font-size:13px;">${escapeHtml(e.name || "Exercício")}</div>
-                <div style="display:flex;gap:6px;align-items:center;">
-                  <input
-                    type="text"
-                    id="obs_input_${escapeHtml(e.id)}"
-                    value="${escapeHtml(e.notes || "")}"
-                    placeholder="Observações..."
-                    style="flex:1;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;"
-                  />
-                  <button class="btn btn-primary" style="padding:6px 10px;font-size:12px;"
-                    onclick="salvarObservacaoExercicio('${escapeHtml(e.id)}')">Salvar</button>
-                </div>
-              </div>`)
-            .join("");
-        } catch (error) {
-          const body = document.getElementById("observacoesCatalogBody");
-          if (body) body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar observações.</span></div>';
-        }
-      }
-
-      async function salvarObservacaoExercicio(exercicioId) {
-        const input = document.getElementById(`obs_input_${exercicioId}`);
-        if (!input) return;
-        const notes = input.value.trim() || null;
-
-        try {
-          const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog/${exercicioId}/notes`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({ notes }),
-          });
-
-          const payload = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(payload.message || "Erro ao salvar observação");
-          showAlert("exerciciosAlert", "Observação salva.", "success");
-        } catch (error) {
-          showAlert("exerciciosAlert", error?.message || "Erro ao salvar observação", "error");
-        }
-      }
-
       async function excluirGrupoMuscular(id, nome) {
         if (!confirm(`Deseja excluir o grupo muscular "${nome}"?`)) return;
         try {
@@ -4061,7 +4000,6 @@
           carregarVariacoesExercicios(),
           carregarPegadasPisadasExercicios(),
           carregarMetodosExercicios(),
-          carregarObservacoesExercicios(),
           preencherSelectNovoCatalogoGrupoMuscular(),
         ]);
       }
@@ -4070,12 +4008,6 @@
         grupoMuscularBuscaAtual = (valor || "").trim();
         if (exerciciosFiltroTimeout) clearTimeout(exerciciosFiltroTimeout);
         exerciciosFiltroTimeout = setTimeout(() => carregarGruposMuscularesExercicios(), 250);
-      }
-
-      function filtrarExerciciosObservacoes(valor) {
-        observacoesBuscaAtual = (valor || "").trim();
-        if (exerciciosFiltroTimeout) clearTimeout(exerciciosFiltroTimeout);
-        exerciciosFiltroTimeout = setTimeout(() => carregarObservacoesExercicios(), 250);
       }
 
       function filtrarCatalogoExercicios(valor) {
@@ -4472,7 +4404,7 @@
 
           <div id="exmeta_wrapper_${index}" style="display:block;">
             <div class="form-group">
-              <label>Descrição para o aluno <small style="font-weight:400;color:#6b7280;">(editável)</small></label>
+              <label>Orienta&#231;&#245;es/observa&#231;&#245;es <small style="font-weight:400;color:#6b7280;">(edit&#225;vel)</small></label>
               <textarea id="exdesc_${index}" rows="2" placeholder="Carregando..."></textarea>
               <small id="exdesc_mg_${index}" style="color:#6b7280;font-size:12px;display:block;margin-top:2px;"></small>
             </div>
@@ -5167,8 +5099,8 @@
                                     </div>
                                   </div>
                                   <div class="form-group" style="margin-top:8px;">
-                                    <label>Descri&#231;&#227;o personalizada para este treino (opcional)</label>
-                                    <textarea id="tw_desc_${ex.workout_exercise_id}" rows="2" placeholder="Se vazio, usa a descri&#231;&#227;o padr&#227;o">${escapeHtml(ex.custom_description || "")}</textarea>
+                                     <label>Orienta&#231;&#245;es/observa&#231;&#245;es</label>
+                                     <textarea id="tw_desc_${ex.workout_exercise_id}" rows="2" placeholder="Se vazio, usa a descri&#231;&#227;o padr&#227;o">${escapeHtml(ex.custom_description || "")}</textarea>
                                   </div>
                                   <div class="exercise-actions">
                                     <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba(${JSON.stringify(treino.id)},${JSON.stringify(ex.workout_exercise_id)})">Salvar exerc&#237;cio</button>
@@ -5254,8 +5186,8 @@
                           </div>
 
                           <div id="tab_meta_wrapper_${treino.id}" class="form-group full" style="display:block; margin-bottom:0;">
-                            <label>Descrição para o aluno <small style="font-weight:400;color:#6b7280;">(editável)</small></label>
-                            <textarea id="tab_desc_${treino.id}" rows="2" placeholder="Descrição gerada pela IA..."></textarea>
+                            <label>Orienta&#231;&#245;es/observa&#231;&#245;es <small style="font-weight:400;color:#6b7280;">(edit&#225;vel)</small></label>
+                            <textarea id="tab_desc_${treino.id}" rows="2" placeholder="Orienta&#231;&#245;es geradas pela IA..."></textarea>
                             <small id="tab_mg_${treino.id}" style="color:#6b7280;font-size:12px;"></small>
                           </div>
 
@@ -6004,9 +5936,65 @@
             "Exercício adicionado ao treino",
             "success",
           );
-          await carregarTreinosAluno();
-          if (currentEditingStudentId) {
-            await carregarDetalhesAlunoEditor(currentEditingStudentId);
+
+          // Injetar o novo exercício diretamente no DOM do accordion aberto,
+          // sem recarregar toda a lista (o que fecharia o accordion).
+          const listContainer = document.getElementById(`tw_list_${workoutId}`);
+          if (listContainer) {
+            // Remover mensagem "sem exercícios" se existir
+            const emptyMsg = listContainer.querySelector("p");
+            if (emptyMsg) emptyMsg.remove();
+
+            // Buscar os dados do último exercício adicionado para montar o HTML
+            const weRes = await fetch(`${getApiBaseUrl()}/api/workouts/${workoutId}/exercises`, {
+              headers: { Authorization: `Bearer ${authToken}` },
+            });
+            if (weRes.ok) {
+              const exercises = await weRes.json();
+              const newest = [...exercises].sort((a, b) => (b.order_index ?? 0) - (a.order_index ?? 0))[0];
+              if (newest) {
+                const weId = newest.workout_exercise_id;
+                const newRow = document.createElement("div");
+                newRow.className = "exercise-row";
+                newRow.draggable = true;
+                newRow.setAttribute("data-we-id", weId);
+                newRow.setAttribute("data-workout-id", workoutId);
+                newRow.setAttribute("data-order", String(newest.order_index ?? 0));
+                newRow.innerHTML = `
+                  <p class="exercise-title"><span class="drag-handle" title="Arrastar para reordenar">&#9776;</span>&#127947; ${escapeHtml(newest.name || "Exercício")}</p>
+                  <p style="margin:4px 0; font-size:12px; color:#6b7280;">Descrição padrão: ${escapeHtml(newest.description_default || newest.description || "-")}</p>
+                  <div class="exercise-fields-grid">
+                    <div class="exercise-field">
+                      <label>Séries</label>
+                      <input type="number" min="1" id="tw_sets_${weId}" value="${escapeHtml(String(newest.target_sets || ""))}" />
+                    </div>
+                    <div class="exercise-field">
+                      <label>Repetições</label>
+                      <input type="number" min="1" id="tw_reps_${weId}" value="${escapeHtml(String(newest.target_reps || ""))}" />
+                    </div>
+                    <div class="exercise-field">
+                      <label>Peso (kg)</label>
+                      <input type="number" min="0" step="0.1" id="tw_weight_${weId}" value="${escapeHtml(newest.target_weight == null ? "" : String(newest.target_weight))}" />
+                    </div>
+                    <input type="hidden" id="tw_order_${weId}" value="${escapeHtml(String(newest.order_index || 0))}" />
+                    <div class="exercise-field">
+                      <label>Descanso (s)</label>
+                      <input type="number" min="0" max="3600" step="5" id="tw_rest_${weId}" value="${escapeHtml(newest.rest_seconds == null ? "" : String(newest.rest_seconds))}" placeholder="Ex: 60" />
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin-top:8px;">
+                    <label>Orientações/observações</label>
+                    <textarea id="tw_desc_${weId}" rows="2" placeholder="Se vazio, usa a descrição padrão">${escapeHtml(newest.custom_description || "")}</textarea>
+                  </div>
+                  <div class="exercise-actions">
+                    <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba(${JSON.stringify(workoutId)},${JSON.stringify(weId)})">Salvar exercício</button>
+                    <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba(${JSON.stringify(workoutId)},${JSON.stringify(weId)})">Excluir exercício</button>
+                  </div>`;
+                listContainer.appendChild(newRow);
+                // Reinicializar drag-and-drop para o novo item
+                setTimeout(() => initDndList(`tw_list_${workoutId}`), 0);
+              }
+            }
           }
         } catch (error) {
           showAlert(
