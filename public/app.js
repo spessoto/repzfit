@@ -1477,6 +1477,7 @@
                                        <input type="number" min="0" step="1" id="we_rest_${ex.id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" />
                                      </div>
                                    </div>
+                                   <input type="hidden" id="we_order_${ex.id}" value="${escapeHtml(String(ex.order_index ?? 0))}" />
                                    <div class="form-group" style="margin-top:8px;">
                                      <label for="we_desc_${ex.id}">Orienta&#231;&#245;es/observa&#231;&#245;es <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
                                      <textarea id="we_desc_${ex.id}" rows="2" placeholder="Orientações personalizadas para este exercício neste treino">${escapeHtml(ex.custom_description || "")}</textarea>
@@ -5242,10 +5243,11 @@
 
       async function salvarTreinoNaAba(workoutId) {
         try {
+          const nome = document
+            .getElementById(`tab_w_name_${workoutId}`)
+            .value.trim();
           const payload = {
-            name: document
-              .getElementById(`tab_w_name_${workoutId}`)
-              .value.trim(),
+            name: nome,
             start_date:
               document.getElementById(`tab_w_start_${workoutId}`).value || null,
           };
@@ -5267,11 +5269,13 @@
             throw new Error(err.message || "Erro ao salvar treino");
           }
 
+          // Atualizar o título no summary do accordion sem recarregar tudo
+          const titleEl = document.querySelector(
+            `#tw_list_${workoutId}`)?.closest(".workout-accordion")?.querySelector(".workout-summary-title");
+          if (titleEl && nome) titleEl.textContent = nome;
+
           showAlert("treinosAlert", "Treino atualizado", "success");
-          if (currentEditingStudentId) {
-            await carregarDetalhesAlunoEditor(currentEditingStudentId);
-          }
-          await carregarTreinosAluno();
+          invalidateTab("treinos"); // próxima navegação forçará recarga
         } catch (error) {
           showAlert(
             "treinosAlert",
@@ -5334,7 +5338,7 @@
                       .value,
                   ),
             order_index: Number(
-              document.getElementById(`tw_order_${workoutExerciseId}`).value,
+              document.getElementById(`tw_order_${workoutExerciseId}`)?.value ?? 0,
             ),
             rest_seconds:
               document.getElementById(`tw_rest_${workoutExerciseId}`).value ===
@@ -5366,11 +5370,9 @@
             throw new Error(err.message || "Erro ao salvar exercício");
           }
 
+          // Não recarrega a lista inteira (mantém o accordion aberto)
           showAlert("treinosAlert", "Exercício atualizado", "success");
-          await carregarTreinosAluno();
-          if (currentEditingStudentId) {
-            await carregarDetalhesAlunoEditor(currentEditingStudentId);
-          }
+          invalidateTab("treinos"); // próxima navegação forçará recarga
         } catch (error) {
           showAlert(
             "treinosAlert",
@@ -5401,11 +5403,14 @@
             throw new Error(err.message || "Erro ao excluir exercício");
           }
 
+          // Remover o row do DOM diretamente (mantém accordion aberto)
+          const row = document.querySelector(
+            `[data-we-id="${workoutExerciseId}"][data-workout-id="${workoutId}"]`,
+          );
+          if (row) row.remove();
+
           showAlert("treinosAlert", "Exercício removido", "success");
-          await carregarTreinosAluno();
-          if (currentEditingStudentId) {
-            await carregarDetalhesAlunoEditor(currentEditingStudentId);
-          }
+          invalidateTab("treinos");
         } catch (error) {
           showAlert(
             "treinosAlert",

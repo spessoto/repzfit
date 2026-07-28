@@ -3643,10 +3643,12 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .select(
         "id,name,day_of_week,start_date,created_at," +
         "student_workouts(student_id,students(name))," +
-        "workout_exercises(id,workout_exercise_id:id,name:exercise_catalog(name),order_index," +
+        "workout_exercises(id,order_index," +
           "target_sets,target_reps,target_weight,rest_seconds,custom_description," +
           "exercise_catalog_id,exercise_variation_id,exercise_id," +
-          "exercise_variations(name),exercises(id,name,description))",
+          "exercise_catalog(name)," +
+          "exercise_variations(name)," +
+          "exercises(id,name,description))",
       )
       .order("created_at", { ascending: false });
 

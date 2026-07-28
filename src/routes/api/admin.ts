@@ -255,7 +255,8 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
         id: authUserData.user.id,
         name: input.name,
         email: input.email,
-        phone: normalizedWhatsapp,
+        phone: encrypt(normalizedWhatsapp),
+        phone_hash: hmacHash(normalizedWhatsapp),
         signup_source: input.source || null,
       })
       .select("id,name,email,phone,evolution_instance_name,created_at")
@@ -277,7 +278,7 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
 
     return {
       message: "Cadastro realizado com sucesso",
-      personal: data,
+      personal: normalizeAdminPersonalRow(data),
     };
   });
 
@@ -390,7 +391,7 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.badRequest(error.message);
     }
 
-    return data ?? [];
+    return (data ?? []).map(normalizeAdminPersonalRow);
   });
 
   app.post("/admin/personals", async (request) => {
@@ -445,7 +446,7 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.badRequest(error.message);
     }
 
-    return data;
+    return normalizeAdminPersonalRow(data);
   });
 
   app.patch("/admin/personals/:id", async (request) => {
@@ -522,7 +523,7 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.notFound("Personal not found");
     }
 
-    return data;
+    return normalizeAdminPersonalRow(data);
   });
 
   app.delete("/admin/personals/:id", async (request) => {
@@ -696,6 +697,15 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       },
     };
   });
+
+  // Helper: descriptografar campos de personal retornados ao frontend (admin/público)
+  function normalizeAdminPersonalRow(row: any) {
+    if (!row) return row;
+    return {
+      ...row,
+      phone: decrypt(row.phone) ?? row.phone ?? null,
+    };
+  }
 
   // Helper: descriptografar campos de aluno retornados ao frontend (admin)
   function normalizeAdminStudentRow(row: any) {
