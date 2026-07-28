@@ -1483,8 +1483,8 @@
                                      <textarea id="we_desc_${ex.id}" rows="2" placeholder="Orientações personalizadas para este exercício neste treino">${escapeHtml(ex.custom_description || "")}</textarea>
                                    </div>
                                    <div class="exercise-actions">
-                                     <button class="btn btn-primary" onclick="salvarExercicioTreino(${JSON.stringify(workout.id)},${JSON.stringify(ex.id)})">Salvar</button>
-                                     <button class="btn btn-danger" onclick="excluirExercicioTreino(${JSON.stringify(workout.id)},${JSON.stringify(ex.id)})">Excluir</button>
+                                     <button class="btn btn-primary" onclick="salvarExercicioTreino('${workout.id}','${ex.id}')">Salvar</button>
+                                     <button class="btn btn-danger" onclick="excluirExercicioTreino('${workout.id}','${ex.id}')">Excluir</button>
                                    </div>
                                 </div>
                               `}).join("")
@@ -5134,10 +5134,10 @@
                                    <label>Orienta&#231;&#245;es/observa&#231;&#245;es</label>
                                    <textarea id="tw_desc_${ex.workout_exercise_id}" rows="2" placeholder="Se vazio, usa a descri&#231;&#227;o padr&#227;o">${escapeHtml(ex.custom_description || "")}</textarea>
                                 </div>
-                                <div class="exercise-actions">
-                                  <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba(${JSON.stringify(treino.id)},${JSON.stringify(ex.workout_exercise_id)})">Salvar exerc&#237;cio</button>
-                                  <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba(${JSON.stringify(treino.id)},${JSON.stringify(ex.workout_exercise_id)})">Excluir exerc&#237;cio</button>
-                                </div>
+                                 <div class="exercise-actions">
+                                   <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Salvar exerc&#237;cio</button>
+                                   <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Excluir exerc&#237;cio</button>
+                                 </div>
                               </div>
                               `).join("")
                             }</div>`;
@@ -6038,8 +6038,8 @@
                     <textarea id="tw_desc_${weId}" rows="2" placeholder="Se vazio, usa a descrição padrão">${escapeHtml(newest.custom_description || "")}</textarea>
                   </div>
                   <div class="exercise-actions">
-                    <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba(${JSON.stringify(workoutId)},${JSON.stringify(weId)})">Salvar exercício</button>
-                    <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba(${JSON.stringify(workoutId)},${JSON.stringify(weId)})">Excluir exercício</button>
+                    <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${workoutId}','${weId}')">Salvar exercício</button>
+                    <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba('${workoutId}','${weId}')">Excluir exercício</button>
                   </div>`;
                 listContainer.appendChild(newRow);
                 // Reinicializar drag-and-drop para o novo item

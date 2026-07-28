@@ -1,4 +1,4 @@
-ï»¿<!doctype html>
+<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/app.css?v=202607281416" />
+    <link rel="stylesheet" href="/app.css?v=202607281423" />
   </head>
   <body>
     <!-- Login Screen -->
@@ -100,7 +100,7 @@
               onclick="navigatePersonalPage('exercicios')"
             >
               <span class="tab-icon" aria-hidden="true">&#127947;</span>
-              <span class="tab-label">ExercÃ­cios</span>
+              <span class="tab-label">Exercícios</span>
             </button>
             <button
               id="treinosTabButton"
@@ -116,7 +116,7 @@
               onclick="navigatePersonalPage('configuracoes')"
             >
               <span class="tab-icon" aria-hidden="true">&#9881;</span>
-              <span class="tab-label">ConfiguraÃ§Ãµes</span>
+              <span class="tab-label">Configurações</span>
             </button>
             <button
               id="adminTabButton"
@@ -124,7 +124,7 @@
               onclick="switchTab('admin')"
             >
               <span class="tab-icon" aria-hidden="true">&#128100;</span>
-              <span class="tab-label">UsuÃ¡rios</span>
+              <span class="tab-label">Usuários</span>
             </button>
             <button
               id="adminSettingsTabButton"
@@ -132,7 +132,7 @@
               onclick="switchTab('adminSettings')"
             >
               <span class="tab-icon" aria-hidden="true">&#9881;</span>
-              <span class="tab-label">ConfiguraÃ§Ãµes</span>
+              <span class="tab-label">Configurações</span>
             </button>
             <button
               id="adminLogsTabButton"
@@ -205,7 +205,7 @@
                     <th>Nome</th>
                     <th>WhatsApp</th>
                     <th>Status</th>
-                    <th>AÃ§Ãµes</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody id="alunosBody">
@@ -229,7 +229,7 @@
               </p>
               <div class="finance-metrics" id="financeiroMetrics">
                 <div class="finance-metric-card">
-                  <span class="finance-metric-label">Quanto ganhou no mÃªs</span>
+                  <span class="finance-metric-label">Quanto ganhou no mês</span>
                   <strong id="financeMetricEarned">R$ 0,00</strong>
                 </div>
                 <div class="finance-metric-card">
@@ -241,7 +241,7 @@
                   <strong id="financeMetricPending">0</strong>
                 </div>
                 <div class="finance-metric-card">
-                  <span class="finance-metric-label">PrÃ³ximos do vencimento</span>
+                  <span class="finance-metric-label">Próximos do vencimento</span>
                   <strong id="financeMetricUpcoming">0</strong>
                 </div>
               </div>
@@ -254,7 +254,7 @@
                   <div id="financeiroOverdueList"></div>
                 </div>
                 <div>
-                  <h3 style="margin-bottom:10px; color:#1f2937;">Alunos prÃ³ximos ao vencimento</h3>
+                  <h3 style="margin-bottom:10px; color:#1f2937;">Alunos próximos ao vencimento</h3>
                   <div id="financeiroUpcomingList"></div>
                 </div>
               </div>
@@ -280,7 +280,7 @@
                 </button>
               </div>
               <p style="color: #6b7280; margin-top: 8px">
-                PÃ¡gina dedicada para visualizar e editar dados, treinos e sessÃµes do aluno.
+                Página dedicada para visualizar e editar dados, treinos e sessões do aluno.
               </p>
             </div>
 
@@ -349,9 +349,9 @@
             <div class="card" style="margin-bottom: 16px">
               <div class="student-editor-two-columns">
                 <div class="student-editor-column-card">
-                  <h4 style="margin-bottom:10px; color:#374151;">Controle de pagamentos (mÃªs/ano)</h4>
+                  <h4 style="margin-bottom:10px; color:#374151;">Controle de pagamentos (mês/ano)</h4>
                   <div id="studentEditorPaymentsHistory">
-                    <p style="color:#6b7280;">Carregando histÃ³rico de pagamentos...</p>
+                    <p style="color:#6b7280;">Carregando histórico de pagamentos...</p>
                   </div>
                 </div>
 
@@ -381,7 +381,7 @@
                   class="student-insights-tab"
                   onclick="openStudentInsightsTab('report')"
                 >
-                  RelatÃ³rio do Aluno
+                  Relatório do Aluno
                 </button>
               </div>
 
@@ -392,16 +392,16 @@
 
               <div id="studentInsightsReportPanel" class="student-insights-panel">
                 <div id="studentEditorReport">
-                  <p style="color:#6b7280;">Selecione a aba de relatÃ³rio para carregar os dados.</p>
+                  <p style="color:#6b7280;">Selecione a aba de relatório para carregar os dados.</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- ExercÃ­cios Tab -->
+          <!-- Exercícios Tab -->
           <div id="exerciciosTab" class="tab-content">
             <div class="card">
-              <h2>GestÃ£o da Biblioteca</h2>
+              <h2>Gestão da Biblioteca</h2>
               <div id="exerciciosAlert"></div>
 
               <div class="catalog-manager-grid">
@@ -430,11 +430,11 @@
                   </div>
                 </div>
 
-                <!-- 2. ExercÃ­cio -->
+                <!-- 2. Exercício -->
                 <div class="catalog-panel">
-                  <h3>ExercÃ­cio</h3>
+                  <h3>Exercício</h3>
                   <div class="form-group">
-                    <label>Nome do exercÃ­cio</label>
+                    <label>Nome do exercício</label>
                     <input type="text" id="novoCatalogoNome" placeholder="Ex: Supino Reto" />
                   </div>
                   <div class="form-group">
@@ -475,7 +475,7 @@
                     <input
                       type="text"
                       id="catalogoBuscaExercicios"
-                      placeholder="Buscar exercÃ­cio"
+                      placeholder="Buscar exercício"
                       oninput="filtrarCatalogoExercicios(this.value)"
                     />
                   </div>
@@ -508,11 +508,11 @@
                   </div>
                 </div>
 
-                <!-- 4. ExecuÃ§Ã£o -->
+                <!-- 4. Execução -->
                 <div class="catalog-panel">
-                  <h3>ExecuÃ§Ã£o</h3>
+                  <h3>Execução</h3>
                   <div class="form-group">
-                    <label>Nova execuÃ§Ã£o</label>
+                    <label>Nova execução</label>
                     <input type="text" id="novaVariacaoNome" placeholder="Ex: Bilateral, Unilateral" />
                   </div>
                   <button class="btn btn-primary" onclick="criarVariacaoExercicio()">
@@ -523,7 +523,7 @@
                     <input
                       type="text"
                       id="variacoesBuscaExercicios"
-                      placeholder="Buscar execuÃ§Ã£o"
+                      placeholder="Buscar execução"
                       oninput="filtrarVariacoesExercicios(this.value)"
                     />
                   </div>
@@ -556,11 +556,11 @@
                   </div>
                 </div>
 
-                <!-- 6. MÃ©todo -->
+                <!-- 6. Método -->
                 <div class="catalog-panel">
-                  <h3>MÃ©todo</h3>
+                  <h3>Método</h3>
                   <div class="form-group">
-                    <label>Novo mÃ©todo</label>
+                    <label>Novo método</label>
                     <input type="text" id="novoMetodoNome" placeholder="Ex: Drop set, Bi-set, Rest-pause" />
                   </div>
                   <button class="btn btn-primary" onclick="criarMetodoCatalogo()">
@@ -571,7 +571,7 @@
                     <input
                       type="text"
                       id="metodosBuscaExercicios"
-                      placeholder="Buscar mÃ©todo"
+                      placeholder="Buscar método"
                       oninput="filtrarMetodosExercicios(this.value)"
                     />
                   </div>
@@ -595,24 +595,24 @@
                 <input
                   type="text"
                   id="treinoNome"
-                  placeholder="Ex: Treino A - Peito e TrÃ­ceps"
+                  placeholder="Ex: Treino A - Peito e Tríceps"
                   required
                 />
               </div>
 
               <div style="display: grid; grid-template-columns: 1fr; gap: 15px">
                 <div class="form-group">
-                  <label>Data de InÃ­cio (opcional)</label>
+                  <label>Data de Início (opcional)</label>
                   <input type="date" id="treinoDataInicio" />
                 </div>
               </div>
 
               <h3 style="margin-top: 25px; margin-bottom: 15px; color: #374151">
-                ExercÃ­cios do Treino
+                Exercícios do Treino
               </h3>
 
               <div id="exerciciosContainer">
-                <!-- ExercÃ­cios serÃ£o adicionados aqui -->
+                <!-- Exercícios serão adicionados aqui -->
               </div>
 
               <button
@@ -620,7 +620,7 @@
                 onclick="adicionarExercicioAoTreino()"
                 style="margin-bottom: 20px"
               >
-                + Adicionar ExercÃ­cio
+                + Adicionar Exercício
               </button>
 
               <div style="display: flex; gap: 10px">
@@ -639,8 +639,8 @@
             <div class="card">
               <h2>Treinos Cadastrados</h2>
               <p style="color: #6b7280; margin-bottom: 15px">
-                Edite, exclua e visualize os treinos criados (atribuÃ­dos ou
-                nÃ£o).
+                Edite, exclua e visualize os treinos criados (atribuídos ou
+                não).
               </p>
               <button
                 class="btn btn-secondary"
@@ -653,12 +653,12 @@
           </div>
 
 
-          <!-- ConfiguraÃ§Ãµes Tab -->
+          <!-- Configurações Tab -->
           <div id="configuracoesTab" class="tab-content">
             <div class="card">
-              <h2>ConfiguraÃ§Ãµes</h2>
+              <h2>Configurações</h2>
 
-              <!-- InformaÃ§Ãµes do Personal -->
+              <!-- Informações do Personal -->
               <div
                 style="
                   background: #f9fafb;
@@ -668,7 +668,7 @@
                 "
               >
                 <h3 style="color: #374151; margin-bottom: 10px">
-                  ?InformaÃ§Ãµes da Conta
+                  ?Informações da Conta
                 </h3>
                 <p style="color: #6b7280; margin: 5px 0">
                   <strong>Nome:</strong> <span id="configNome">-</span>
@@ -718,7 +718,7 @@
                   <input
                     type="password"
                     id="adminPersonalSenha"
-                    placeholder="MÃ­nimo 6 caracteres"
+                    placeholder="Mínimo 6 caracteres"
                   />
                 </div>
               </div>
@@ -732,7 +732,7 @@
                 Personals Cadastrados
               </h3>
               <p style="color: #6b7280; margin-bottom: 14px; font-size: 14px">
-                Visualize rapidamente os dados principais e use as aÃ§Ãµes ao lado
+                Visualize rapidamente os dados principais e use as ações ao lado
                 para gerenciar cada personal.
               </p>
               <div id="adminPersonalsBody">
@@ -745,9 +745,9 @@
 
           <div id="adminSettingsTab" class="tab-content">
             <div class="card">
-              <h2>ConfiguraÃ§Ãµes de Embed</h2>
+              <h2>Configurações de Embed</h2>
               <p style="color: #6b7280; margin-bottom: 14px">
-                Gere o cÃ³digo para incorporar o formulÃ¡rio de cadastro de
+                Gere o código para incorporar o formulário de cadastro de
                 personal trainer em landing pages externas.
               </p>
 
@@ -763,7 +763,7 @@
                 "
               >
                 <h3 style="margin-bottom: 8px; color: #1f2937">
-                  ConexÃ£o WhatsApp do Bot Unificado
+                  Conexão WhatsApp do Bot Unificado
                 </h3>
                 <div id="adminWhatsappStatus" style="font-size: 16px">
                   Verificando...
@@ -786,7 +786,7 @@
               </div>
 
               <div class="form-group">
-                <label>Identificador da origem do formulÃ¡rio</label>
+                <label>Identificador da origem do formulário</label>
                 <input
                   type="text"
                   id="adminEmbedSource"
@@ -794,13 +794,13 @@
                   oninput="generateAdminEmbedCode()"
                 />
                 <small style="color: #6b7280; font-size: 12px"
-                  >Use um identificador Ãºnico para descobrir de qual landing
+                  >Use um identificador único para descobrir de qual landing
                   veio cada cadastro.</small
                 >
               </div>
 
               <div class="form-group">
-                <label>URL de redirecionamento da recuperaÃ§Ã£o de senha</label>
+                <label>URL de redirecionamento da recuperação de senha</label>
                 <input
                   type="url"
                   id="adminRecoveryRedirectUrl"
@@ -814,7 +814,7 @@
               </div>
 
               <div class="form-group">
-                <label>CÃ³digo para embeddar</label>
+                <label>Código para embeddar</label>
                 <textarea
                   id="adminEmbedCode"
                   readonly
@@ -828,10 +828,10 @@
                   class="btn btn-secondary"
                   onclick="generateAdminEmbedCode()"
                 >
-                  Atualizar cÃ³digo
+                  Atualizar código
                 </button>
                 <button class="btn btn-primary" onclick="copyAdminEmbedCode()">
-                  Copiar cÃ³digo (1 clique)
+                  Copiar código (1 clique)
                 </button>
               </div>
 
@@ -844,23 +844,23 @@
                 "
               >
                 <h3 style="margin-bottom: 8px; color: #1f2937">
-                  Onde serÃ¡ usado
+                  Onde será usado
                 </h3>
                 <p style="color: #6b7280; margin-bottom: 8px">
-                  URL atual sugerida para publicaÃ§Ã£o:
+                  URL atual sugerida para publicação:
                 </p>
                 <p style="font-weight: 600; color: #111827" id="adminEmbedHost">
                   -
                 </p>
                 <p style="color: #6b7280; margin-top: 8px; font-size: 13px">
-                  O valor de origem informado acima Ã© enviado no cadastro para
-                  identificar em qual landing page o formulÃ¡rio foi usado.
+                  O valor de origem informado acima é enviado no cadastro para
+                  identificar em qual landing page o formulário foi usado.
                 </p>
               </div>
             </div>
 
             <div class="card">
-              <h2>RelatÃ³rio de Cadastros por Origem</h2>
+              <h2>Relatório de Cadastros por Origem</h2>
               <p style="color: #6b7280; margin-bottom: 12px">
                 Veja de onde os cadastros de personal vieram para medir
                 performance das landing pages.
@@ -870,7 +870,7 @@
 
               <div style="display: flex; gap: 10px; align-items: end">
                 <div class="form-group" style="margin: 0; max-width: 180px">
-                  <label>PerÃ­odo (dias)</label>
+                  <label>Período (dias)</label>
                   <input
                     type="number"
                     min="1"
@@ -883,12 +883,12 @@
                   class="btn btn-secondary"
                   onclick="carregarRelatorioOrigensAdmin()"
                 >
-                  Atualizar relatÃ³rio
+                  Atualizar relatório
                 </button>
               </div>
 
               <p style="margin-top: 12px; color: #111827; font-weight: 600">
-                Total no perÃ­odo: <span id="adminSourceTotalSignups">-</span>
+                Total no período: <span id="adminSourceTotalSignups">-</span>
               </p>
 
               <table>
@@ -913,8 +913,8 @@
             <div class="card">
               <h2>Logs do Sistema</h2>
               <p style="color: #6b7280; margin-bottom: 12px">
-                Monitore eventos fora do padrÃ£o no BOT para investigaÃ§Ã£o e
-                correÃ§Ã£o.
+                Monitore eventos fora do padrão no BOT para investigação e
+                correção.
               </p>
 
               <div id="adminLogsAlert"></div>
@@ -938,7 +938,7 @@
                   />
                 </div>
                 <div class="form-group">
-                  <label>CÃ³digo</label>
+                  <label>Código</label>
                   <input
                     type="text"
                     id="adminLogsCode"
@@ -954,7 +954,7 @@
                   />
                 </div>
                 <div class="form-group">
-                  <label>Registros por pÃ¡gina</label>
+                  <label>Registros por página</label>
                   <select id="adminLogsLimit">
                     <option value="20">20</option>
                     <option value="50" selected>50</option>
@@ -988,7 +988,7 @@
                     <th>Data/Hora</th>
                     <th>Severidade</th>
                     <th>Categoria</th>
-                    <th>CÃ³digo</th>
+                    <th>Código</th>
                     <th>Mensagem</th>
                     <th>Estado</th>
                     <th>WhatsApp</th>
@@ -1013,10 +1013,10 @@
                   &#8592; Anterior
                 </button>
                 <span id="adminLogsPageInfo" style="color: #6b7280; font-weight: 500">
-                  PÃ¡gina 1 de 1
+                  Página 1 de 1
                 </span>
                 <button class="btn btn-secondary" onclick="adminLogsNextPage()" id="adminLogsNextBtn" disabled>
-                  PrÃ³xima &#8594;
+                  Próxima &#8594;
                 </button>
               </div>
             </div>
@@ -1079,7 +1079,7 @@
             Cancelar
           </button>
           <button class="btn btn-primary" onclick="salvarPerfilPersonal()">
-            Salvar alteraÃ§Ãµes
+            Salvar alterações
           </button>
         </div>
       </div>
@@ -1160,9 +1160,9 @@
 
         <div class="editor-grid">
           <div class="form-group">
-            <label>Tipo SanguÃ­neo</label>
+            <label>Tipo Sanguíneo</label>
             <select id="adminEditAlunoTipoSanguineo">
-              <option value="">NÃ£o informado</option>
+              <option value="">Não informado</option>
               <option value="O+">O+</option>
               <option value="O-">O-</option>
               <option value="A+">A+</option>
@@ -1203,7 +1203,7 @@
             Cancelar
           </button>
           <button class="btn btn-primary" onclick="salvarAlunoAdminEdicao()">
-            Salvar alteraÃ§Ãµes
+            Salvar alterações
           </button>
         </div>
       </div>
@@ -1275,13 +1275,13 @@
             Cancelar
           </button>
           <button class="btn btn-primary" onclick="salvarPersonalAdmin()">
-            Salvar alteraÃ§Ãµes
+            Salvar alterações
           </button>
         </div>
       </div>
     </div>
 
-    <script defer src="/app.js?v=202607281416"></script>
+    <script defer src="/app.js?v=202607281423"></script>
     <script>
       window.si =
         window.si ||
