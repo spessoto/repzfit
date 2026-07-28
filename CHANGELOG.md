@@ -6,7 +6,7 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ### Corrigido
 - **Bug crítico**: `processExpiredRestTimers()` não incluía `current_state` na cláusula `.select()` do Supabase. O campo retornava `undefined` para todos os registros, fazendo o `if (state.current_state === "RESTING")` nunca ser verdadeiro — o bot encontrava os timers expirados mas nunca enviava a mensagem de fim de descanso, apenas limpava `rest_end_at` silenciosamente.
-- **Bug crítico**: o endpoint `/api/internal/rest-timer/poll` não estava registrado nos crons do Vercel (`vercel.json`). Em produção (serverless), o `setInterval` in-process é desabilitado explicitamente; sem o cron no Vercel, nenhum polling periódico ocorria. Adicionado com frequência de 1 minuto (resolução máxima da Vercel). O pg_cron continua ativo para resolução de 3s.
+- **Bug crítico**: o endpoint `/api/internal/rest-timer/poll` não estava registrado nos crons do Vercel (`vercel.json`). Em produção (serverless), o `setInterval` in-process é desabilitado explicitamente; sem o cron no Vercel, nenhum polling periódico ocorria. O polling é inteiramente coberto pelo pg_cron a cada 3s (já configurado no banco). Nota: o plano Hobby da Vercel não suporta crons com frequência maior que diária; o pg_cron é a solução definitiva para resolução em segundos.
 - **Bug moderado**: o branch `else` de `fireExpiredRest()` (hint desconhecido) redefinia o estado mas não enviava nenhuma mensagem ao aluno, deixando-o sem feedback para continuar o treino. Agora envia "✅ Descanso concluído! Pode continuar com a próxima série. 💪".
 
 ### Melhorado

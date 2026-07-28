@@ -8,10 +8,6 @@
   ],
   "crons": [
     {
-      "path": "/api/internal/rest-timer/poll",
-      "schedule": "* * * * *"
-    },
-    {
       "path": "/api/internal/session-cleanup",
       "schedule": "0 2 * * *"
     }
