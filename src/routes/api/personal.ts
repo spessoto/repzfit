@@ -8,6 +8,13 @@ import { supabaseAdmin } from "../../config/supabase.js";
 import { normalizeBrazilWhatsappNumber } from "../../utils/whatsapp.js";
 import { buildWebhookUrlFromRequest } from "../../utils/request.js";
 import {
+  encrypt,
+  decrypt,
+  encryptNumber,
+  decryptNumber,
+  hmacHash,
+} from "../../utils/encryption.js";
+import {
   generateExerciseDescription,
   normalizeExerciseAIDescription,
 } from "../../services/gemini-service.js";
@@ -336,10 +343,10 @@ function buildCompletedSessionSummaryFromLogs(logs: any[]): string | null {
   exercises.forEach((exercise, index) => {
     lines.push(`*${index + 1}. ${exercise.name}*`);
     for (const setLog of exercise.sets) {
-      const repsDone = Number(setLog?.reps_done ?? 0);
-      const weightUsed = Number(setLog?.weight_used ?? 0);
+      const repsDone = decryptNumber(setLog?.reps_done) ?? Number(setLog?.reps_done ?? 0);
+      const weightUsed = decryptNumber(setLog?.weight_used) ?? Number(setLog?.weight_used ?? 0);
       const pseScore =
-        setLog?.rpe_score == null ? "-" : Number(setLog.rpe_score);
+        setLog?.rpe_score == null ? "-" : (decryptNumber(setLog.rpe_score) ?? Number(setLog.rpe_score));
       lines.push(
         `   Série ${setLog?.set_number}: ${repsDone} reps × ${weightUsed}kg | PSE ${pseScore}`,
       );
@@ -399,14 +406,17 @@ function isWhatsappUniqueViolation(error: any): boolean {
 }
 
 function normalizeStudentRow(row: any) {
+  if (!row) return row;
   return {
     ...row,
-    email: row?.email ?? null,
-    blood_type: row?.blood_type ?? null,
-    weight_kg: row?.weight_kg ?? null,
-    height_cm: row?.height_cm ?? null,
-    monthly_fee: row?.monthly_fee ?? null,
-    payment_day: row?.payment_day ?? null,
+    name: decrypt(row?.name) ?? row?.name ?? null,
+    email: decrypt(row?.email) ?? null,
+    whatsapp_number: decrypt(row?.whatsapp_number) ?? row?.whatsapp_number ?? null,
+    blood_type: decrypt(row?.blood_type) ?? null,
+    weight_kg: decryptNumber(row?.weight_kg) ?? null,
+    height_cm: decryptNumber(row?.height_cm) ?? null,
+    monthly_fee: decryptNumber(row?.monthly_fee) ?? null,
+    payment_day: decryptNumber(row?.payment_day) != null ? Math.round(decryptNumber(row?.payment_day)!) : null,
   };
 }
 
@@ -580,10 +590,11 @@ function isMissingPersonalFieldError(error: any): boolean {
 }
 
 function normalizePersonalRow(row: any) {
+  if (!row) return row;
   return {
     ...row,
-    phone: row?.phone ?? null,
-    crf_registration: row?.crf_registration ?? null,
+    phone: decrypt(row?.phone) ?? null,
+    crf_registration: decrypt(row?.crf_registration) ?? null,
   };
 }
 
@@ -1194,7 +1205,12 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
           "WhatsApp inválido. Use no formato 55DDDNUMERO.",
         );
       }
-      payload.phone = normalizedPhone;
+      payload.phone = encrypt(normalizedPhone);
+      payload.phone_hash = hmacHash(normalizedPhone);
+    }
+
+    if (payload.crf_registration != null) {
+      payload.crf_registration = encrypt(payload.crf_registration as string);
     }
 
     if (payload.email) {
@@ -1265,10 +1281,12 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     }
 
     const client = getRlsClient(token);
+    const normalizedWhatsapp = normalizeBrazilWhatsappNumber(parsed.data.whatsapp_number) ?? parsed.data.whatsapp_number;
     const payload = {
       personal_id: personalId,
-      name: parsed.data.name,
-      whatsapp_number: parsed.data.whatsapp_number,
+      name: encrypt(parsed.data.name),
+      whatsapp_number: encrypt(normalizedWhatsapp),
+      whatsapp_hash: hmacHash(normalizedWhatsapp),
       is_active: parsed.data.is_active ?? true,
     };
 
@@ -1337,6 +1355,26 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     if (payload.monthly_fee === "") payload.monthly_fee = null;
     if (payload.payment_day === "") payload.payment_day = null;
 
+    // Preservar valor numérico do peso antes de criptografar (usado no upsert de weight_log abaixo)
+    const weightKgNumeric: number | null =
+      typeof payload.weight_kg === "number" && Number.isFinite(payload.weight_kg) && (payload.weight_kg as number) > 0
+        ? (payload.weight_kg as number)
+        : null;
+
+    // Criptografar campos sensíveis antes de gravar
+    if (payload.name != null) payload.name = encrypt(payload.name as string);
+    if (payload.email != null) payload.email = encrypt(payload.email as string);
+    if (payload.blood_type != null) payload.blood_type = encrypt(payload.blood_type as string);
+    if (payload.height_cm != null) payload.height_cm = encryptNumber(payload.height_cm as number);
+    if (payload.monthly_fee != null) payload.monthly_fee = encryptNumber(payload.monthly_fee as number);
+    if (payload.payment_day != null) payload.payment_day = encryptNumber(payload.payment_day as number);
+    if (payload.weight_kg != null) payload.weight_kg = encryptNumber(payload.weight_kg as number);
+    if (payload.whatsapp_number != null) {
+      const normalizedWa = normalizeBrazilWhatsappNumber(payload.whatsapp_number as string) ?? (payload.whatsapp_number as string);
+      payload.whatsapp_number = encrypt(normalizedWa);
+      payload.whatsapp_hash = hmacHash(normalizedWa);
+    }
+
     if (
       Object.keys(payload).some((k) =>
         [
@@ -1394,11 +1432,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.notFound("Student not found");
     }
 
-    if (
-      typeof payload.weight_kg === "number" &&
-      Number.isFinite(payload.weight_kg) &&
-      Number(payload.weight_kg) > 0
-    ) {
+    if (weightKgNumeric != null) {
       const today = new Date().toISOString().slice(0, 10);
       const { error: weightLogError } = await client
         .from("student_weight_logs")
@@ -1406,7 +1440,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
           {
             student_id: id,
             date: today,
-            weight_kg: Number(payload.weight_kg),
+            weight_kg: encryptNumber(weightKgNumeric),
             source: "manual",
           },
           {
@@ -1565,13 +1599,13 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     let studentsResult: any = await client
       .from("students")
       .select(STUDENTS_SELECT_FULL)
-      .order("name", { ascending: true });
+      .order("created_at", { ascending: false }); // ORDER BY name removed: name is encrypted
 
     if (studentsResult.error && isMissingStudentFieldError(studentsResult.error)) {
       studentsResult = await client
         .from("students")
         .select(STUDENTS_SELECT_BASE)
-        .order("name", { ascending: true });
+        .order("created_at", { ascending: false });
     }
 
     const { data: studentsData, error: studentsError } = studentsResult;
@@ -1579,7 +1613,9 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.badRequest(studentsError.message);
     }
 
-    const students = (studentsData ?? []).map(normalizeStudentRow);
+    const students = (studentsData ?? [])
+      .map(normalizeStudentRow)
+      .sort((a: any, b: any) => String(a.name ?? "").localeCompare(String(b.name ?? ""), "pt-BR"));
     const activeStudents = students.filter((student: any) => student.is_active !== false);
     const billableStudents = activeStudents.filter(
       (student: any) =>
@@ -2003,7 +2039,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       const groupName = exerciseMeta.muscleGroup;
       muscleGroupCount.set(groupName, (muscleGroupCount.get(groupName) ?? 0) + 1);
 
-      const usedWeight = Number(log?.weight_used ?? 0);
+      const usedWeight = decryptNumber(log?.weight_used) ?? Number(log?.weight_used ?? 0);
       const targetWeight = Number(exerciseMeta.targetWeight ?? 0);
       if (!Number.isFinite(usedWeight) || !Number.isFinite(targetWeight) || targetWeight <= 0) {
         continue;
@@ -2078,7 +2114,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       const byDate = new Map<string, number>();
       for (const row of weightLogsResult.data ?? []) {
         const date = String(row?.date ?? "").slice(0, 10);
-        const weight = Number(row?.weight_kg ?? 0);
+        const weight = decryptNumber(row?.weight_kg) ?? Number(row?.weight_kg ?? 0);
         if (date && Number.isFinite(weight) && weight > 0) {
           byDate.set(date, weight);
         }
@@ -2092,20 +2128,21 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         }));
     }
 
-    if (weightTimeline.length === 0 && Number(student.weight_kg) > 0) {
+    if (weightTimeline.length === 0 && (decryptNumber((student as any).weight_kg) ?? Number((student as any).weight_kg)) > 0) {
       const fallbackDate = new Date().toISOString().slice(0, 10);
+      const fallbackWeight = decryptNumber((student as any).weight_kg) ?? Number(Number((student as any).weight_kg).toFixed(2));
       weightTimeline.push({
         date: fallbackDate,
-        weight_kg: Number(Number(student.weight_kg).toFixed(2)),
+        weight_kg: Number(fallbackWeight.toFixed(2)),
       });
     }
 
     return {
       student: {
         id: student.id,
-        name: student.name,
+        name: decrypt((student as any).name) ?? (student as any).name,
         current_weight_kg:
-          student.weight_kg == null ? null : Number(student.weight_kg),
+          (student as any).weight_kg == null ? null : (decryptNumber((student as any).weight_kg) ?? Number((student as any).weight_kg)),
       },
       trained_days: Array.from(trainedDaySet).sort((a, b) => a.localeCompare(b)),
       muscle_groups: muscleGroups,
@@ -3976,7 +4013,20 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     }
 
     const rows = data ?? [];
-    const totalVolume = rows.reduce((acc, row) => {
+    // Descriptografar nome do aluno e valores de set_logs
+    const rowsDecrypted = rows.map((row: any) => ({
+      ...row,
+      students: row.students
+        ? { ...(Array.isArray(row.students) ? row.students[0] : row.students), name: decrypt((Array.isArray(row.students) ? row.students[0] : row.students)?.name) }
+        : null,
+      set_logs: (row.set_logs ?? []).map((log: any) => ({
+        ...log,
+        reps_done: decryptNumber(log.reps_done) ?? Number(log.reps_done ?? 0),
+        weight_used: decryptNumber(log.weight_used) ?? Number(log.weight_used ?? 0),
+      })),
+    }));
+
+    const totalVolume = rowsDecrypted.reduce((acc: number, row: any) => {
       const logs = (row.set_logs ?? []) as Array<{
         reps_done: number;
         weight_used: number;
@@ -3993,12 +4043,12 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     return {
       date,
       summary: {
-        total_sessions: rows.length,
-        completed_sessions: rows.filter((row) => row.status === "completed")
+        total_sessions: rowsDecrypted.length,
+        completed_sessions: rowsDecrypted.filter((row: any) => row.status === "completed")
           .length,
         total_volume: totalVolume,
       },
-      sessions: rows,
+      sessions: rowsDecrypted,
     };
   });
 }

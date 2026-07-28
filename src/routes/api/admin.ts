@@ -8,6 +8,13 @@ import { supabaseAdmin } from "../../config/supabase.js";
 import { normalizeBrazilWhatsappNumber } from "../../utils/whatsapp.js";
 import { buildWebhookUrlFromRequest } from "../../utils/request.js";
 import {
+  encrypt,
+  decrypt,
+  encryptNumber,
+  decryptNumber,
+  hmacHash,
+} from "../../utils/encryption.js";
+import {
   ensureEvolutionWebhook,
   ensureEvolutionInstance,
   getEvolutionConnectionStatus,
@@ -690,6 +697,20 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
     };
   });
 
+  // Helper: descriptografar campos de aluno retornados ao frontend (admin)
+  function normalizeAdminStudentRow(row: any) {
+    if (!row) return row;
+    return {
+      ...row,
+      name: decrypt(row.name) ?? row.name ?? null,
+      email: decrypt(row.email) ?? null,
+      whatsapp_number: decrypt(row.whatsapp_number) ?? row.whatsapp_number ?? null,
+      blood_type: decrypt(row.blood_type) ?? null,
+      weight_kg: decryptNumber(row.weight_kg) ?? null,
+      height_cm: decryptNumber(row.height_cm) ?? null,
+    };
+  }
+
   // Admin: Get students of a specific personal
   app.get("/admin/personals/:id/students", async (request) => {
     ensureAdminAuth(request);
@@ -711,7 +732,7 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.badRequest(error.message);
     }
 
-    return data ?? [];
+    return (data ?? []).map(normalizeAdminStudentRow);
   });
 
   // Admin: Create a student for a personal
@@ -755,12 +776,13 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       .from("students")
       .insert({
         personal_id: id,
-        name: input.name,
-        whatsapp_number: normalizedPhone,
-        ...(input.email ? { email: input.email } : {}),
-        ...(input.blood_type ? { blood_type: input.blood_type } : {}),
-        ...(input.weight_kg ? { weight_kg: input.weight_kg } : {}),
-        ...(input.height_cm ? { height_cm: input.height_cm } : {}),
+        name: encrypt(input.name),
+        whatsapp_number: encrypt(normalizedPhone),
+        whatsapp_hash: hmacHash(normalizedPhone),
+        ...(input.email ? { email: encrypt(input.email) } : {}),
+        ...(input.blood_type ? { blood_type: encrypt(input.blood_type) } : {}),
+        ...(input.weight_kg ? { weight_kg: encryptNumber(input.weight_kg) } : {}),
+        ...(input.height_cm ? { height_cm: encryptNumber(input.height_cm) } : {}),
       })
       .select(
         "id,personal_id,name,whatsapp_number,email,blood_type,weight_kg,height_cm,is_active,created_at",
@@ -771,7 +793,7 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.badRequest(error.message);
     }
 
-    return data;
+    return normalizeAdminStudentRow(data);
   });
 
   // Admin: Update a student
@@ -816,11 +838,12 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       .parse((request.params as { id?: string }).id);
 
     const patch: Record<string, unknown> = {};
-    if (parsed.data.name !== undefined) patch.name = parsed.data.name;
-    if (parsed.data.email !== undefined) patch.email = parsed.data.email;
+    if (parsed.data.name !== undefined) patch.name = encrypt(parsed.data.name);
+    if (parsed.data.email !== undefined) patch.email = encrypt(parsed.data.email ?? null);
     if (parsed.data.whatsapp_number !== undefined) {
       if (parsed.data.whatsapp_number === "" || parsed.data.whatsapp_number === null) {
         patch.whatsapp_number = null;
+        patch.whatsapp_hash = null;
       } else {
         const normalizedPhone = normalizeBrazilWhatsappNumber(
           parsed.data.whatsapp_number,
@@ -830,14 +853,15 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
             "WhatsApp inválido. Use no formato 55DDDNUMERO.",
           );
         }
-        patch.whatsapp_number = normalizedPhone;
+        patch.whatsapp_number = encrypt(normalizedPhone);
+        patch.whatsapp_hash = hmacHash(normalizedPhone);
       }
     }
     if (parsed.data.blood_type !== undefined) {
-      patch.blood_type = parsed.data.blood_type || null;
+      patch.blood_type = parsed.data.blood_type ? encrypt(parsed.data.blood_type) : null;
     }
-    if (parsed.data.weight_kg !== undefined) patch.weight_kg = parsed.data.weight_kg;
-    if (parsed.data.height_cm !== undefined) patch.height_cm = parsed.data.height_cm;
+    if (parsed.data.weight_kg !== undefined) patch.weight_kg = encryptNumber(parsed.data.weight_kg);
+    if (parsed.data.height_cm !== undefined) patch.height_cm = encryptNumber(parsed.data.height_cm);
     if (parsed.data.is_active !== undefined) patch.is_active = parsed.data.is_active;
 
     if (Object.keys(patch).length > 0) {
@@ -867,7 +891,7 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.notFound("Student not found");
     }
 
-    return data;
+    return normalizeAdminStudentRow(data);
   });
 
   // Admin: Delete a student

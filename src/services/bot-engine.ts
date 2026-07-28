@@ -3,6 +3,13 @@ import type { FastifyInstance } from "fastify";
 import { supabaseAdmin } from "../config/supabase.js";
 import { normalizeBrazilWhatsappNumber } from "../utils/whatsapp.js";
 import {
+  encrypt,
+  decrypt,
+  encryptNumber,
+  decryptNumber,
+  hmacHash,
+} from "../utils/encryption.js";
+import {
   getUnifiedEvolutionInstanceName,
   sendTextMessage,
 } from "./evolution-service.js";
@@ -434,12 +441,12 @@ async function logBotAnomaly(app: FastifyInstance, input: BotAnomalyInput) {
     severity,
     category: input.category,
     code: input.code,
-    message: input.message,
+    message: encrypt(input.message) ?? input.message,
     whatsapp_number: input.whatsapp_number ?? null,
     student_id: input.student_id ?? null,
     session_id: input.session_id ?? null,
     current_state: input.current_state ?? null,
-    input_excerpt: toInputExcerpt(input.input_excerpt ?? null),
+    input_excerpt: encrypt(toInputExcerpt(input.input_excerpt ?? null)),
     context: input.context ?? {},
   };
 
@@ -479,15 +486,43 @@ async function logBotAnomaly(app: FastifyInstance, input: BotAnomalyInput) {
 }
 
 async function getStudentByWhatsapp(whatsapp: string) {
-  const { data, error } = await supabaseAdmin
-    .from("students")
-    .select("id,name,personal_id,whatsapp_number,is_active,personals!inner(id)")
-    .eq("whatsapp_number", whatsapp)
-    .eq("is_active", true)
-    .maybeSingle();
+  // Fase 3: usar whatsapp_hash para lookup (evita comparação de texto criptografado)
+  const hash = hmacHash(whatsapp);
+  let data: any = null;
+  let error: any = null;
+
+  if (hash) {
+    // Busca via hash determinístico quando FIELD_HMAC_SECRET está configurado
+    const result = await supabaseAdmin
+      .from("students")
+      .select("id,name,personal_id,whatsapp_number,is_active,personals!inner(id)")
+      .eq("whatsapp_hash", hash)
+      .eq("is_active", true)
+      .maybeSingle();
+    data = result.data;
+    error = result.error;
+  } else {
+    // Fallback: busca plaintext (antes da migração de dados ou sem chave HMAC)
+    const result = await supabaseAdmin
+      .from("students")
+      .select("id,name,personal_id,whatsapp_number,is_active,personals!inner(id)")
+      .eq("whatsapp_number", whatsapp)
+      .eq("is_active", true)
+      .maybeSingle();
+    data = result.data;
+    error = result.error;
+  }
 
   if (error) {
     throw error;
+  }
+
+  if (data) {
+    data = {
+      ...data,
+      name: decrypt(data.name) ?? data.name,
+      whatsapp_number: decrypt(data.whatsapp_number) ?? data.whatsapp_number,
+    };
   }
 
   return data;
@@ -585,7 +620,12 @@ async function getPersonalWhatsapp(personalId: string): Promise<string | null> {
     return null;
   }
 
-  return resolvePersonalWhatsAppNumber(data as any);
+  // Descriptografar phone antes de usar como destino de mensagem
+  const decryptedData = data
+    ? { ...data, phone: decrypt((data as any).phone) ?? (data as any).phone }
+    : null;
+
+  return resolvePersonalWhatsAppNumber(decryptedData as any);
 }
 
 /**
@@ -889,9 +929,9 @@ async function saveSetLog(params: {
     session_id: params.sessionId,
     workout_exercise_id: params.workoutExerciseId,
     set_number: params.setNumber,
-    reps_done: params.repsDone,
-    weight_used: params.weightUsed,
-    rpe_score: params.pseScore,
+    reps_done: encryptNumber(params.repsDone),
+    weight_used: encryptNumber(params.weightUsed),
+    rpe_score: encryptNumber(params.pseScore),
   });
 
   if (error) {
@@ -979,8 +1019,11 @@ async function buildWorkoutSummary(
       : `*${i + 1}. ${ex.name}*`;
     lines.push(label);
     for (const s of ex.sets as any[]) {
+      const reps   = decryptNumber(s.reps_done)   ?? Number(s.reps_done ?? 0);
+      const weight = decryptNumber(s.weight_used) ?? Number(s.weight_used ?? 0);
+      const pse    = decryptNumber(s.rpe_score)   ?? (s.rpe_score != null ? Number(s.rpe_score) : null);
       lines.push(
-        `   Série ${s.set_number}: ${s.reps_done} reps × ${s.weight_used}kg | PSE ${s.rpe_score ?? "-"}`,
+        `   Série ${s.set_number}: ${reps} reps × ${weight}kg | PSE ${pse ?? "-"}`,
       );
     }
     lines.push("");

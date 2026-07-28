@@ -26,6 +26,19 @@ const EnvSchema = z.object({
   OPENAI_API_KEY: z.string().min(1).optional(),
   GEMINI_API_KEY: z.string().min(1).optional(),
 
+  // Field-level encryption (LGPD compliance)
+  // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  FIELD_ENCRYPTION_KEY: z
+    .string()
+    .length(64)
+    .regex(/^[0-9a-fA-F]+$/, "must be 64 hex characters")
+    .optional(),
+  FIELD_HMAC_SECRET: z
+    .string()
+    .length(64)
+    .regex(/^[0-9a-fA-F]+$/, "must be 64 hex characters")
+    .optional(),
+
   ADMIN_PANEL_EMAIL: z.string().email().default("agencia@stagesix.com.br"),
   ADMIN_PANEL_PASSWORD: z.string().min(1).default("123456"),
   ADMIN_TOKEN_SECRET: z
@@ -64,5 +77,13 @@ if (env.ADMIN_TOKEN_SECRET === DEFAULT_TOKEN_SECRET) {
 if (env.NODE_ENV === "production" && !env.CRON_SECRET) {
   console.warn(
     "[security] CRON_SECRET não definido em produção. O endpoint /api/internal/session-cleanup ficará desprotegido.",
+  );
+}
+
+if (!env.FIELD_ENCRYPTION_KEY || !env.FIELD_HMAC_SECRET) {
+  console.warn(
+    "[security] FIELD_ENCRYPTION_KEY ou FIELD_HMAC_SECRET não definidos. " +
+    "Dados sensíveis dos alunos serão armazenados sem criptografia. " +
+    "Configure as variáveis de ambiente para ativar a proteção LGPD.",
   );
 }

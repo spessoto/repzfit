@@ -2,6 +2,46 @@
 
 Todas as mudanças relevantes do projeto serão documentadas aqui.
 
+## [2026-07-28] – Criptografia de dados sensíveis LGPD (v1.2.8)
+
+### Segurança / LGPD
+
+Implementada criptografia por campo (**AES-256-GCM**) para todos os dados pessoais e sensíveis armazenados no banco de dados, em conformidade com a LGPD (Lei 13.709/2018), especialmente o Art. 11 (dados sensíveis de saúde).
+
+#### Campos criptografados
+
+| Tabela | Campo | Categoria LGPD |
+|---|---|---|
+| `students` | `name`, `email`, `whatsapp_number` | Identificação pessoal |
+| `students` | `blood_type`, `weight_kg`, `height_cm` | Saúde (Art. 11) |
+| `students` | `monthly_fee`, `payment_day` | Financeiro |
+| `personals` | `phone`, `crf_registration` | Identificação / profissional |
+| `set_logs` | `reps_done`, `weight_used`, `rpe_score` | Saúde / biometria (Art. 11) |
+| `student_weight_logs` | `weight_kg` | Saúde (Art. 11) |
+| `bot_anomaly_logs` | `message`, `input_excerpt` | Comunicação privada |
+
+#### Arquitetura
+
+- **Módulo `src/utils/encryption.ts`** (novo): AES-256-GCM com IV aleatório por campo; formato de armazenamento `v1:<iv_b64>:<authTag_b64>:<ciphertext_b64>`. Descriptografia transparente com fallback para texto legado (sem prefixo `v1:`).
+- **HMAC-SHA256 determinístico** para campos de lookup (`students.whatsapp_hash`, `personals.phone_hash`): permite busca exata sem expor o plaintext.
+- **Chave fora do banco**: `FIELD_ENCRYPTION_KEY` e `FIELD_HMAC_SECRET` (32 bytes cada) armazenados apenas como variáveis de ambiente na Vercel — o banco nunca tem acesso à chave.
+- **Fallback gracioso**: se as chaves não estiverem configuradas, `encrypt()` retorna o plaintext e `decrypt()` retorna o valor como-está — sem quebrar o sistema em ambientes sem as variáveis.
+
+#### Migrations e scripts
+
+- `supabase/migrations/202607280003_lgpd_field_encryption_schema.sql`: altera colunas numéricas afetadas para `text`, adiciona colunas de hash, remove constraints de tipo `>0` incompatíveis com texto.
+- `scripts/migrate-encrypt-fields.ts`: script idempotente de migração de dados existentes — executado uma vez para criptografar os registros em plaintext.
+
+#### Dados já migrados
+
+- **9 alunos** — todos os campos sensíveis criptografados
+- **4 personals** — `phone` e `crf_registration` criptografados, hashes gerados
+- **2 registros** de `student_weight_logs`
+- **1 registro** de `set_logs`
+- **25 registros** de `bot_anomaly_logs`
+
+---
+
 ## [2026-07-28] – Otimização de performance do frontend (v1.2.7)
 
 ### Melhorado
