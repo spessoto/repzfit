@@ -2,6 +2,18 @@
 
 Todas as mudanças relevantes do projeto serão documentadas aqui.
 
+## [2026-07-28] – Correção de encoding dos emojis nas mensagens do bot (v1.2.4)
+
+### Corrigido
+- Corrigidos 114 emojis e caracteres especiais corrompidos em `src/services/bot-engine.ts` que apareciam como sequências mojibake (`ðŸ"¥`, `â±`, `âœ…`, `1ï¸âƒ£` etc.) nas mensagens enviadas pelo bot ao WhatsApp dos alunos. A corrupção era causada por double-encoding Windows-1252→UTF-8 aplicado sobre os bytes originais dos emojis. Todos os emojis afetados foram restaurados: 🔥 💪 ✅ ⏱ 🎯 🏋️ 🤲 🧩 📝 📊 📋 📅 🎉 🎤 😅 🔸 💡 😊 1️⃣ 2️⃣ e o traço — (em dash).
+- Removido o BOM UTF-8 desnecessário do início do arquivo `src/services/bot-engine.ts`.
+- Corrigidos caracteres portugueses com double-encoding no mesmo arquivo: `Ó` (em RELATÓRIO), `Ú` (em Último) e `×` (sinal de multiplicação nas metas de séries).
+
+### Operação de banco executada
+- Nenhuma migration necessária (correção exclusivamente de mensagens de texto no código).
+
+---
+
 ## [Unreleased]
 
 ### Corrigido / Melhorado
