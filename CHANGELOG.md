@@ -2,6 +2,22 @@
 
 Todas as mudanças relevantes do projeto serão documentadas aqui.
 
+## [2026-07-28] – Correção do disparo automático do timer de descanso (v1.2.5)
+
+### Corrigido
+- **Bug crítico**: `processExpiredRestTimers()` não incluía `current_state` na cláusula `.select()` do Supabase. O campo retornava `undefined` para todos os registros, fazendo o `if (state.current_state === "RESTING")` nunca ser verdadeiro — o bot encontrava os timers expirados mas nunca enviava a mensagem de fim de descanso, apenas limpava `rest_end_at` silenciosamente.
+- **Bug crítico**: o endpoint `/api/internal/rest-timer/poll` não estava registrado nos crons do Vercel (`vercel.json`). Em produção (serverless), o `setInterval` in-process é desabilitado explicitamente; sem o cron no Vercel, nenhum polling periódico ocorria. Adicionado com frequência de 1 minuto (resolução máxima da Vercel). O pg_cron continua ativo para resolução de 3s.
+- **Bug moderado**: o branch `else` de `fireExpiredRest()` (hint desconhecido) redefinia o estado mas não enviava nenhuma mensagem ao aluno, deixando-o sem feedback para continuar o treino. Agora envia "✅ Descanso concluído! Pode continuar com a próxima série. 💪".
+
+### Melhorado
+- `pg_cron` reconfigurado na nova migration `202607280001`: job renomeado para `repzfit-rest-timer-poll-v3`, versões anteriores removidas, e header `Authorization` adicionado dinamicamente via `app.cron_secret` (quando configurado) para proteção futura com `CRON_SECRET`.
+- Criado índice parcial `idx_bot_state_rest_timer` em `bot_state(current_state, rest_end_at) WHERE rest_end_at IS NOT NULL` para evitar full scan a cada ciclo de polling.
+
+### Migration executada
+- `supabase/migrations/202607280001_rest_timer_index_and_pgcron_auth.sql`
+
+---
+
 ## [2026-07-28] – Correção de encoding dos emojis nas mensagens do bot (v1.2.4)
 
 ### Corrigido

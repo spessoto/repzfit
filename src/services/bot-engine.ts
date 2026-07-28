@@ -3150,6 +3150,11 @@ async function fireExpiredRest(
       rest_end_at: null,
       last_input_attempt: null,
     });
+    await sendTextMessage({
+      instanceName,
+      number: state.whatsapp_number,
+      text: "✅ Descanso concluído! Pode continuar com a próxima série. 💪",
+    });
   }
 }
 
@@ -3164,7 +3169,7 @@ export async function processExpiredRestTimers(
   const { data: expiredStates, error } = await supabaseAdmin
     .from("bot_state")
     .select(
-      "whatsapp_number,student_id,current_set_number,current_workout_exercise_id,current_session_id,last_input_attempt,rest_end_at",
+      "whatsapp_number,student_id,current_state,current_set_number,current_workout_exercise_id,current_session_id,last_input_attempt,rest_end_at",
     )
     .in("current_state", [
       "RESTING",
