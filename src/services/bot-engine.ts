@@ -88,36 +88,36 @@ export function buildSetRestTransitionMessage(params: {
   remainingSeconds?: number | null;
   state: "started" | "already_started" | "expired" | "no_rest";
 }): string {
-  const base = `ðŸ”¥ SÃ©rie ${params.currentSet}/${params.targetSets} concluÃ­da!`;
+  const base = `ðŸ”¥ Série ${params.currentSet}/${params.targetSets} concluída!`;
 
   if (params.state === "already_started") {
     const remaining = params.remainingSeconds ?? 0;
-    return `${base}\n\nâ± Descanso em andamento: faltam ~*${remaining}s*. Quando terminar, seguimos para a prÃ³xima repetiÃ§Ã£o.`;
+    return `${base}\n\nâ± Descanso em andamento: faltam ~*${remaining}s*. Quando terminar, seguimos para a próxima repetição.`;
   }
 
   if (params.state === "expired") {
-    return `${base}\n\nâœ… Descanso encerrado. Bora pra prÃ³xima repetiÃ§Ã£o.`;
+    return `${base}\n\nâœ… Descanso encerrado. Bora pra próxima repetição.`;
   }
 
   if (params.state === "no_rest") {
-    return `${base}\n\nBora pra prÃ³xima repetiÃ§Ã£o.`;
+    return `${base}\n\nBora pra próxima repetição.`;
   }
 
   if (params.restSeconds && params.restSeconds > 0) {
-    return `${base}\n\nâ± Descanso iniciado: *${params.restSeconds}s*. Quando terminar, seguimos para a prÃ³xima repetiÃ§Ã£o.`;
+    return `${base}\n\nâ± Descanso iniciado: *${params.restSeconds}s*. Quando terminar, seguimos para a próxima repetição.`;
   }
 
-  return `${base}\n\nVamos para a prÃ³xima repetiÃ§Ã£o.`;
+  return `${base}\n\nVamos para a próxima repetição.`;
 }
 
 function isConfirmIntent(msg: string): boolean {
   const n = msg.toLowerCase().trim();
-  return /^(1|sim|bora|come[cÃ§]|start|yes|ok|vamos|quero|s\b)/.test(n);
+  return /^(1|sim|bora|come[cç]|start|yes|ok|vamos|quero|s\b)/.test(n);
 }
 
 function isCancelIntent(msg: string): boolean {
   const n = msg.toLowerCase().trim();
-  return /^(2|n[aÃ£]o|cancel|agora n)/.test(n);
+  return /^(2|n[aã]o|cancel|agora n)/.test(n);
 }
 
 function isSetDoneIntent(msg: string): boolean {
@@ -129,7 +129,7 @@ function isSetDoneIntent(msg: string): boolean {
 
 function isTrainingDoneIntent(msg: string): boolean {
   const n = msg.toLowerCase().trim();
-  return /^(encerrar|encerra|encerro|encerr[aei] treino|finali[zs]ar|finali[zs]a treino|finali[zs]ei|terminei o treino|acabei o treino|treino finalizado|treino concluido|treino concluÃ­do|fim do treino)/.test(
+  return /^(encerrar|encerra|encerro|encerr[aei] treino|finali[zs]ar|finali[zs]a treino|finali[zs]ei|terminei o treino|acabei o treino|treino finalizado|treino concluido|treino concluído|fim do treino)/.test(
     n,
   );
 }
@@ -154,10 +154,10 @@ function isStrictTrainingStartRequest(msg: string): boolean {
     "iniciar treino",
     "inicia treino",
     "comecar treino",
-    "comeÃ§ar treino",
+    "começar treino",
     "iniciar treinamento",
     "iniciar sessao",
-    "iniciar sessÃ£o",
+    "iniciar sessão",
     "quero treinar",
     "treinar",
     "treina",
@@ -199,7 +199,7 @@ async function isTrainingStartIntent(
     return true;
   }
 
-  const hasNegation = /\b(nao|nÃ£o|n|agora nao|agora nÃ£o|depois)\b/.test(
+  const hasNegation = /\b(nao|não|n|agora nao|agora não|depois)\b/.test(
     normalized,
   );
   const hasTrainingVerb =
@@ -238,8 +238,8 @@ async function isTrainingStartIntent(
   try {
     const verdict = await generateBotResponse({
       systemPrompt:
-        "VocÃª Ã© um classificador de intenÃ§Ã£o para um bot de treino. Responda APENAS com START ou OTHER.",
-      userMessage: `Mensagem do aluno: "${msg}"\n\nRetorne START se a intenÃ§Ã£o principal for iniciar treino agora. Caso contrÃ¡rio, OTHER.`,
+        "Você é um classificador de intenção para um bot de treino. Responda APENAS com START ou OTHER.",
+      userMessage: `Mensagem do aluno: "${msg}"\n\nRetorne START se a intenção principal for iniciar treino agora. Caso contrário, OTHER.`,
     });
 
     const parsed = verdict.trim().toUpperCase();
@@ -276,13 +276,13 @@ async function isTrainingStartIntent(
 
 function formatExerciseDetails(ex: WorkoutExercise): string {
   const lines: string[] = [];
-  if (ex.muscle_group) lines.push(`ðŸ’ª MÃºsculo: ${ex.muscle_group}`);
-  if (ex.variation_name) lines.push(`ðŸŽ¯ ExecuÃ§Ã£o: ${ex.variation_name}`);
+  if (ex.muscle_group) lines.push(`ðŸ’ª Músculo: ${ex.muscle_group}`);
+  if (ex.variation_name) lines.push(`ðŸŽ¯ Execução: ${ex.variation_name}`);
   if (ex.equipment_name || ex.equipment)
     lines.push(`ðŸ‹ï¸ Equipamento: ${ex.equipment_name ?? ex.equipment}`);
   if (ex.grip_footing_name)
     lines.push(`ðŸ¤² Pegada/Pisada: ${ex.grip_footing_name}`);
-  if (ex.method_name) lines.push(`ðŸ§© MÃ©todo: ${ex.method_name}`);
+  if (ex.method_name) lines.push(`ðŸ§© Método: ${ex.method_name}`);
   if (ex.description) lines.push(`ðŸ“ ${ex.description}`);
   const weight = ex.target_weight ? ` com ${ex.target_weight}kg` : "";
   lines.push(`ðŸ“Š Meta: ${ex.target_sets}x${ex.target_reps}${weight}`);
@@ -325,12 +325,12 @@ async function safeInputFallback(
     return await generateFallbackReply(params);
   } catch (error) {
     app.log.error(error, "Gemini unavailable, using static input fallback");
-    return `NÃ£o entendi muito bem. Me envie ${params.expectedInput} para continuar. ðŸ’ª`;
+    return `Não entendi muito bem. Me envie ${params.expectedInput} para continuar. ðŸ’ª`;
   }
 }
 
 function buildFriendlyStartPrompt(studentName: string): string {
-  return `Oi ${studentName}! Tudo bem? ðŸ’ª\n\nQuer comeÃ§ar seu treino agora?\n1ï¸âƒ£ *Sim, bora treinar!*\n2ï¸âƒ£ *Deixar para depois*`;
+  return `Oi ${studentName}! Tudo bem? ðŸ’ª\n\nQuer começar seu treino agora?\n1ï¸âƒ£ *Sim, bora treinar!*\n2ï¸âƒ£ *Deixar para depois*`;
 }
 
 async function promptWorkoutSelection(params: {
@@ -348,7 +348,7 @@ async function promptWorkoutSelection(params: {
       severity: "warn",
       category: "configuration",
       code: "student_without_assigned_workout_on_start",
-      message: "Aluno tentou iniciar treino mas nÃ£o possui treino atribuÃ­do.",
+      message: "Aluno tentou iniciar treino mas não possui treino atribuído.",
       whatsapp_number: params.whatsapp,
       student_id: params.student.id,
       current_state: "IDLE",
@@ -356,8 +356,8 @@ async function promptWorkoutSelection(params: {
 
     const response = await safeCoachReply(
       params.app,
-      `O aluno ${params.student.name} quer treinar mas nÃ£o tem treino atribuÃ­do. Responda de forma motivadora mas explique que ele precisa falar com o personal para atribuir um treino.`,
-      "NÃ£o encontrei treino atribuÃ­do para vocÃª agora. Fala com seu personal que eu te ajudo assim que ele liberar! ðŸ”¥",
+      `O aluno ${params.student.name} quer treinar mas não tem treino atribuído. Responda de forma motivadora mas explique que ele precisa falar com o personal para atribuir um treino.`,
+      "Não encontrei treino atribuído para você agora. Fala com seu personal que eu te ajudo assim que ele liberar! ðŸ”¥",
     );
 
     await sendTextMessage({
@@ -386,20 +386,20 @@ async function promptWorkoutSelection(params: {
   if (params.includeGreeting) {
     greeting = await safeCoachReply(
       params.app,
-      `Cumprimente o aluno ${params.student.name} em 1 linha, com tom motivador e direto, sem enrolaÃ§Ã£o.`,
+      `Cumprimente o aluno ${params.student.name} em 1 linha, com tom motivador e direto, sem enrolação.`,
       `Fala, ${params.student.name}! Bora treinar hoje? ðŸ’ª`,
     );
   }
 
   const intro =
     params.introText ??
-    "VocÃª tem estes treinos cadastrados. Qual deles vocÃª quer iniciar?";
+    "Você tem estes treinos cadastrados. Qual deles você quer iniciar?";
 
   const parts = [
     greeting,
     intro,
     `${optionsText}${lastText}`,
-    "Responda com o *nÃºmero* do treino.",
+    "Responda com o *número* do treino.",
   ].filter(Boolean);
 
   await sendTextMessage({
@@ -587,7 +587,7 @@ async function getPersonalWhatsapp(personalId: string): Promise<string | null> {
 }
 
 /**
- * Busca todos os treinos atribuÃ­dos ao aluno (sem filtrar por data)
+ * Busca todos os treinos atribuídos ao aluno (sem filtrar por data)
  */
 async function getStudentAssignedWorkouts(
   studentId: string,
@@ -631,7 +631,7 @@ async function getStudentAssignedWorkouts(
     }));
   }
 
-  // Dedupe por id para evitar duplicidade de vÃ­nculo
+  // Dedupe por id para evitar duplicidade de vínculo
   const unique = new Map<string, AssignedWorkout>();
   for (const workout of workouts) {
     unique.set(workout.id, workout);
@@ -674,7 +674,7 @@ async function getLastCompletedWorkout(studentId: string): Promise<{
 }
 
 /**
- * Busca exercÃ­cios de um treino com detalhes
+ * Busca exercícios de um treino com detalhes
  */
 async function getWorkoutExercises(
   workoutId: string,
@@ -737,7 +737,7 @@ function mapWorkoutExerciseRow(item: any): WorkoutExercise {
     ? item.method_catalog[0]
     : item.method_catalog;
 
-  const baseName = catalog?.name ?? item.exercises?.name ?? "ExercÃ­cio";
+  const baseName = catalog?.name ?? item.exercises?.name ?? "Exercício";
   const variationName = variation?.name ?? null;
   const exerciseName = variationName
     ? `${baseName} - ${variationName}`
@@ -772,7 +772,7 @@ function mapWorkoutExerciseRow(item: any): WorkoutExercise {
 }
 
 /**
- * Cria uma nova sessÃ£o de treino
+ * Cria uma nova sessão de treino
  */
 async function createDailySession(studentId: string, workoutId: string) {
   const today = new Date().toISOString().split("T")[0];
@@ -900,7 +900,7 @@ async function saveSetLog(params: {
 }
 
 /**
- * Busca todos os sets de uma sessÃ£o e monta o extrato de treino
+ * Busca todos os sets de uma sessão e monta o extrato de treino
  */
 async function buildWorkoutSummary(sessionId: string): Promise<string> {
   const { data: sessionRow, error: sessionError } = await supabaseAdmin
@@ -933,7 +933,7 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
 
   if (error || !logs || logs.length === 0) return "";
 
-  // Agrupar sets por exercÃ­cio
+  // Agrupar sets por exercício
   const exerciseMap = new Map<
     string,
     { name: string; order: number; sets: typeof logs }
@@ -946,7 +946,7 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
     const variation = Array.isArray(we?.exercise_variations)
       ? we.exercise_variations[0]
       : we?.exercise_variations;
-    const base = catalog?.name ?? we?.exercises?.name ?? "ExercÃ­cio";
+    const base = catalog?.name ?? we?.exercises?.name ?? "Exercício";
     const name = variation?.name ? `${base} - ${variation.name}` : base;
     const order = we?.order_index ?? 0;
     if (!exerciseMap.has(log.workout_exercise_id)) {
@@ -968,7 +968,7 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
     lines.push(`*${i + 1}. ${ex.name}*`);
     for (const s of ex.sets as any[]) {
       lines.push(
-        `   SÃ©rie ${s.set_number}: ${s.reps_done} reps Ã— ${s.weight_used}kg | PSE ${s.rpe_score ?? "-"}`,
+        `   Série ${s.set_number}: ${s.reps_done} reps Ã— ${s.weight_used}kg | PSE ${s.rpe_score ?? "-"}`,
       );
     }
     lines.push("");
@@ -977,16 +977,16 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
   const totalSets = logs.length;
   const totalExercises = sorted.length;
   lines.push(
-    `âœ… ${totalExercises} exercÃ­cio${
+    `âœ… ${totalExercises} exercício${
       totalExercises !== 1 ? "s" : ""
-    } | ${totalSets} sÃ©rie${totalSets !== 1 ? "s" : ""} completadas`,
+    } | ${totalSets} série${totalSets !== 1 ? "s" : ""} completadas`,
   );
 
   return lines.join("\n").trimEnd();
 }
 
 /**
- * LÃª o tracking_mode configurado pelo personal para o par aluno+treino.
+ * Lê o tracking_mode configurado pelo personal para o par aluno+treino.
  * Retorna 'per_rep' como fallback (compatibilidade retroativa).
  */
 async function getStudentWorkoutTrackingMode(
@@ -1013,7 +1013,7 @@ async function getStudentWorkoutTrackingMode(
 }
 
 /**
- * Monta extrato simples com lista de exercÃ­cios concluÃ­dos (sem dados de sÃ©rie).
+ * Monta extrato simples com lista de exercícios concluídos (sem dados de série).
  * Usado pelos modos per_workout e none.
  */
 function buildSimpleExerciseList(
@@ -1025,10 +1025,10 @@ function buildSimpleExerciseList(
     (a, b) => a.exec_order - b.exec_order,
   );
 
-  const lines: string[] = [`ðŸ“‹ *EXERCÃCIOS REALIZADOS â€” ${today}*`, ""];
+  const lines: string[] = [`ðŸ“‹ *EXERCÍCIOS REALIZADOS â€” ${today}*`, ""];
 
   if (sorted.length === 0) {
-    lines.push("Nenhum exercÃ­cio registrado.");
+    lines.push("Nenhum exercício registrado.");
   } else {
     for (const ex of sorted) {
       lines.push(`âœ… ${ex.exec_order}. ${ex.name}`);
@@ -1038,11 +1038,11 @@ function buildSimpleExerciseList(
   lines.push("");
   if (overallPse !== undefined) {
     lines.push(
-      `Total: ${sorted.length} exercÃ­cio${sorted.length !== 1 ? "s" : ""} | EsforÃ§o geral (PSE): ${overallPse}/10`,
+      `Total: ${sorted.length} exercício${sorted.length !== 1 ? "s" : ""} | Esforço geral (PSE): ${overallPse}/10`,
     );
   } else {
     lines.push(
-      `Total: ${sorted.length} exercÃ­cio${sorted.length !== 1 ? "s" : ""} concluÃ­do${sorted.length !== 1 ? "s" : ""}`,
+      `Total: ${sorted.length} exercício${sorted.length !== 1 ? "s" : ""} concluído${sorted.length !== 1 ? "s" : ""}`,
     );
   }
 
@@ -1050,7 +1050,7 @@ function buildSimpleExerciseList(
 }
 
 /**
- * Monta o menu de seleÃ§Ã£o de exercÃ­cios, sempre com [0] Encerrar treino no final.
+ * Monta o menu de seleção de exercícios, sempre com [0] Encerrar treino no final.
  */
 function buildExerciseSelectionMenu(
   tracking: SessionTrackingData,
@@ -1061,10 +1061,10 @@ function buildExerciseSelectionMenu(
       const det = tracking.exercise_details[id];
       const muscle = det.muscle ? ` (${det.muscle})` : "";
       const extra = [
-        det.execution ? `ExecuÃ§Ã£o: ${det.execution}` : null,
+        det.execution ? `Execução: ${det.execution}` : null,
         det.equipment ? `Equip.: ${det.equipment}` : null,
         det.grip_footing ? `Peg./Pis.: ${det.grip_footing}` : null,
-        det.method ? `MÃ©todo: ${det.method}` : null,
+        det.method ? `Método: ${det.method}` : null,
       ]
         .filter(Boolean)
         .join(" | ");
@@ -1072,7 +1072,7 @@ function buildExerciseSelectionMenu(
     })
     .join("\n");
 
-  return `${headerText}\n\n${list}\n0ï¸âƒ£ *[Encerrar treino]*\n\nResponda com o *nÃºmero*.`;
+  return `${headerText}\n\n${list}\n0ï¸âƒ£ *[Encerrar treino]*\n\nResponda com o *número*.`;
 }
 
 type SessionTrackingData = {
@@ -1112,8 +1112,8 @@ function buildPersonalReport(
   const trackingMode = tracking?.tracking_mode ?? "per_rep";
 
   const modeLabel: Record<string, string> = {
-    per_rep: "SÃ©rie por sÃ©rie",
-    per_exercise: "A cada exercÃ­cio",
+    per_rep: "Série por série",
+    per_exercise: "A cada exercício",
     per_workout: "A cada treino (PSE geral)",
     none: "Sem acompanhamento",
   };
@@ -1130,9 +1130,9 @@ function buildPersonalReport(
       lines.push(buildSimpleExerciseList(tracking));
     }
   } else {
-    // per_rep ou per_exercise â€” mostrar exercÃ­cios e sets/detalhes
+    // per_rep ou per_exercise â€” mostrar exercícios e sets/detalhes
     if (tracking?.done?.length) {
-      lines.push("*Ordem de execuÃ§Ã£o:*");
+      lines.push("*Ordem de execução:*");
       const sorted = [...tracking.done].sort(
         (a, b) => a.exec_order - b.exec_order,
       );
@@ -1140,7 +1140,7 @@ function buildPersonalReport(
         lines.push(`  ${ex.exec_order}. ${ex.name}`);
       }
     } else if (tracking?.all_ids?.length) {
-      lines.push("*ExercÃ­cios do treino (ordem padrÃ£o):*");
+      lines.push("*Exercícios do treino (ordem padrão):*");
       for (let i = 0; i < tracking.all_ids.length; i++) {
         const det = tracking.exercise_details[tracking.all_ids[i]];
         if (det) lines.push(`  ${i + 1}. ${det.name}`);
@@ -1187,7 +1187,7 @@ async function sendReportToPersonal(params: {
   const workoutExtract =
     params.monitoredSummary?.trim() ||
     fallbackExtract ||
-    "Sem extrato disponÃ­vel.";
+    "Sem extrato disponível.";
 
   try {
     await sendTextMessage({
@@ -1238,7 +1238,7 @@ async function sendTrainingStartedToPersonal(params: {
 }
 
 /**
- * Marca sessÃ£o como concluÃ­da e salva o extrato
+ * Marca sessão como concluída e salva o extrato
  */
 async function completeSession(sessionId: string, summary?: string) {
   const patch: Record<string, unknown> = {
@@ -1301,7 +1301,7 @@ async function advanceAfterSetLog(params: {
     await sendTextMessage({
       instanceName,
       number: whatsapp,
-      text: "Ocorreu um erro ao registrar a sÃ©rie. Tente novamente! ðŸ˜…",
+      text: "Ocorreu um erro ao registrar a série. Tente novamente! ðŸ˜…",
     });
     await updateState(whatsapp, {
       current_state: "EXECUTING_SET",
@@ -1319,7 +1319,7 @@ async function advanceAfterSetLog(params: {
     : (exerciseResult.data as any).exercise_variations;
   const baseExerciseName = catalog?.name ?? (Array.isArray(exerciseResult.data.exercises)
     ? exerciseResult.data.exercises[0]?.name
-    : ((exerciseResult.data.exercises as any)?.name ?? "ExercÃ­cio"));
+    : ((exerciseResult.data.exercises as any)?.name ?? "Exercício"));
 
   const targetSets = exerciseResult.data.target_sets;
   const exerciseName = variation?.name
@@ -1376,8 +1376,8 @@ async function advanceAfterSetLog(params: {
           rest_end_at: null,
         });
       } else if (isCollectingState) {
-        // No modo por repetiÃ§Ã£o, o descanso pode expirar em background durante a coleta.
-        // Nesse caso, nÃ£o reinicia descanso ao concluir o log da sÃ©rie.
+        // No modo por repetição, o descanso pode expirar em background durante a coleta.
+        // Nesse caso, não reinicia descanso ao concluir o log da série.
         await sendTextMessage({
           instanceName,
           number: whatsapp,
@@ -1434,7 +1434,7 @@ async function advanceAfterSetLog(params: {
     return;
   }
 
-  // ExercÃ­cio completo! Verificar modo de execuÃ§Ã£o
+  // Exercício completo! Verificar modo de execução
   // Checar se estamos em modo de ordem livre
   let exerciseTracking: SessionTrackingData | null = null;
   if (state.current_session_id) {
@@ -1477,7 +1477,7 @@ async function advanceAfterSetLog(params: {
     const remaining = exerciseTracking.remaining_ids ?? [];
 
     if (remaining.length === 0) {
-      // Todos os exercÃ­cios concluÃ­dos!
+      // Todos os exercícios concluídos!
       let workoutSummary = "";
       try {
         workoutSummary = await buildWorkoutSummary(state.current_session_id!);
@@ -1495,13 +1495,13 @@ async function advanceAfterSetLog(params: {
       const congratsMessage = await safeCoachReply(
         app,
         `O aluno ${student.name} acabou de completar o treino! Parabenize de forma entusiasmada e motivadora (2-3 linhas). Celebre a conquista!`,
-        "ParabÃ©ns! Treino concluÃ­do com sucesso. VocÃª mandou muito bem hoje! ðŸ”¥ðŸ’ª",
+        "Parabéns! Treino concluído com sucesso. Você mandou muito bem hoje! ðŸ”¥ðŸ’ª",
       );
 
       await sendTextMessage({
         instanceName,
         number: whatsapp,
-        text: `ðŸŽ‰ TREINO CONCLUÃDO!\n\n${congratsMessage}`,
+        text: `ðŸŽ‰ TREINO CONCLUÍDO!\n\n${congratsMessage}`,
       });
 
       if (workoutSummary) {
@@ -1532,7 +1532,7 @@ async function advanceAfterSetLog(params: {
       return;
     }
 
-    // Ainda hÃ¡ exercÃ­cios restantes
+    // Ainda há exercícios restantes
     await updateState(whatsapp, {
       current_state: "AWAITING_EXERCISE_ORDER_SELECTION",
       current_workout_exercise_id: null,
@@ -1546,13 +1546,13 @@ async function advanceAfterSetLog(params: {
       number: whatsapp,
       text: buildExerciseSelectionMenu(
         exerciseTracking,
-        `âœ… *${exerciseName}* concluÃ­do! Boa! ðŸ’ª\n\n*Qual exercÃ­cio quer fazer agora?*`,
+        `âœ… *${exerciseName}* concluído! Boa! ðŸ’ª\n\n*Qual exercício quer fazer agora?*`,
       ),
     });
     return;
   }
 
-  // Modo fixo (legado ou sem tracking): buscar prÃ³ximo exercÃ­cio na ordem
+  // Modo fixo (legado ou sem tracking): buscar próximo exercício na ordem
   const allExercises = await getWorkoutExercises(
     (
       await supabaseAdmin
@@ -1569,7 +1569,7 @@ async function advanceAfterSetLog(params: {
   const nextExercise = allExercises[currentIndex + 1];
 
   if (nextExercise) {
-    // PrÃ³ximo exercÃ­cio
+    // Próximo exercício
     if (restSeconds && restSeconds > 0) {
       const restEndAt = new Date(Date.now() + restSeconds * 1000).toISOString();
 
@@ -1582,13 +1582,13 @@ async function advanceAfterSetLog(params: {
       await sendTextMessage({
         instanceName,
         number: whatsapp,
-        text: `âœ… ${exerciseName} concluÃ­do!\n\nâ± Iniciando descanso de *${restSeconds}s*. Vou te avisar quando acabar! ðŸ’ª`,
+        text: `âœ… ${exerciseName} concluído!\n\nâ± Iniciando descanso de *${restSeconds}s*. Vou te avisar quando acabar! ðŸ’ª`,
       });
     } else {
       await sendTextMessage({
         instanceName,
         number: whatsapp,
-        text: `âœ… ${exerciseName} concluÃ­do!\n\nðŸ”¸ PrÃ³ximo: *${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}`,
+        text: `âœ… ${exerciseName} concluído!\n\nðŸ”¸ Próximo: *${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}`,
       });
 
       await updateState(whatsapp, {
@@ -1613,7 +1613,7 @@ async function advanceAfterSetLog(params: {
     await sendTextMessage({
       instanceName,
       number: whatsapp,
-      text: "ðŸ’ª Todos os exercÃ­cios concluÃ­dos!\n\nQual foi o PSE geral do treino?\n\nResponda com um nÃºmero de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - MÃ¡ximo ðŸ”¥",
+      text: "ðŸ’ª Todos os exercícios concluídos!\n\nQual foi o PSE geral do treino?\n\nResponda com um número de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - Máximo ðŸ”¥",
     });
     return;
   }
@@ -1628,13 +1628,13 @@ async function advanceAfterSetLog(params: {
     const congratsMessage = await safeCoachReply(
       app,
       `O aluno ${student.name} acabou de completar o treino! Parabenize de forma entusiasmada e motivadora (2-3 linhas). Celebre a conquista!`,
-      "ParabÃ©ns! Treino concluÃ­do com sucesso. VocÃª mandou muito bem hoje! ðŸ”¥ðŸ’ª",
+      "Parabéns! Treino concluído com sucesso. Você mandou muito bem hoje! ðŸ”¥ðŸ’ª",
     );
 
     await sendTextMessage({
       instanceName,
       number: whatsapp,
-      text: `ðŸŽ‰ TREINO CONCLUÃDO!\n\n${congratsMessage}`,
+      text: `ðŸŽ‰ TREINO CONCLUÍDO!\n\n${congratsMessage}`,
     });
 
     await sendTextMessage({
@@ -1680,13 +1680,13 @@ async function advanceAfterSetLog(params: {
   const congratsMessage = await safeCoachReply(
     app,
     `O aluno ${student.name} acabou de completar o treino! Parabenize de forma entusiasmada e motivadora (2-3 linhas). Celebre a conquista!`,
-    "ParabÃ©ns! Treino concluÃ­do com sucesso. VocÃª mandou muito bem hoje! ðŸ”¥ðŸ’ª",
+    "Parabéns! Treino concluído com sucesso. Você mandou muito bem hoje! ðŸ”¥ðŸ’ª",
   );
 
   await sendTextMessage({
     instanceName,
     number: whatsapp,
-    text: `ðŸŽ‰ TREINO CONCLUÃDO!\n\n${congratsMessage}`,
+    text: `ðŸŽ‰ TREINO CONCLUÍDO!\n\n${congratsMessage}`,
   });
 
   if (workoutSummary) {
@@ -1742,7 +1742,7 @@ async function finishTrainingEarly(params: {
       category: "session",
       code: "early_finish_without_explicit_trigger",
       message:
-        "Treino encerrado antecipadamente sem trigger explÃ­cito do usuÃ¡rio.",
+        "Treino encerrado antecipadamente sem trigger explícito do usuário.",
       whatsapp_number: whatsapp,
       student_id: state.student_id,
       session_id: sessionId,
@@ -1757,7 +1757,7 @@ async function finishTrainingEarly(params: {
       category: "state",
       code: "early_finish_without_session",
       message:
-        "SolicitaÃ§Ã£o de encerramento antecipado recebida sem sessÃ£o ativa no bot_state.",
+        "Solicitação de encerramento antecipado recebida sem sessão ativa no bot_state.",
       whatsapp_number: whatsapp,
       student_id: state.student_id,
       current_state: state.current_state,
@@ -1775,7 +1775,7 @@ async function finishTrainingEarly(params: {
     await sendTextMessage({
       instanceName,
       number: whatsapp,
-      text: "Treino encerrado. Quando quiser voltar, me manda *1* para comeÃ§ar de novo! ðŸ’ª",
+      text: "Treino encerrado. Quando quiser voltar, me manda *1* para começar de novo! ðŸ’ª",
     });
     return;
   }
@@ -1795,7 +1795,7 @@ async function finishTrainingEarly(params: {
       severity: "warn",
       category: "session",
       code: "invalid_session_summary_json",
-      message: "Falha ao parsear summary da sessÃ£o durante encerramento antecipado.",
+      message: "Falha ao parsear summary da sessão durante encerramento antecipado.",
       whatsapp_number: whatsapp,
       student_id: state.student_id,
       session_id: sessionId,
@@ -1814,7 +1814,7 @@ async function finishTrainingEarly(params: {
     await sendTextMessage({
       instanceName,
       number: whatsapp,
-      text: "Treino encerrado! Antes de finalizar, qual foi o PSE geral do treino?\n\nResponda com um nÃºmero de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - MÃ¡ximo ðŸ”¥",
+      text: "Treino encerrado! Antes de finalizar, qual foi o PSE geral do treino?\n\nResponda com um número de *1 a 10*:\n1-5 - Leve\n6-7 - Moderado\n8-9 - Intenso\n10 - Máximo ðŸ”¥",
     });
     return;
   }
@@ -1845,8 +1845,8 @@ async function finishTrainingEarly(params: {
 
   const congratsMessage = await safeCoachReply(
     app,
-    `O aluno ${student.name} encerrou o treino antecipadamente. Parabenize pelo esforÃ§o de forma breve (1-2 linhas).`,
-    `Treino encerrado! Ã“timo esforÃ§o hoje, ${student.name}! Continue assim! ðŸ’ª`,
+    `O aluno ${student.name} encerrou o treino antecipadamente. Parabenize pelo esforço de forma breve (1-2 linhas).`,
+    `Treino encerrado! Ã“timo esforço hoje, ${student.name}! Continue assim! ðŸ’ª`,
   );
 
   const personalReport = buildPersonalReport(student.name, tracking, "");
@@ -1888,7 +1888,7 @@ async function finishTrainingEarly(params: {
 export async function processIncomingMessage(input: IncomingMessage) {
   const whatsapp = normalizeWhatsapp(input.remoteJid);
 
-  // 1. Transcrever Ã¡udio se necessÃ¡rio
+  // 1. Transcrever áudio se necessário
   let text = input.inputText?.trim() ?? "";
   if (!text && input.audioUrl) {
     try {
@@ -1898,7 +1898,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "NÃ£o consegui entender o Ã¡udio. Pode repetir em texto? ðŸŽ¤",
+        text: "Não consegui entender o áudio. Pode repetir em texto? ðŸŽ¤",
       });
       return;
     }
@@ -1911,7 +1911,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     return;
   }
 
-  // Comando global: pausar treino com variaÃ§Ãµes
+  // Comando global: pausar treino com variações
   if (isPauseTrainingIntent(effectiveInput.trim())) {
     const student = await getStudentByWhatsapp(whatsapp);
     if (student) {
@@ -1935,7 +1935,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     return;
   }
 
-  // Comando global: encerrar treino com variaÃ§Ãµes, sem depender da IA.
+  // Comando global: encerrar treino com variações, sem depender da IA.
   if (isTrainingDoneIntent(effectiveInput.trim())) {
     const student = await getStudentByWhatsapp(whatsapp);
     if (!student) {
@@ -1949,7 +1949,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         category: "intent",
         code: "finish_requested_without_active_session",
         message:
-          "UsuÃ¡rio tentou encerrar treino, mas o estado atual jÃ¡ estava IDLE.",
+          "Usuário tentou encerrar treino, mas o estado atual já estava IDLE.",
         whatsapp_number: whatsapp,
         student_id: student.id,
         current_state: state.current_state,
@@ -1959,7 +1959,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "VocÃª nÃ£o tem treino em andamento agora.\n\nQuer comeÃ§ar?\n1ï¸âƒ£ *Sim, bora treinar!*\n2ï¸âƒ£ *Deixar para depois* ðŸ’ª",
+        text: "Você não tem treino em andamento agora.\n\nQuer começar?\n1ï¸âƒ£ *Sim, bora treinar!*\n2ï¸âƒ£ *Deixar para depois* ðŸ’ª",
       });
       return;
     }
@@ -1976,7 +1976,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     return;
   }
 
-  // 2. Verificar se Ã© uma mensagem de inÃ­cio de treino â€” interpretaÃ§Ã£o hÃ­brida (regex + IA)
+  // 2. Verificar se é uma mensagem de início de treino â€” interpretação híbrida (regex + IA)
   const wantsToStartTraining = await isTrainingStartIntent(
     input.app,
     effectiveInput,
@@ -1988,8 +1988,8 @@ export async function processIncomingMessage(input: IncomingMessage) {
     if (!student) {
       const response = await safeCoachReply(
         input.app,
-        `O usuÃ¡rio tentou iniciar um treino mas nÃ£o estÃ¡ cadastrado ou nÃ£o estÃ¡ vinculado a um personal no sistema. Explique de forma amigÃ¡vel e breve (2 linhas) que ele precisa procurar o personal trainer para cadastro/vinculaÃ§Ã£o antes de usar o sistema.`,
-        "NÃ£o encontrei seu cadastro vinculado a um personal trainer. Procure seu personal para ativar seu acesso e eu te ajudo a iniciar o treino! ðŸ’ª",
+        `O usuário tentou iniciar um treino mas não está cadastrado ou não está vinculado a um personal no sistema. Explique de forma amigável e breve (2 linhas) que ele precisa procurar o personal trainer para cadastro/vinculação antes de usar o sistema.`,
+        "Não encontrei seu cadastro vinculado a um personal trainer. Procure seu personal para ativar seu acesso e eu te ajudo a iniciar o treino! ðŸ’ª",
       );
 
       await sendTextMessage({
@@ -2020,7 +2020,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: "VocÃª jÃ¡ tem um treino em andamento! Responda a pergunta anterior ou envie *parar* para encerrar. ðŸ’ª",
+          text: "Você já tem um treino em andamento! Responda a pergunta anterior ou envie *parar* para encerrar. ðŸ’ª",
         });
         return;
       }
@@ -2075,7 +2075,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         category: "state",
         code: "workout_selection_options_missing",
         message:
-          "Estado AWAITING_WORKOUT_SELECTION sem opÃ§Ãµes de treino vÃ¡lidas em last_input_attempt.",
+          "Estado AWAITING_WORKOUT_SELECTION sem opções de treino válidas em last_input_attempt.",
         whatsapp_number: whatsapp,
         student_id: student.id,
         session_id: state.current_session_id,
@@ -2091,25 +2091,25 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Tive um problema ao carregar as opÃ§Ãµes de treino. Me manda *1* e eu te mostro de novo. ðŸ’ª",
+        text: "Tive um problema ao carregar as opções de treino. Me manda *1* e eu te mostro de novo. ðŸ’ª",
       });
       return;
     }
 
-    // Verifica seleÃ§Ã£o por nÃºmero ANTES de isCancelIntent
-    // (isCancelIntent tambÃ©m captura "2", que Ã© uma opÃ§Ã£o vÃ¡lida de treino)
+    // Verifica seleção por número ANTES de isCancelIntent
+    // (isCancelIntent também captura "2", que é uma opção válida de treino)
     const selectedNumber = parseInt(effectiveInput.trim(), 10);
     if (
       !Number.isNaN(selectedNumber) &&
       selectedNumber >= 1 &&
       selectedNumber <= optionIds.length
     ) {
-      // nÃºmero vÃ¡lido â€” segue para seleÃ§Ã£o abaixo
+      // número válido â€” segue para seleção abaixo
     } else if (isCancelIntent(effectiveInput)) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Sem problemas! Quando quiser treinar, Ã© sÃ³ me chamar! ðŸ’ª",
+        text: "Sem problemas! Quando quiser treinar, é só me chamar! ðŸ’ª",
       });
       await updateState(whatsapp, {
         current_state: "IDLE",
@@ -2120,7 +2120,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: `Me responde com o nÃºmero do treino (1 a ${optionIds.length}).`,
+        text: `Me responde com o número do treino (1 a ${optionIds.length}).`,
       });
       return;
     }
@@ -2137,7 +2137,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         category: "state",
         code: "selected_workout_not_found",
         message:
-          "ID selecionado nÃ£o foi encontrado entre os treinos atualmente atribuÃ­dos ao aluno.",
+          "ID selecionado não foi encontrado entre os treinos atualmente atribuídos ao aluno.",
         whatsapp_number: whatsapp,
         student_id: student.id,
         session_id: state.current_session_id,
@@ -2148,7 +2148,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Esse treino nÃ£o estÃ¡ mais disponÃ­vel. Me manda *1* para eu listar os treinos novamente. ðŸ’ª",
+        text: "Esse treino não está mais disponível. Me manda *1* para eu listar os treinos novamente. ðŸ’ª",
       });
       await updateState(whatsapp, {
         current_state: "IDLE",
@@ -2188,7 +2188,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: "Ops! Parece que nÃ£o hÃ¡ treino disponÃ­vel agora. Fale com seu personal! ðŸ˜…",
+          text: "Ops! Parece que não há treino disponível agora. Fale com seu personal! ðŸ˜…",
         });
         await updateState(whatsapp, {
           current_state: "IDLE",
@@ -2197,14 +2197,14 @@ export async function processIncomingMessage(input: IncomingMessage) {
         return;
       }
 
-      // Buscar exercÃ­cios do treino antes de criar sessÃ£o
+      // Buscar exercícios do treino antes de criar sessão
       const exercises = await getWorkoutExercises(workout.id);
 
       if (exercises.length === 0) {
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: "Esse treino nÃ£o tem exercÃ­cios cadastrados ainda. Avise seu personal! ðŸ“‹",
+          text: "Esse treino não tem exercícios cadastrados ainda. Avise seu personal! ðŸ“‹",
         });
         await updateState(whatsapp, {
           current_state: "IDLE",
@@ -2213,7 +2213,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         return;
       }
 
-      // Criar sessÃ£o de treino
+      // Criar sessão de treino
       let sessionId: string;
       try {
         sessionId = await createDailySession(student.id, workout.id);
@@ -2222,7 +2222,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
           await sendTextMessage({
             instanceName: input.instance,
             number: whatsapp,
-            text: "VocÃª jÃ¡ tem um treino ativo para hoje. Finalize ou cancele a sessÃ£o atual antes de iniciar outro treino para evitar mistura de informaÃ§Ãµes.",
+            text: "Você já tem um treino ativo para hoje. Finalize ou cancele a sessão atual antes de iniciar outro treino para evitar mistura de informações.",
           });
           await updateState(whatsapp, {
             current_state: "IDLE",
@@ -2244,7 +2244,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         workout.id,
       );
 
-      // Inicializar tracking de ordem de execuÃ§Ã£o na sessÃ£o
+      // Inicializar tracking de ordem de execução na sessão
       const trackingData: SessionTrackingData = {
         type: "tracking",
         mode:
@@ -2297,7 +2297,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
       const menuText = buildExerciseSelectionMenu(
         trackingData,
-        `ðŸ‹ï¸ *${workout.name}*\n\n*Escolha por qual exercÃ­cio quer comeÃ§ar:*\n\nðŸ’¡ VocÃª pode mandar *parar* para pausar o treino ou *encerrar* para finalizar antes da hora.`,
+        `ðŸ‹ï¸ *${workout.name}*\n\n*Escolha por qual exercício quer começar:*\n\nðŸ’¡ Você pode mandar *parar* para pausar o treino ou *encerrar* para finalizar antes da hora.`,
       );
 
       await sendTextMessage({
@@ -2315,7 +2315,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         whatsapp,
         student: { id: student.id, name: student.name },
         includeGreeting: false,
-        introText: "Perfeito! Vamos trocar de treino. Qual vocÃª quer iniciar?",
+        introText: "Perfeito! Vamos trocar de treino. Qual você quer iniciar?",
       });
       return;
     }
@@ -2358,7 +2358,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         category: "session",
         code: "invalid_tracking_on_exercise_selection",
         message:
-          "Summary/tracking invÃ¡lido no estado AWAITING_EXERCISE_ORDER_SELECTION.",
+          "Summary/tracking inválido no estado AWAITING_EXERCISE_ORDER_SELECTION.",
         whatsapp_number: whatsapp,
         student_id: student.id,
         session_id: sessionId,
@@ -2369,7 +2369,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Ocorreu um erro ao carregar os exercÃ­cios. Me manda *1* para tentar de novo. ðŸ˜…",
+        text: "Ocorreu um erro ao carregar os exercícios. Me manda *1* para tentar de novo. ðŸ˜…",
       });
       await updateState(whatsapp, {
         current_state: "IDLE",
@@ -2380,7 +2380,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
     const selectedNumber = parseInt(effectiveInput.trim(), 10);
 
-    // OpÃ§Ã£o 0 = Encerrar treino
+    // Opção 0 = Encerrar treino
     if (selectedNumber === 0) {
       await finishTrainingEarly({
         app: input.app,
@@ -2404,7 +2404,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         number: whatsapp,
         text: buildExerciseSelectionMenu(
           tracking,
-          `Responda com o nÃºmero do exercÃ­cio (1 a ${tracking.remaining_ids.length}) ou 0 para encerrar:`,
+          `Responda com o número do exercício (1 a ${tracking.remaining_ids.length}) ou 0 para encerrar:`,
         ),
       });
       return;
@@ -2443,7 +2443,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: `ðŸ”¥ *${det.name}*\n${formatExerciseDetails(selectedExercise)}\n\nVamos comeÃ§ar! Quando terminar a sÃ©rie, manda *feito*.`,
+      text: `ðŸ”¥ *${det.name}*\n${formatExerciseDetails(selectedExercise)}\n\nVamos começar! Quando terminar a série, manda *feito*.`,
     });
     return;
   }
@@ -2475,7 +2475,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       const congratsMessage = await safeCoachReply(
         input.app,
         `O aluno ${student.name} finalizou o treino sem monitoramento. Parabenize de forma breve e motivadora (1-2 linhas).`,
-        `Treino finalizado! ParabÃ©ns, ${student.name}! Continue assim! ðŸ”¥ðŸ’ª`,
+        `Treino finalizado! Parabéns, ${student.name}! Continue assim! ðŸ”¥ðŸ’ª`,
       );
 
       await sendTextMessage({
@@ -2484,7 +2484,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         text: `ðŸŽ‰ ${congratsMessage}`,
       });
 
-      // Enviar relatÃ³rio ao personal
+      // Enviar relatório ao personal
       await sendReportToPersonal({
         app: input.app,
         instanceName: input.instance,
@@ -2504,7 +2504,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       return;
     }
 
-    // Mensagem desconhecida no treino livre â€” lembrete amigÃ¡vel
+    // Mensagem desconhecida no treino livre â€” lembrete amigável
     await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
@@ -2521,7 +2521,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Me manda um nÃºmero de 1 a 10 para registrar o PSE do treino! ðŸ˜Š",
+        text: "Me manda um número de 1 a 10 para registrar o PSE do treino! ðŸ˜Š",
       });
       return;
     }
@@ -2568,13 +2568,13 @@ export async function processIncomingMessage(input: IncomingMessage) {
     const congratsMessage = await safeCoachReply(
       input.app,
       `O aluno ${student.name} acabou de completar o treino! Parabenize de forma entusiasmada e motivadora (2-3 linhas). Celebre a conquista!`,
-      "ParabÃ©ns! Treino concluÃ­do com sucesso. VocÃª mandou muito bem hoje! ðŸ”¥ðŸ’ª",
+      "Parabéns! Treino concluído com sucesso. Você mandou muito bem hoje! ðŸ”¥ðŸ’ª",
     );
 
     await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: `ðŸŽ‰ TREINO CONCLUÃDO!\n\n${congratsMessage}`,
+      text: `ðŸŽ‰ TREINO CONCLUÍDO!\n\n${congratsMessage}`,
     });
 
     await sendTextMessage({
@@ -2609,7 +2609,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       const trackingMode = tracking?.tracking_mode ?? "per_rep";
 
       if (trackingMode === "per_workout" || trackingMode === "none") {
-        // Sem coleta de reps/carga por sÃ©rie: sÃ³ progressÃ£o e descanso.
+        // Sem coleta de reps/carga por série: só progressão e descanso.
         await advanceAfterSetLog({
           app: input.app,
           instanceName: input.instance,
@@ -2632,7 +2632,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         const targetSets = Number((exRow as any)?.target_sets ?? 1);
 
         if (state.current_set_number < targetSets) {
-          // Ainda hÃ¡ sÃ©ries: segue sem perguntar reps/carga agora.
+          // Ainda há séries: segue sem perguntar reps/carga agora.
           await advanceAfterSetLog({
             app: input.app,
             instanceName: input.instance,
@@ -2643,11 +2643,11 @@ export async function processIncomingMessage(input: IncomingMessage) {
           return;
         }
 
-        // Ãšltima sÃ©rie do exercÃ­cio: coleta batch de reps e carga no final do exercÃ­cio.
+        // Ãšltima série do exercício: coleta batch de reps e carga no final do exercício.
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: `âœ… ExercÃ­cio concluÃ­do!\n\nMe manda as repetiÃ§Ãµes de cada sÃ©rie no formato *12 11 10* (${targetSets} sÃ©ries).`,
+          text: `âœ… Exercício concluído!\n\nMe manda as repetições de cada série no formato *12 11 10* (${targetSets} séries).`,
         });
         await updateState(whatsapp, {
           current_state: "COLLECTING_REPS",
@@ -2656,7 +2656,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         return;
       }
 
-      // per_rep: pergunta reps e carga por sÃ©rie.
+      // per_rep: pergunta reps e carga por série.
       let restStartNotice = "";
       if (state.current_workout_exercise_id) {
         const { data: exRow } = await supabaseAdmin
@@ -2684,7 +2684,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: `ðŸ”¥ Me manda as repetiÃ§Ãµes desta sÃ©rie.${restStartNotice}`,
+        text: `ðŸ”¥ Me manda as repetições desta série.${restStartNotice}`,
       });
 
       if (!restStartNotice) {
@@ -2705,10 +2705,10 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: `â± VocÃª estÃ¡ em descanso! Ainda restam ~${remaining}s. Vou te avisar quando acabar! ðŸ’ª`,
+        text: `â± Você está em descanso! Ainda restam ~${remaining}s. Vou te avisar quando acabar! ðŸ’ª`,
       });
     } else {
-      // Timer vencido â€” transiÃ§Ã£o inline, funciona mesmo sem pg_cron configurado
+      // Timer vencido â€” transição inline, funciona mesmo sem pg_cron configurado
       await fireExpiredRest(input.app, state, input.instance);
     }
     return;
@@ -2735,7 +2735,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         await sendTextMessage({
           instanceName: input.instance,
           number: whatsapp,
-          text: `Me manda exatamente ${targetSets} nÃºmeros de repetiÃ§Ãµes, um por sÃ©rie.\nExemplo: *12 11 10*`,
+          text: `Me manda exatamente ${targetSets} números de repetições, um por série.\nExemplo: *12 11 10*`,
         });
         return;
       }
@@ -2760,7 +2760,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         studentName: student.name,
         currentState: "COLLECTING_REPS",
         userInput: effectiveInput,
-        expectedInput: "nÃºmero de repetiÃ§Ãµes (ex: 12)",
+        expectedInput: "número de repetições (ex: 12)",
       });
 
       await sendTextMessage({
@@ -2775,7 +2775,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: `${reps} repetiÃ§Ãµes anotadas! ðŸ’ª\n\nAgora me manda a carga usada em kg.`,
+      text: `${reps} repetições anotadas! ðŸ’ª\n\nAgora me manda a carga usada em kg.`,
     });
 
     await updateState(whatsapp, {
@@ -2809,7 +2809,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Ã“timo! Agora me manda o PSE desse exercÃ­cio (de *1 a 10*).",
+        text: "Ã“timo! Agora me manda o PSE desse exercício (de *1 a 10*).",
       });
       await updateState(whatsapp, {
         current_state: "COLLECTING_RPE",
@@ -2855,7 +2855,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Perfeito! Agora me manda o PSE desta sÃ©rie (de *1 a 10*).",
+        text: "Perfeito! Agora me manda o PSE desta série (de *1 a 10*).",
       });
 
       await updateState(whatsapp, {
@@ -2894,7 +2894,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Me manda um nÃºmero de 1 a 10 para registrar o PSE! ðŸ˜Š",
+        text: "Me manda um número de 1 a 10 para registrar o PSE! ðŸ˜Š",
       });
       return;
     }
@@ -2960,7 +2960,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     return;
   }
 
-  // Bot responde a qualquer mensagem recebida com uma resposta amigÃ¡vel
+  // Bot responde a qualquer mensagem recebida com uma resposta amigável
   if (student) {
     if (state.current_state !== "IDLE") {
       await logBotAnomaly(input.app, {
@@ -2968,7 +2968,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         category: "state",
         code: "unexpected_fallback_in_non_idle_state",
         message:
-          "Fluxo caiu no fallback final mesmo com estado nÃ£o-IDLE (possÃ­vel transiÃ§Ã£o nÃ£o tratada).",
+          "Fluxo caiu no fallback final mesmo com estado não-IDLE (possível transição não tratada).",
         whatsapp_number: whatsapp,
         student_id: student.id,
         session_id: state.current_session_id,
@@ -2979,7 +2979,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
 
     const reply = await safeCoachReply(
       input.app,
-      `O aluno ${student.name} enviou a mensagem: "${effectiveInput}". Responda brevemente (1-2 linhas) de forma amigÃ¡vel e motivadora, convidando para iniciar com opÃ§Ãµes: 1 para comeÃ§ar treino agora e 2 para deixar para depois.`,
+      `O aluno ${student.name} enviou a mensagem: "${effectiveInput}". Responda brevemente (1-2 linhas) de forma amigável e motivadora, convidando para iniciar com opções: 1 para começar treino agora e 2 para deixar para depois.`,
       buildFriendlyStartPrompt(student.name),
     );
 
@@ -2993,7 +2993,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
 }
 
 /**
- * Processa a transiÃ§Ã£o de RESTING para EXECUTING_SET para um Ãºnico aluno.
+ * Processa a transição de RESTING para EXECUTING_SET para um único aluno.
  * Chamado tanto inline (quando o aluno envia mensagem com timer vencido)
  * quanto por polling (scheduler interno e/ou pg_cron) via processExpiredRestTimers.
  */
@@ -3025,7 +3025,7 @@ async function fireExpiredRest(
       ? (exRow as any).exercises[0]
       : (exRow as any)?.exercises;
     const exerciseBaseName =
-      exCatalog?.name ?? legacyExercise?.name ?? "ExercÃ­cio";
+      exCatalog?.name ?? legacyExercise?.name ?? "Exercício";
     const exerciseName = exVariation?.name
       ? `${exerciseBaseName} - ${exVariation.name}`
       : exerciseBaseName;
@@ -3041,7 +3041,7 @@ async function fireExpiredRest(
     await sendTextMessage({
       instanceName,
       number: state.whatsapp_number,
-      text: `âœ… Fim do descanso! Vamos lÃ¡? ðŸ’ª\n\n*${exerciseName}* â€” SÃ©rie ${nextSet}/${targetSets}`,
+      text: `âœ… Fim do descanso! Vamos lá? ðŸ’ª\n\n*${exerciseName}* â€” Série ${nextSet}/${targetSets}`,
     });
   } else if (hint.startsWith("rest:next_exercise:")) {
     const nextExerciseId = hint.replace("rest:next_exercise:", "");
@@ -3059,7 +3059,7 @@ async function fireExpiredRest(
         { nextExerciseId },
         "fireExpiredRest: next exercise not found, clearing RESTING state",
       );
-      // Limpa o estado RESTING para nÃ£o deixar o aluno travado
+      // Limpa o estado RESTING para não deixar o aluno travado
       await updateState(state.whatsapp_number, {
         current_state: "EXECUTING_SET",
         rest_end_at: null,
@@ -3068,7 +3068,7 @@ async function fireExpiredRest(
       await sendTextMessage({
         instanceName,
         number: state.whatsapp_number,
-        text: "âœ… Descanso concluÃ­do! Continue com o prÃ³ximo exercÃ­cio do seu treino. ðŸ’ª",
+        text: "âœ… Descanso concluído! Continue com o próximo exercício do seu treino. ðŸ’ª",
       });
       return;
     }
@@ -3093,7 +3093,7 @@ async function fireExpiredRest(
       ? ex.exercises[0]
       : ex.exercises;
 
-    const baseName = catalog?.name ?? exercise?.name ?? "ExercÃ­cio";
+    const baseName = catalog?.name ?? exercise?.name ?? "Exercício";
     const variationName = variation?.name ?? null;
     const exerciseName = variationName
       ? `${baseName} - ${variationName}`
@@ -3137,10 +3137,10 @@ async function fireExpiredRest(
     await sendTextMessage({
       instanceName,
       number: state.whatsapp_number,
-      text: `âœ… Fim do descanso! PrÃ³ximo exercÃ­cio:\n\n*${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}`,
+      text: `âœ… Fim do descanso! Próximo exercício:\n\n*${nextExercise.exercise_name}*\n${formatExerciseDetails(nextExercise)}`,
     });
   } else {
-    // hint desconhecido â€” limpa o estado para nÃ£o ficar travado
+    // hint desconhecido â€” limpa o estado para não ficar travado
     app.log.warn(
       { hint, whatsapp: state.whatsapp_number },
       "fireExpiredRest: unknown hint, resetting to EXECUTING_SET",
@@ -3200,7 +3200,7 @@ export async function processExpiredRestTimers(
         await fireExpiredRest(app, state, instanceName);
       } else {
         // No per_rep, o descanso pode terminar enquanto o aluno ainda informa reps/carga/PSE.
-        // Apenas limpa rest_end_at para evitar repetiÃ§Ã£o em cada poll.
+        // Apenas limpa rest_end_at para evitar repetição em cada poll.
         await updateState(state.whatsapp_number, {
           rest_end_at: null,
         });
