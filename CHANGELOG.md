@@ -2,6 +2,23 @@
 
 Todas as mudanças relevantes do projeto serão documentadas aqui.
 
+## [2026-07-28] – Otimização de performance do frontend (v1.2.7)
+
+### Melhorado
+- **JS extraído para `/public/app.js` com `defer`**: o HTML principal passou de 342 KB para 48 KB. O JavaScript (263 KB / 6.437 linhas) agora é carregado com `defer` em arquivo separado, permitindo que o browser comece a renderizar o HTML imediatamente sem bloquear no parse/compile do JS. O arquivo é cacheável entre navegações.
+- **CSS extraído para `/public/app.css`**: 31 KB de estilos agora em arquivo separado e cacheável, referenciado via `<link>` no `<head>`.
+- **Cache-busting**: `?v=202607281134` adicionado nos URLs de `app.js` e `app.css` para invalidar cache dos browsers na atualização.
+- **Logos convertidas para WebP e redimensionadas**: `Logo-fundo-claro.png` (1.221 KB) → WebP 26 KB (−98%); `Logo-fundo-escuro.png` (716 KB) → WebP 18 KB (−97%). `icon.png` (66 KB) → WebP 6 KB (−90%). Total de imagens: de 1,94 MB para 44 KB.
+- **Atributos `width`/`height` e `loading="lazy"`** adicionados em todas as imagens do HTML, eliminando Layout Shift (CLS) durante o carregamento.
+- **N+1 corrigido em `carregarTreinosAluno`**: busca de detalhes dos treinos convertida de loop serial (`for...await`) para `Promise.all` — 10 treinos agora resultam em 1 + 10 requisições paralelas em vez de 11 seriais.
+- **Cache de aba em memória**: ao navegar entre abas (Alunos, Financeiro, Exercícios, Treinos), os dados já buscados não são recarregados do servidor. A flag é invalidada automaticamente quando a própria função de carregamento é chamada diretamente (após salvar/excluir).
+- **Polling de status WhatsApp**: intervalo aumentado de 10s para 30s, reduzindo em 66% as requisições de background sem impacto perceptível na UX.
+
+### Operação de banco executada
+- Nenhuma migration necessária.
+
+---
+
 ## [2026-07-28] – Extrato completo e regras de inatividade no bot (v1.2.6)
 
 ### Adicionado
