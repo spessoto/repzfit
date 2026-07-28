@@ -8,6 +8,12 @@
       let selectedWorkoutForStudent = null;
       let workoutSearchTimeout = null;
       let studentSessionsAll = [];
+      // Paginação da listagem de alunos
+      let alunosPage = 1;
+      const ALUNOS_PAGE_SIZE = 50;
+      // Paginação do histórico de sessões do aluno
+      let studentSessionsPage = 1;
+      const STUDENT_SESSIONS_API_PAGE_SIZE = 20;
       let studentSessionsCurrentPage = 1;
       const STUDENT_SESSIONS_PAGE_SIZE = 5;
       let studentInsightsActiveTab = "history";
@@ -852,47 +858,61 @@
         );
       }
 
-      async function carregarAlunos() {
+      async function carregarAlunos(page) {
         markTabLoaded("alunos");
+        alunosPage = page || 1;
         try {
-          const apiUrl =
-            window.location.hostname === "localhost"
-              ? "http://localhost:3333"
-              : window.location.origin;
+          const apiUrl = getApiBaseUrl();
+          const response = await fetch(
+            `${apiUrl}/api/students/list?page=${alunosPage}&limit=${ALUNOS_PAGE_SIZE}`,
+            { headers: { Authorization: `Bearer ${authToken}` } },
+          );
 
-          const response = await fetch(`${apiUrl}/api/students`, {
-            headers: { Authorization: `Bearer ${authToken}` },
-          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-
-          const alunos = await response.json();
+          const result = await response.json();
+          const alunos = result.data ?? [];
+          const pagination = result.pagination ?? {};
 
           const tbody = document.getElementById("alunosBody");
 
-          if (!alunos || alunos.length === 0) {
+          if (!alunos.length) {
             tbody.innerHTML =
               '<tr><td colspan="4" style="text-align: center; color: #6b7280;">Nenhum aluno cadastrado</td></tr>';
-            return;
+          } else {
+            tbody.innerHTML = alunos
+              .map(
+                (a) => `
+                    <tr>
+                        <td>${escapeHtml(a.name)}</td>
+                        <td>${escapeHtml(a.whatsapp_number)}</td>
+                        <td><span class="status-badge ${a.is_active ? "status-connected" : "status-disconnected"}">${a.is_active ? "Ativo" : "Inativo"}</span></td>
+                        <td style="display:flex; gap:8px;">
+                          <button class="btn btn-secondary" onclick="openAlunoEditor('${a.id}')">Editar</button>
+                          <button class="btn btn-danger" onclick="excluirAluno('${a.id}', '${escapeHtml(a.name).replace(/'/g, "\\'")}')">Excluir</button>
+                        </td>
+                    </tr>
+                `,
+              )
+              .join("");
           }
 
-          tbody.innerHTML = alunos
-            .map(
-              (a) => `
-                  <tr>
-                      <td>${escapeHtml(a.name)}</td>
-                      <td>${escapeHtml(a.whatsapp_number)}</td>
-                      <td><span class="status-badge ${a.is_active ? "status-connected" : "status-disconnected"}">${a.is_active ? "Ativo" : "Inativo"}</span></td>
-                      <td style="display:flex; gap:8px;">
-                        <button class="btn btn-secondary" onclick="openAlunoEditor('${a.id}')">Editar</button>
-                        <button class="btn btn-danger" onclick="excluirAluno('${a.id}', '${escapeHtml(a.name).replace(/'/g, "\\'")}')">Excluir</button>
-                      </td>
-                  </tr>
-              `,
-            )
-            .join("");
+          // Renderizar controles de paginação
+          const paginationEl = document.getElementById("alunosPagination");
+          if (paginationEl) {
+            const total = pagination.total ?? 0;
+            const totalPages = pagination.total_pages ?? 1;
+            if (totalPages <= 1) {
+              paginationEl.innerHTML = "";
+            } else {
+              paginationEl.innerHTML = `
+                <div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
+                  <button class="btn btn-secondary" onclick="carregarAlunos(${alunosPage - 1})" ${alunosPage <= 1 ? "disabled" : ""}>← Anterior</button>
+                  <span style="color:#6b7280;font-size:13px;">Página ${alunosPage} de ${totalPages} (${total} alunos)</span>
+                  <button class="btn btn-secondary" onclick="carregarAlunos(${alunosPage + 1})" ${alunosPage >= totalPages ? "disabled" : ""}>Próxima →</button>
+                </div>`;
+            }
+          }
         } catch (error) {
           console.error("Erro ao carregar alunos:", error);
           const tbody = document.getElementById("alunosBody");
@@ -956,62 +976,91 @@
 
       async function carregarDetalhesAlunoEditor(studentId) {
         try {
-          const response = await fetch(
-            `${getApiBaseUrl()}/api/students/${studentId}/details`,
-            {
+          // Carregar perfil + treinos em paralelo (sessões paginadas separadas)
+          const [profileRes, workoutsRes] = await Promise.all([
+            fetch(`${getApiBaseUrl()}/api/students/${studentId}/profile`, {
               headers: { Authorization: `Bearer ${authToken}` },
-            },
-          );
+            }),
+            fetch(`${getApiBaseUrl()}/api/students/${studentId}/workouts`, {
+              headers: { Authorization: `Bearer ${authToken}` },
+            }),
+          ]);
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
+          if (!profileRes.ok)  throw new Error(`Perfil HTTP ${profileRes.status}`);
+          if (!workoutsRes.ok) throw new Error(`Treinos HTTP ${workoutsRes.status}`);
 
-          const data = await response.json();
-          const student = data.student;
+          const profileData  = await profileRes.json();
+          const workoutsData = await workoutsRes.json();
+
+          const student = profileData.student;
 
           const titleName = document.getElementById("studentEditorTitleName");
-          if (titleName) {
-            titleName.textContent = student.name || "Aluno";
-          }
+          if (titleName) titleName.textContent = student.name || "Aluno";
 
-          document.getElementById("editAlunoNome").value = student.name || "";
-          document.getElementById("editAlunoEmail").value = student.email || "";
-          document.getElementById("editAlunoWhatsapp").value =
-            student.whatsapp_number || "";
-          document.getElementById("editAlunoTipoSanguineo").value =
-            student.blood_type || "";
-          document.getElementById("editAlunoPeso").value =
-            student.weight_kg ?? "";
-          document.getElementById("editAlunoAltura").value =
-            student.height_cm ?? "";
-          document.getElementById("editAlunoMensalidade").value =
-            student.monthly_fee ?? "";
-          document.getElementById("editAlunoDiaPagamento").value =
-            student.payment_day ?? "";
+          document.getElementById("editAlunoNome").value        = student.name || "";
+          document.getElementById("editAlunoEmail").value       = student.email || "";
+          document.getElementById("editAlunoWhatsapp").value    = student.whatsapp_number || "";
+          document.getElementById("editAlunoTipoSanguineo").value = student.blood_type || "";
+          document.getElementById("editAlunoPeso").value        = student.weight_kg ?? "";
+          document.getElementById("editAlunoAltura").value      = student.height_cm ?? "";
+          document.getElementById("editAlunoMensalidade").value = student.monthly_fee ?? "";
+          document.getElementById("editAlunoDiaPagamento").value = student.payment_day ?? "";
 
-          currentStudentAssignedWorkoutIds = (data.workouts || [])
+          const workouts = workoutsData.workouts || [];
+          currentStudentAssignedWorkoutIds = workouts
             .map((w) => w?.id)
             .filter((id) => typeof id === "string");
+
           studentInsightsActiveTab = "history";
           studentReportData = null;
-          studentReportCalendarYear = new Date().getFullYear();
+          studentReportCalendarYear  = new Date().getFullYear();
           studentReportCalendarMonth = new Date().getMonth();
+          studentSessionsPage = 1;
+
           openStudentInsightsTab("history");
-          renderStudentWorkoutsEditor(data.workouts || []);
-          renderAvailableWorkoutsForStudent(data.available_workouts || []);
-          renderStudentSessionsEditor(data.completed_sessions || []);
+          renderStudentWorkoutsEditor(workouts);
+          renderAvailableWorkoutsForStudent([]); // carregado on-demand ao abrir o seletor
           renderHistoricoPagamentosAluno(
-            data.payment_history || [],
+            profileData.payment_history || [],
             student.payment_day,
           );
+
+          // Carregar sessões da primeira página separadamente (não bloqueia o render inicial)
+          carregarSessoesAluno(studentId, 1);
         } catch (error) {
           console.error("Erro ao carregar detalhes do aluno:", error);
-          showAlert(
-            "studentEditorAlert",
-            "Erro ao carregar dados do aluno",
-            "error",
+          showAlert("studentEditorAlert", "Erro ao carregar dados do aluno", "error");
+        }
+      }
+
+      async function carregarSessoesAluno(studentId, page) {
+        try {
+          studentSessionsPage = page || 1;
+          const res = await fetch(
+            `${getApiBaseUrl()}/api/students/${studentId}/sessions?page=${studentSessionsPage}&limit=${STUDENT_SESSIONS_API_PAGE_SIZE}`,
+            { headers: { Authorization: `Bearer ${authToken}` } },
           );
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const result = await res.json();
+          renderStudentSessionsEditor(result.data || []);
+
+          // Atualizar controles de paginação de sessões
+          const paginationEl = document.getElementById("studentSessionsPagination");
+          if (paginationEl) {
+            const totalPages = result.pagination?.total_pages ?? 1;
+            if (totalPages <= 1) {
+              paginationEl.innerHTML = "";
+            } else {
+              paginationEl.innerHTML = `
+                <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+                  <button class="btn btn-secondary" onclick="carregarSessoesAluno('${studentId}',${studentSessionsPage - 1})" ${studentSessionsPage <= 1 ? "disabled" : ""}>← Anterior</button>
+                  <span style="font-size:12px;color:#6b7280;">Página ${studentSessionsPage} de ${totalPages}</span>
+                  <button class="btn btn-secondary" onclick="carregarSessoesAluno('${studentId}',${studentSessionsPage + 1})" ${studentSessionsPage >= totalPages ? "disabled" : ""}>Próxima →</button>
+                </div>`;
+            }
+          }
+        } catch (err) {
+          console.error("Erro ao carregar sessões do aluno:", err);
         }
       }
 
@@ -5041,9 +5090,7 @@
             headers: { Authorization: `Bearer ${authToken}` },
           });
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
           const treinos = await response.json();
 
@@ -5053,23 +5100,7 @@
             return;
           }
 
-          // Busca detalhes de todos os treinos em paralelo (evita N+1 serial)
-          await Promise.all(
-            treinos.map(async (treino) => {
-              try {
-                const exResponse = await fetch(
-                  `${getApiBaseUrl()}/api/workouts/${treino.id}/exercises`,
-                  {
-                    headers: { Authorization: `Bearer ${authToken}` },
-                  },
-                );
-                treino.exercises = exResponse.ok ? await exResponse.json() : [];
-              } catch {
-                treino.exercises = [];
-              }
-            }),
-          );
-
+          // Exercícios já vêm incluídos na resposta — sem N+1
           document.getElementById("treinosLista").innerHTML = treinos
             .map((treino) => {
               const assignedLabel =

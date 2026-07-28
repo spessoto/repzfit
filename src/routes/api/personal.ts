@@ -15,6 +15,11 @@ import {
   hmacHash,
 } from "../../utils/encryption.js";
 import {
+  getAuthenticatedPersonal,
+  extractBearerToken,
+  invalidateAuthCache,
+} from "../../utils/auth-cache.js";
+import {
   generateExerciseDescription,
   normalizeExerciseAIDescription,
 } from "../../services/gemini-service.js";
@@ -727,15 +732,6 @@ function scoreExerciseSearch(
   return score;
 }
 
-function extractBearerToken(request: FastifyRequest): string {
-  const header = request.headers.authorization;
-  if (!header || !header.startsWith("Bearer ")) {
-    throw request.server.httpErrors.unauthorized("Missing bearer token");
-  }
-
-  return header.slice("Bearer ".length).trim();
-}
-
 function getRlsClient(accessToken: string) {
   return createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
     auth: {
@@ -748,38 +744,6 @@ function getRlsClient(accessToken: string) {
       },
     },
   });
-}
-
-async function getAuthenticatedPersonal(
-  app: FastifyInstance,
-  request: FastifyRequest,
-) {
-  const token = extractBearerToken(request);
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabaseAdmin.auth.getUser(token);
-
-  if (authError || !user) {
-    throw app.httpErrors.unauthorized("Invalid or expired token");
-  }
-
-  const { data: personal, error: personalError } = await supabaseAdmin
-    .from("personals")
-    .select("id,name,email,evolution_instance_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (personalError) {
-    throw app.httpErrors.internalServerError(personalError.message);
-  }
-
-  if (!personal) {
-    throw app.httpErrors.notFound("Personal profile not found");
-  }
-
-  return { token, personalId: user.id, personal };
 }
 
 function sanitizeFileName(input: string): string {
@@ -1245,6 +1209,9 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.badRequest(updateError.message);
     }
 
+    // Invalidar cache de autenticação para forçar re-leitura do perfil atualizado
+    invalidateAuthCache(token);
+
     let result: any = await client
       .from("personals")
       .select(PERSONAL_SELECT_FULL)
@@ -1331,6 +1298,214 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     }
 
     return (data ?? []).map(normalizeStudentRow);
+  });
+
+  /**
+   * GET /students/list — listagem leve com paginação (apenas campos visíveis na tabela).
+   * Substitui GET /students para a tela de listagem de alunos.
+   * Retorna: id, name, whatsapp_number, is_active + metadados de paginação.
+   */
+  app.get("/students/list", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const client = getRlsClient(token);
+
+    const query = request.query as { page?: string; limit?: string; search?: string };
+    const page  = Math.max(1, parseInt(query.page  ?? "1",  10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(query.limit ?? "50", 10) || 50));
+    const from  = (page - 1) * limit;
+    const to    = from + limit - 1;
+
+    // Select mínimo: apenas os 4 campos usados na tabela de listagem
+    const STUDENTS_SELECT_LIST = "id,name,whatsapp_number,is_active,created_at";
+
+    let result: any = await client
+      .from("students")
+      .select(STUDENTS_SELECT_LIST, { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (result.error && isMissingStudentFieldError(result.error)) {
+      result = await client
+        .from("students")
+        .select("id,name,whatsapp_number,is_active", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(from, to);
+    }
+
+    const { data, error, count } = result;
+    if (error) throw app.httpErrors.badRequest(error.message);
+
+    const students = (data ?? []).map((row: any) => ({
+      id:               row.id,
+      name:             decrypt(row.name) ?? row.name ?? null,
+      whatsapp_number:  decrypt(row.whatsapp_number) ?? row.whatsapp_number ?? null,
+      is_active:        row.is_active,
+    }));
+
+    return {
+      data: students,
+      pagination: {
+        page,
+        limit,
+        total: count ?? 0,
+        total_pages: Math.ceil((count ?? 0) / limit),
+      },
+    };
+  });
+
+  /**
+   * GET /students/:id/profile — dados do perfil do aluno (formulário de edição).
+   * Substitui a seção "student" de /students/:id/details.
+   */
+  app.get("/students/:id/profile", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const id = z.string().uuid().parse((request.params as { id?: string }).id);
+    const client = getRlsClient(token);
+
+    let result: any = await client
+      .from("students")
+      .select(STUDENTS_SELECT_FULL)
+      .eq("id", id)
+      .maybeSingle();
+
+    if (result.error && isMissingStudentFieldError(result.error)) {
+      result = await client
+        .from("students")
+        .select(STUDENTS_SELECT_BASE)
+        .eq("id", id)
+        .maybeSingle();
+    }
+
+    const { data, error } = result;
+    if (error) throw app.httpErrors.badRequest(error.message);
+    if (!data)  throw app.httpErrors.notFound("Student not found");
+
+    const student = normalizeStudentRow(data);
+
+    const paymentHistory = await buildStudentPaymentHistory(
+      client, id, student.payment_day, student.created_at,
+    );
+
+    return { student, payment_history: paymentHistory };
+  });
+
+  /**
+   * GET /students/:id/workouts — treinos atribuídos ao aluno (aba Treinos do editor).
+   * Substitui as seções "workouts" e "available_workouts" de /students/:id/details.
+   * available_workouts removido: o frontend busca via GET /workouts quando necessário.
+   */
+  app.get("/students/:id/workouts", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const id = z.string().uuid().parse((request.params as { id?: string }).id);
+    const client = getRlsClient(token);
+
+    const { data: assignments, error: workoutsError } = await client
+      .from("student_workouts")
+      .select(
+        "id,workout_id,student_id,start_date,valid_until,tracking_mode,created_at," +
+        "workouts(id,name,day_of_week,created_at," +
+          "workout_exercises(id,exercise_id,exercise_catalog_id,exercise_variation_id," +
+            "target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description," +
+            "exercise_catalog(name),exercise_variations(name)," +
+            "exercises(id,name)))",
+      )
+      .eq("student_id", id)
+      .order("created_at", { ascending: false });
+
+    if (workoutsError) throw app.httpErrors.badRequest(workoutsError.message);
+
+    const workouts = (assignments ?? []).map((assignment: any) => {
+      const workout = Array.isArray(assignment.workouts)
+        ? assignment.workouts[0] : assignment.workouts;
+      const rawEx: any[] = Array.isArray(workout?.workout_exercises)
+        ? workout.workout_exercises : [];
+      const normalisedEx = rawEx.map((we: any) => {
+        const cat = Array.isArray(we.exercise_catalog) ? we.exercise_catalog[0] : we.exercise_catalog;
+        const vari = Array.isArray(we.exercise_variations) ? we.exercise_variations[0] : we.exercise_variations;
+        const leg  = Array.isArray(we.exercises) ? we.exercises[0] : we.exercises;
+        const base = cat?.name ?? leg?.name ?? "Exercicio";
+        return { ...we, _display_name: vari?.name ? `${base} - ${vari.name}` : base };
+      });
+      return {
+        ...(workout ?? {}),
+        workout_exercises: normalisedEx,
+        assignment_id: assignment.id,
+        assignment_start_date: assignment.start_date,
+        assignment_valid_until: assignment.valid_until,
+        assignment_tracking_mode: assignment.tracking_mode ?? "per_rep",
+      };
+    });
+
+    return { workouts };
+  });
+
+  /**
+   * GET /students/:id/sessions — histórico de sessões completadas (aba Histórico do editor).
+   * Substitui a seção "completed_sessions" de /students/:id/details.
+   * Suporta paginação via ?page= e ?limit=.
+   */
+  app.get("/students/:id/sessions", async (request) => {
+    const { token } = await getAuthenticatedPersonal(app, request);
+    const id = z.string().uuid().parse((request.params as { id?: string }).id);
+    const client = getRlsClient(token);
+
+    const query  = request.query as { page?: string; limit?: string };
+    const page   = Math.max(1, parseInt(query.page  ?? "1",  10) || 1);
+    const limit  = Math.min(50, Math.max(1, parseInt(query.limit ?? "20", 10) || 20));
+    const from   = (page - 1) * limit;
+    const to     = from + limit - 1;
+
+    let sessionsResult: any = await client
+      .from("daily_sessions")
+      .select(
+        "id,date,status,created_at,updated_at,summary,workout_id,workouts(name)," +
+        "set_logs(set_number,reps_done,weight_used,rpe_score,workout_exercise_id," +
+          "workout_exercises(order_index,exercise_catalog(name),exercise_variations(name),exercises(name)))",
+        { count: "exact" },
+      )
+      .eq("student_id", id)
+      .eq("status", "completed")
+      .order("date", { ascending: false })
+      .range(from, to);
+
+    if (sessionsResult.error && isMissingStudentFieldError(sessionsResult.error)) {
+      sessionsResult = await client
+        .from("daily_sessions")
+        .select("id,date,status,created_at,updated_at,workout_id,workouts(name)", { count: "exact" })
+        .eq("student_id", id)
+        .eq("status", "completed")
+        .order("date", { ascending: false })
+        .range(from, to);
+    }
+
+    const { data: sessions, error: sessionsError, count } = sessionsResult;
+    if (sessionsError) throw app.httpErrors.badRequest(sessionsError.message);
+
+    const completed_sessions = (sessions ?? []).map((s: any) => {
+      const runtimeSummary = buildCompletedSessionSummaryFromLogs(
+        (s?.set_logs ?? []) as any[],
+      );
+      return {
+        id: s.id,
+        date: s.date,
+        status: s.status,
+        created_at: s.created_at,
+        updated_at: s.updated_at,
+        summary: runtimeSummary ?? s.summary ?? null,
+        workout_id: s.workout_id,
+        workout_name: Array.isArray(s.workouts) ? s.workouts[0]?.name : s.workouts?.name,
+      };
+    });
+
+    return {
+      data: completed_sessions,
+      pagination: {
+        page,
+        limit,
+        total: count ?? 0,
+        total_pages: Math.ceil((count ?? 0) / limit),
+      },
+    };
   });
 
   app.patch("/students/:id", async (request) => {
@@ -1912,7 +2087,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         .eq("student_id", id)
         .eq("status", "completed")
         .order("date", { ascending: false })
-        .limit(500);
+        .limit(200); // reduzido de 500 — cobre ~6 meses de treino diário
 
     if (completedSessionsError) {
       throw app.httpErrors.badRequest(completedSessionsError.message);
@@ -1935,7 +2110,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         .from("set_logs")
         .select("session_id,workout_exercise_id,weight_used,daily_sessions(date)")
         .in("session_id", completedSessionIds)
-        .limit(20000);
+        .limit(5000); // reduzido de 20000 — 200 sessões × ~25 sets = 5000
 
       if (setLogsError) {
         throw app.httpErrors.badRequest(setLogsError.message);
@@ -1964,7 +2139,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
           "id,target_weight,exercise_catalog(name),exercise_variations(name,exercise_catalog(name),muscle_groups(name)),exercises(name,muscle_group)",
         )
         .in("id", workoutExerciseIds)
-        .limit(10000);
+        .limit(2000); // reduzido de 10000
 
       if (workoutExercisesResult.error) {
         workoutExercisesResult = await client
@@ -3461,10 +3636,17 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { token } = await getAuthenticatedPersonal(app, request);
     const client = getRlsClient(token);
 
+    // Inclui exercícios no join para eliminar o N+1 do frontend
+    // (antes: 1 GET /workouts + N GET /workouts/:id/exercises)
     const { data, error } = await client
       .from("workouts")
       .select(
-        "id,name,day_of_week,start_date,created_at,student_workouts(student_id,students(name))",
+        "id,name,day_of_week,start_date,created_at," +
+        "student_workouts(student_id,students(name))," +
+        "workout_exercises(id,workout_exercise_id:id,name:exercise_catalog(name),order_index," +
+          "target_sets,target_reps,target_weight,rest_seconds,custom_description," +
+          "exercise_catalog_id,exercise_variation_id,exercise_id," +
+          "exercise_variations(name),exercises(id,name,description))",
       )
       .order("created_at", { ascending: false });
 
@@ -3472,21 +3654,50 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       throw app.httpErrors.badRequest(error.message);
     }
 
-    return (data ?? []).map((workout: any) => ({
-      ...workout,
-      assignments_count: Array.isArray(workout.student_workouts)
-        ? workout.student_workouts.length
-        : 0,
-      assigned_students: Array.isArray(workout.student_workouts)
-        ? workout.student_workouts
-            .map((a: any) =>
-              Array.isArray(a.students)
-                ? a.students[0]?.name
-                : a.students?.name,
-            )
-            .filter(Boolean)
-        : [],
-    }));
+    return (data ?? []).map((workout: any) => {
+      // Normalizar exercícios para o mesmo formato de GET /workouts/:id/exercises
+      const rawEx: any[] = Array.isArray(workout.workout_exercises)
+        ? workout.workout_exercises : [];
+      const exercises = rawEx
+        .map((we: any) => {
+          const cat  = Array.isArray(we.exercise_catalog) ? we.exercise_catalog[0] : we.exercise_catalog;
+          const vari = Array.isArray(we.exercise_variations) ? we.exercise_variations[0] : we.exercise_variations;
+          const leg  = Array.isArray(we.exercises) ? we.exercises[0] : we.exercises;
+          const baseName = cat?.name ?? leg?.name ?? "Exercício";
+          return {
+            workout_exercise_id: we.id,
+            name:               vari?.name ? `${baseName} - ${vari.name}` : baseName,
+            order_index:        we.order_index,
+            target_sets:        we.target_sets,
+            target_reps:        we.target_reps,
+            target_weight:      we.target_weight ?? null,
+            rest_seconds:       we.rest_seconds ?? null,
+            custom_description: we.custom_description ?? null,
+            description:        leg?.description ?? null,
+            description_default: leg?.description ?? null,
+          };
+        })
+        .sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0));
+
+      const studentWorkouts = Array.isArray(workout.student_workouts)
+        ? workout.student_workouts : [];
+
+      return {
+        id:               workout.id,
+        name:             workout.name,
+        day_of_week:      workout.day_of_week,
+        start_date:       workout.start_date,
+        created_at:       workout.created_at,
+        assignments_count: studentWorkouts.length,
+        assigned_students: studentWorkouts
+          .map((a: any) => {
+            const s = Array.isArray(a.students) ? a.students[0] : a.students;
+            return decrypt(s?.name) ?? s?.name ?? null;
+          })
+          .filter(Boolean),
+        exercises,
+      };
+    });
   });
 
   app.post("/workouts/:id/exercises", async (request) => {

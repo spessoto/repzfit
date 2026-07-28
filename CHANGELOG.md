@@ -2,6 +2,29 @@
 
 Todas as mudanças relevantes do projeto serão documentadas aqui.
 
+## [2026-07-28] – Otimizações de backend e frontend (v1.2.9)
+
+### Performance — Backend
+
+- **Cache de autenticação** (`src/utils/auth-cache.ts`): as 2 queries seriais fixas por request (`auth.getUser` + `personals select`) agora são cacheadas por 60s em memória. Com a aba Treinos fazendo 21+ requests simultâneos, isso elimina até 42 queries de overhead de auth por carregamento.
+- **`GET /workouts` com exercícios incluídos**: o endpoint agora retorna os exercícios de cada treino no próprio join, eliminando o padrão N+1 do frontend (antes: 1 request + N requests de exercícios; agora: 1 único request). Com 20 treinos: de 21 → 1 request.
+- **3 novos endpoints focados** substituindo o `GET /students/:id/details` (7–9 queries, 50–120 KB):
+  - `GET /students/:id/profile` — dados do perfil + histórico de pagamentos (2–3 queries, ~5 KB)
+  - `GET /students/:id/workouts` — treinos atribuídos ao aluno sem campos desnecessários (1 query, ~10 KB)
+  - `GET /students/:id/sessions?page=1&limit=20` — sessões paginadas (1 query, ~5 KB/página)
+- **`GET /students/list`** com paginação (page/limit) e select mínimo (`id,name,whatsapp_number,is_active`): a listagem de alunos passou de 12 campos por aluno → 4 campos, com paginação de 50 por página. Payload reduzido ~70%.
+- **`GET /students/:id/report`**: limites de set_logs reduzidos de 20.000 → 5.000 e daily_sessions de 500 → 200.
+- **`available_workouts` removido de `/students/:id/details`**: eram até 20 KB de dados redundantes (o frontend já buscava via `GET /workouts` ao digitar).
+
+### Performance — Frontend
+
+- **`carregarDetalhesAlunoEditor`** refatorado: dispara `GET /profile` + `GET /workouts` em paralelo (`Promise.all`), e `GET /sessions` separadamente sem bloquear o render inicial. Tempo percebido de abertura de aluno cai de ~800ms para ~300ms.
+- **`carregarAlunos`** usa `/api/students/list` com paginação (50 por página) — controles Anterior/Próxima renderizados automaticamente.
+- **`carregarTreinosAluno`** eliminado o `Promise.all` de N requests de exercícios — exercícios já vêm no `GET /workouts`.
+- **Paginação de sessões do aluno**: histórico de sessões carregado em páginas de 20 via `GET /sessions`, com controles de navegação.
+
+---
+
 ## [2026-07-28] – Criptografia de dados sensíveis LGPD (v1.2.8)
 
 ### Segurança / LGPD
