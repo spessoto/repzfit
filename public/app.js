@@ -5975,6 +5975,34 @@
           if (methodWrapper) methodWrapper.style.display = "block";
           if (metaWrapper) metaWrapper.style.display = "block";
 
+          // Limpar campos numéricos e orientações que não eram resetados
+          const setsInput   = document.getElementById(`tab_add_sets_${workoutId}`);
+          const repsInput   = document.getElementById(`tab_add_reps_${workoutId}`);
+          const weightInput = document.getElementById(`tab_add_weight_${workoutId}`);
+          const restInput   = document.getElementById(`tab_add_rest_${workoutId}`);
+          const descInput   = document.getElementById(`tab_desc_${workoutId}`);
+          const mgSearch    = document.getElementById(`tab_mg_search_${workoutId}`);
+          const mgId        = document.getElementById(`tab_mg_id_${workoutId}`);
+          const mgDropdown  = document.getElementById(`tab_mg_dropdown_${workoutId}`);
+          const mgSmall     = document.getElementById(`tab_mg_${workoutId}`);
+          const aiBtn       = document.getElementById(`tab_ai_btn_${workoutId}`);
+          if (setsInput)   setsInput.value   = "";
+          if (repsInput)   repsInput.value   = "";
+          if (weightInput) weightInput.value = "";
+          if (restInput)   restInput.value   = "";
+          if (descInput)   descInput.value   = "";
+          if (mgSearch)    { mgSearch.value  = ""; }
+          if (mgId)        { mgId.value      = ""; }
+          if (mgDropdown)  { mgDropdown.style.display = "none"; }
+          if (mgSmall)     { mgSmall.textContent = ""; }
+          if (aiBtn)       { aiBtn.disabled  = true; }
+
+          // Resetar estado do grupo muscular
+          if (typeof tabWorkoutSelectionState !== "undefined" && tabWorkoutSelectionState[workoutId]) {
+            tabWorkoutSelectionState[workoutId].groupId   = "";
+            tabWorkoutSelectionState[workoutId].groupName = "";
+          }
+
           const nextOrderInput = document.getElementById(`tab_next_order_${workoutId}`);
           if (nextOrderInput) {
             nextOrderInput.value = String(localOrder);
