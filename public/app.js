@@ -4336,14 +4336,23 @@
           <div class="workout-add-grid">
             <div class="form-group" style="position: relative;">
               <label>Grupo muscular <small style="font-weight:400;color:#6b7280;">(filtro opcional)</small></label>
-              <input
-                type="text"
-                id="exmg_search_${index}"
-                placeholder="Opcional: clique para filtrar os grupos..."
-                autocomplete="off"
-                oninput="buscarGrupoMuscular(${index}, this.value)"
-                onfocus="buscarGrupoMuscular(${index}, this.value)"
-              />
+              <div style="position:relative;display:flex;align-items:center;">
+                <input
+                  type="text"
+                  id="exmg_search_${index}"
+                  placeholder="Opcional: clique para filtrar os grupos..."
+                  autocomplete="off"
+                  oninput="buscarGrupoMuscular(${index}, this.value)"
+                  onfocus="buscarGrupoMuscular(${index}, this.value)"
+                  style="padding-right:28px;width:100%;"
+                />
+                <button
+                  type="button"
+                  title="Limpar filtro de grupo muscular"
+                  style="position:absolute;right:6px;background:none;border:none;cursor:pointer;color:#9ca3af;font-size:16px;line-height:1;padding:2px 4px;"
+                  onclick="limparFiltroGrupoMuscular(${index})"
+                >&times;</button>
+              </div>
               <input type="hidden" id="exmg_id_${index}" />
               <div id="exmg_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
@@ -4501,6 +4510,25 @@
         state.exerciseName = "";
 
         resetNovoTreinoDependentes(index, "group");
+      }
+
+      function limparFiltroGrupoMuscular(index) {
+        const search = document.getElementById(`exmg_search_${index}`);
+        const hidden = document.getElementById(`exmg_id_${index}`);
+        const dropdown = document.getElementById(`exmg_dropdown_${index}`);
+        if (search) { search.value = ""; }
+        if (hidden) { hidden.value = ""; }
+        if (dropdown) { dropdown.style.display = "none"; }
+
+        const state = getNovoTreinoState(index);
+        state.groupId = "";
+        state.groupName = "";
+        state.exerciseId = "";
+        state.exerciseName = "";
+
+        resetNovoTreinoDependentes(index, "group");
+        // Reabrir dropdown com todos os exercícios (sem filtro de grupo)
+        buscarCatalogo(index, document.getElementById(`excat_search_${index}`)?.value || "");
       }
 
       function renderVarTags(index) {
@@ -5126,14 +5154,23 @@
                         <div class="workout-add-grid">
                           <div class="form-group" style="position: relative;">
                             <label>Grupo muscular <small style="font-weight:400;color:#6b7280;">(filtro opcional)</small></label>
-                            <input
-                              type="text"
-                              id="tab_mg_search_${treino.id}"
-                              placeholder="Opcional: clique para filtrar os grupos..."
-                              autocomplete="off"
-                              oninput="buscarGrupoMuscularEdicao('${treino.id}', this.value)"
-                              onfocus="buscarGrupoMuscularEdicao('${treino.id}', this.value)"
-                            />
+                            <div style="position:relative;display:flex;align-items:center;">
+                              <input
+                                type="text"
+                                id="tab_mg_search_${treino.id}"
+                                placeholder="Opcional: clique para filtrar os grupos..."
+                                autocomplete="off"
+                                oninput="buscarGrupoMuscularEdicao('${treino.id}', this.value)"
+                                onfocus="buscarGrupoMuscularEdicao('${treino.id}', this.value)"
+                                style="padding-right:28px;width:100%;"
+                              />
+                              <button
+                                type="button"
+                                title="Limpar filtro de grupo muscular"
+                                style="position:absolute;right:6px;background:none;border:none;cursor:pointer;color:#9ca3af;font-size:16px;line-height:1;padding:2px 4px;"
+                                onclick="limparFiltroGrupoMuscularEdicao('${treino.id}')"
+                              >&times;</button>
+                            </div>
                             <input type="hidden" id="tab_mg_id_${treino.id}" />
                             <div id="tab_mg_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
                           </div>
@@ -6253,6 +6290,25 @@
         state.exerciseId = "";
         state.exerciseName = "";
         resetComboFields(workoutId, "group");
+      }
+
+      function limparFiltroGrupoMuscularEdicao(workoutId) {
+        const search = document.getElementById(`tab_mg_search_${workoutId}`);
+        const hidden = document.getElementById(`tab_mg_id_${workoutId}`);
+        const dropdown = document.getElementById(`tab_mg_dropdown_${workoutId}`);
+        if (search) { search.value = ""; }
+        if (hidden) { hidden.value = ""; }
+        if (dropdown) { dropdown.style.display = "none"; }
+
+        const state = getWorkoutSelectionState(workoutId);
+        state.groupId = "";
+        state.groupName = "";
+        state.exerciseId = "";
+        state.exerciseName = "";
+
+        resetComboFields(workoutId, "group");
+        // Reabrir dropdown de exercício sem filtro de grupo
+        buscarCatalogoEdicao(workoutId, document.getElementById(`tab_cat_search_${workoutId}`)?.value || "");
       }
 
       async function verificarStatusWhatsApp() {
