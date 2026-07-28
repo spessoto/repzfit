@@ -1,7 +1,10 @@
 import type { FastifyInstance } from "fastify";
 
 import { env } from "../../config/env.js";
-import { processExpiredRestTimers } from "../../services/bot-engine.js";
+import {
+  processExpiredRestTimers,
+  processInactiveTrainingSessions,
+} from "../../services/bot-engine.js";
 
 export async function registerRestTimerPollRoute(app: FastifyInstance) {
   // Chamado por pg_cron via pg_net ou pelo scheduler interno.
@@ -17,6 +20,11 @@ export async function registerRestTimerPollRoute(app: FastifyInstance) {
     }
 
     const processed = await processExpiredRestTimers(app);
+
+    // Verificação de inatividade (60min check-in / 90min auto-encerramento)
+    // Executa a cada ciclo, mas a lógica interna é idempotente.
+    await processInactiveTrainingSessions(app);
+
     return reply.code(200).send({ ok: true, processed });
   });
 }

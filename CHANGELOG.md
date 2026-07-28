@@ -2,6 +2,23 @@
 
 Todas as mudanças relevantes do projeto serão documentadas aqui.
 
+## [2026-07-28] – Extrato completo e regras de inatividade no bot (v1.2.6)
+
+### Adicionado
+- **Regra de inatividade 60 min**: após 60 minutos sem atividade do aluno durante um treino, o bot envia automaticamente "Oi! Você ainda está aí? 👀". O aviso é enviado apenas uma vez por sessão.
+- **Regra de inatividade 90 min**: após 90 minutos sem atividade, o bot envia "Pelo visto seu treino já deve ter terminado. Vou encerrar aqui. Bom descanso. 💤" e encerra o treino automaticamente, gerando extrato e notificando o personal. A detecção é feita pelo mesmo polling do rest-timer (pg_cron a cada 3s), via a nova função `processInactiveTrainingSessions()`.
+
+### Corrigido / Melhorado
+- **Extrato ao encerrar treino** (`buildSimpleExerciseList`): agora exibe também exercícios **em andamento** (marcados com ⏳ e `*(em andamento)*`) e exercícios **não iniciados** (marcados com ❌ na seção "Não realizados"), além dos concluídos (✅). Antes, apenas exercícios totalmente concluídos apareciam.
+- **Extrato detalhado** (`buildWorkoutSummary`, modos `per_rep`/`per_exercise`): exercícios com séries parciais agora exibem _(X/Y séries)_ ao lado do nome. Exercícios não tocados aparecem na seção "Não realizados" (requer `tracking` passado como parâmetro).
+- **Relatório salvo no banco** (`finishTrainingEarly`): o `personalReport` agora inclui corretamente o extrato de séries em vez de string vazia, corrigindo o dado persistido em `daily_sessions.summary`.
+- **Modo `per_workout` ao encerrar**: o extrato agora passa `current_workout_exercise_id` para marcar o exercício em andamento no momento do encerramento.
+
+### Migration executada
+- `supabase/migrations/202607280002_bot_state_last_activity_at.sql` — adiciona coluna `last_activity_at timestamptz` ao `bot_state` com backfill de `updated_at` e índice parcial para o polling de inatividade.
+
+---
+
 ## [2026-07-28] – Correção do disparo automático do timer de descanso (v1.2.5)
 
 ### Corrigido

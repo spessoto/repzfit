@@ -33,6 +33,7 @@ type BotStateRow = {
   current_set_number: number;
   last_input_attempt: string | null;
   rest_end_at: string | null;
+  last_activity_at: string | null;
 };
 
 type WorkoutExercise = {
@@ -562,9 +563,10 @@ async function getOrCreateState(
 }
 
 async function updateState(whatsapp: string, patch: Partial<BotStateRow>) {
+  const now = new Date().toISOString();
   const { error } = await supabaseAdmin
     .from("bot_state")
-    .update({ ...patch, updated_at: new Date().toISOString() })
+    .update({ ...patch, updated_at: now, last_activity_at: now })
     .eq("whatsapp_number", whatsapp);
 
   if (error) {
@@ -902,7 +904,10 @@ async function saveSetLog(params: {
 /**
  * Busca todos os sets de uma sessão e monta o extrato de treino
  */
-async function buildWorkoutSummary(sessionId: string): Promise<string> {
+async function buildWorkoutSummary(
+  sessionId: string,
+  tracking?: SessionTrackingData | null,
+): Promise<string> {
   const { data: sessionRow, error: sessionError } = await supabaseAdmin
     .from("daily_sessions")
     .select("date,workout_id,status")
@@ -922,6 +927,7 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
       workout_exercise_id,
       workout_exercises (
         order_index,
+        target_sets,
         exercise_catalog ( name ),
         exercise_variations ( name ),
         exercises ( name )
@@ -931,14 +937,14 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
     .eq("session_id", sessionId)
     .order("set_number", { ascending: true });
 
-  if (error || !logs || logs.length === 0) return "";
+  if (error) return "";
 
   // Agrupar sets por exercício
   const exerciseMap = new Map<
     string,
-    { name: string; order: number; sets: typeof logs }
+    { name: string; order: number; targetSets: number; sets: typeof logs }
   >();
-  for (const log of logs) {
+  for (const log of logs ?? []) {
     const we = log.workout_exercises as any;
     const catalog = Array.isArray(we?.exercise_catalog)
       ? we.exercise_catalog[0]
@@ -949,8 +955,9 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
     const base = catalog?.name ?? we?.exercises?.name ?? "Exercício";
     const name = variation?.name ? `${base} - ${variation.name}` : base;
     const order = we?.order_index ?? 0;
+    const targetSets = we?.target_sets ?? 0;
     if (!exerciseMap.has(log.workout_exercise_id)) {
-      exerciseMap.set(log.workout_exercise_id, { name, order, sets: [] });
+      exerciseMap.set(log.workout_exercise_id, { name, order, targetSets, sets: [] });
     }
     exerciseMap.get(log.workout_exercise_id)!.sets.push(log);
   }
@@ -965,7 +972,12 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
   const lines: string[] = [`📊 *EXTRATO DO TREINO — ${today}*`, ""];
 
   sorted.forEach((ex, i) => {
-    lines.push(`*${i + 1}. ${ex.name}*`);
+    const doneCount = ex.sets.length;
+    const isPartial = ex.targetSets > 0 && doneCount < ex.targetSets;
+    const label = isPartial
+      ? `*${i + 1}. ${ex.name}* _(${doneCount}/${ex.targetSets} séries)_`
+      : `*${i + 1}. ${ex.name}*`;
+    lines.push(label);
     for (const s of ex.sets as any[]) {
       lines.push(
         `   Série ${s.set_number}: ${s.reps_done} reps × ${s.weight_used}kg | PSE ${s.rpe_score ?? "-"}`,
@@ -974,12 +986,28 @@ async function buildWorkoutSummary(sessionId: string): Promise<string> {
     lines.push("");
   });
 
-  const totalSets = logs.length;
+  // Exercícios não tocados (presentes no tracking mas sem nenhum set_log)
+  if (tracking) {
+    const touchedIds = new Set(exerciseMap.keys());
+    const notStarted = (tracking.remaining_ids ?? []).filter(
+      (id) => !touchedIds.has(id) && !(tracking.done ?? []).some((d) => d.id === id),
+    );
+    if (notStarted.length > 0) {
+      lines.push("*Não realizados:*");
+      for (const id of notStarted) {
+        const det = tracking.exercise_details?.[id];
+        if (det) lines.push(`   ❌ ${det.name}`);
+      }
+      lines.push("");
+    }
+  }
+
+  const totalSets = logs?.length ?? 0;
   const totalExercises = sorted.length;
   lines.push(
     `✅ ${totalExercises} exercício${
       totalExercises !== 1 ? "s" : ""
-    } | ${totalSets} série${totalSets !== 1 ? "s" : ""} completadas`,
+    } | ${totalSets} série${totalSets !== 1 ? "s" : ""} registradas`,
   );
 
   return lines.join("\n").trimEnd();
@@ -1019,6 +1047,7 @@ async function getStudentWorkoutTrackingMode(
 function buildSimpleExerciseList(
   tracking: SessionTrackingData,
   overallPse?: number,
+  currentExerciseId?: string | null,
 ): string {
   const today = new Date().toLocaleDateString("pt-BR");
   const sorted = [...(tracking.done ?? [])].sort(
@@ -1027,18 +1056,41 @@ function buildSimpleExerciseList(
 
   const lines: string[] = [`📋 *EXERCÍCIOS REALIZADOS — ${today}*`, ""];
 
-  if (sorted.length === 0) {
+  if (sorted.length === 0 && (tracking.remaining_ids ?? []).length === 0) {
     lines.push("Nenhum exercício registrado.");
   } else {
+    // Exercícios concluídos
     for (const ex of sorted) {
       lines.push(`✅ ${ex.exec_order}. ${ex.name}`);
+    }
+
+    // Exercício em andamento no momento do encerramento (séries parciais)
+    if (currentExerciseId && tracking.exercise_details?.[currentExerciseId]) {
+      const det = tracking.exercise_details[currentExerciseId];
+      const alreadyDone = sorted.some((d) => d.id === currentExerciseId);
+      if (!alreadyDone) {
+        lines.push(`⏳ ${sorted.length + 1}. ${det.name} *(em andamento)*`);
+      }
+    }
+
+    // Exercícios não iniciados (remaining, excluindo o atual)
+    const remaining = (tracking.remaining_ids ?? []).filter(
+      (id) => id !== currentExerciseId && !sorted.some((d) => d.id === id),
+    );
+    if (remaining.length > 0) {
+      lines.push("");
+      lines.push("*Não realizados:*");
+      for (const id of remaining) {
+        const det = tracking.exercise_details?.[id];
+        if (det) lines.push(`❌ ${det.name}`);
+      }
     }
   }
 
   lines.push("");
   if (overallPse !== undefined) {
     lines.push(
-      `Total: ${sorted.length} exercício${sorted.length !== 1 ? "s" : ""} | Esforço geral (PSE): ${overallPse}/10`,
+      `Total: ${sorted.length} exercício${sorted.length !== 1 ? "s" : ""} concluído${sorted.length !== 1 ? "s" : ""} | Esforço geral (PSE): ${overallPse}/10`,
     );
   } else {
     lines.push(
@@ -1480,7 +1532,7 @@ async function advanceAfterSetLog(params: {
       // Todos os exercícios concluídos!
       let workoutSummary = "";
       try {
-        workoutSummary = await buildWorkoutSummary(state.current_session_id!);
+        workoutSummary = await buildWorkoutSummary(state.current_session_id!, exerciseTracking);
       } catch (err) {
         app.log.error(err, "Failed to build workout summary");
       }
@@ -1822,7 +1874,7 @@ async function finishTrainingEarly(params: {
   let extrato = "";
   if (trackingMode === "per_rep" || trackingMode === "per_exercise") {
     try {
-      extrato = await buildWorkoutSummary(sessionId);
+      extrato = await buildWorkoutSummary(sessionId, tracking);
     } catch (err) {
       app.log.warn(err, "Failed to build monitored summary on early finish");
     }
@@ -1840,6 +1892,8 @@ async function finishTrainingEarly(params: {
         done: [],
         exercise_details: {},
       },
+      undefined,
+      state.current_workout_exercise_id,
     );
   }
 
@@ -1849,7 +1903,7 @@ async function finishTrainingEarly(params: {
     `Treino encerrado! Ótimo esforço hoje, ${student.name}! Continue assim! 💪`,
   );
 
-  const personalReport = buildPersonalReport(student.name, tracking, "");
+  const personalReport = buildPersonalReport(student.name, tracking, extrato);
   await completeSession(sessionId, personalReport);
 
   await sendTextMessage({
@@ -2553,6 +2607,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         exercise_details: {},
       },
       pse,
+      state.current_workout_exercise_id,
     );
 
     const personalReport = buildPersonalReport(
@@ -3157,6 +3212,144 @@ async function fireExpiredRest(
     });
   }
 }
+
+/**
+ * Gerencia inatividade de sessões em andamento.
+ *
+ * Regras:
+ * - 60 min sem atividade → envia mensagem de check-in ("Você ainda está aí?")
+ *   Sinaliza com last_input_attempt = "inactivity:warned:<timestamp>"
+ * - 90 min sem atividade (ou 30 min após o aviso) → encerra o treino automaticamente
+ *
+ * Chamado pelo polling do rest-timer a cada ciclo (pg_cron 3s).
+ */
+export async function processInactiveTrainingSessions(
+  app: FastifyInstance,
+): Promise<void> {
+  const now = Date.now();
+  const WARN_AFTER_MS  = 60 * 60 * 1000; // 60 minutos
+  const CLOSE_AFTER_MS = 90 * 60 * 1000; // 90 minutos
+
+  // Busca estados com sessão ativa e last_activity_at disponível
+  const { data: activeStates, error } = await supabaseAdmin
+    .from("bot_state")
+    .select(
+      "whatsapp_number,student_id,current_state,current_session_id,current_workout_exercise_id,current_set_number,last_input_attempt,rest_end_at,last_activity_at",
+    )
+    .not("current_session_id", "is", null)
+    .not("last_activity_at", "is", null);
+
+  if (error) {
+    app.log.error(error, "processInactiveTrainingSessions: query failed");
+    return;
+  }
+
+  if (!activeStates || activeStates.length === 0) return;
+
+  const instanceName = getUnifiedEvolutionInstanceName();
+
+  for (const raw of activeStates) {
+    const state = raw as BotStateRow;
+
+    // Ignorar estados que não representam treino ativo
+    if (
+      state.current_state === "IDLE" ||
+      state.current_state === "AWAITING_WORKOUT_SELECTION" ||
+      state.current_state === "AWAITING_TRAINING_START"
+    ) {
+      continue;
+    }
+
+    const lastActivity = new Date(state.last_activity_at!).getTime();
+    const elapsedMs = now - lastActivity;
+
+    // Verificar se já foi encerrado (aviso já emitido e ainda inativo)
+    const alreadyWarned = (state.last_input_attempt ?? "").startsWith(
+      "inactivity:warned:",
+    );
+
+    if (elapsedMs >= CLOSE_AFTER_MS) {
+      // 90 minutos — encerrar treino automaticamente
+      app.log.info(
+        { whatsapp: state.whatsapp_number, elapsedMin: Math.round(elapsedMs / 60000) },
+        "processInactiveTrainingSessions: auto-closing session after 90min inactivity",
+      );
+
+      const student = await getStudentByWhatsapp(state.whatsapp_number);
+      if (!student) {
+        // Sem aluno — só limpa o estado
+        await supabaseAdmin
+          .from("bot_state")
+          .update({
+            current_state: "IDLE",
+            current_session_id: null,
+            current_workout_exercise_id: null,
+            current_set_number: 1,
+            last_input_attempt: null,
+            rest_end_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("whatsapp_number", state.whatsapp_number);
+        continue;
+      }
+
+      try {
+        // Mensagem de encerramento automático
+        await sendTextMessage({
+          instanceName,
+          number: state.whatsapp_number,
+          text: "Pelo visto seu treino já deve ter terminado. Vou encerrar aqui. Bom descanso. 💤",
+        });
+
+        // Encerrar treino (gera extrato e notifica personal)
+        await finishTrainingEarly({
+          app,
+          instanceName,
+          whatsapp: state.whatsapp_number,
+          student: { name: student.name, personal_id: student.personal_id },
+          state,
+          trigger: "explicit_command",
+        });
+      } catch (err) {
+        app.log.error(
+          err,
+          `processInactiveTrainingSessions: failed to close session for ${state.whatsapp_number}`,
+        );
+      }
+
+    } else if (elapsedMs >= WARN_AFTER_MS && !alreadyWarned) {
+      // 60 minutos — enviar check-in (apenas uma vez)
+      app.log.info(
+        { whatsapp: state.whatsapp_number, elapsedMin: Math.round(elapsedMs / 60000) },
+        "processInactiveTrainingSessions: sending 60min inactivity check-in",
+      );
+
+      try {
+        await sendTextMessage({
+          instanceName,
+          number: state.whatsapp_number,
+          text: "Oi! Você ainda está aí? 👀",
+        });
+
+        // Marcar que o aviso foi enviado (sem alterar last_activity_at)
+        await supabaseAdmin
+          .from("bot_state")
+          .update({
+            last_input_attempt: `inactivity:warned:${new Date().toISOString()}`,
+            updated_at: new Date().toISOString(),
+            // NÃO atualizar last_activity_at aqui para não resetar o contador
+          })
+          .eq("whatsapp_number", state.whatsapp_number);
+      } catch (err) {
+        app.log.error(
+          err,
+          `processInactiveTrainingSessions: failed to send check-in for ${state.whatsapp_number}`,
+        );
+      }
+    }
+  }
+}
+
 
 /**
  * Dispara timers de descanso vencidos.
