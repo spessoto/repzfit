@@ -65,6 +65,44 @@ Implementada criptografia por campo (**AES-256-GCM**) para todos os dados pessoa
 
 ---
 
+## [2026-07-28] – Otimização e limpeza do banco de dados (v1.3.0)
+
+### Performance — Banco de dados
+
+#### Índices críticos adicionados (migration `202607280004`)
+- **`idx_workout_exercises_workout_id`** — FK `workout_id` em `workout_exercises` estava sem índice. Toda listagem de exercícios de um treino (`GET /workouts`, `GET /workouts/:id/exercises`) fazia full seq-scan na tabela. **Impacto crítico** em produção.
+- **`idx_set_logs_workout_exercise_id`** — FK `workout_exercise_id` em `set_logs` sem índice. Gráficos de evolução de carga por exercício (`GET /students/:id/report`) faziam seq-scan em toda a tabela de séries. **Impacto crítico**.
+- **`idx_daily_sessions_workout_id`** — FK `workout_id` em `daily_sessions` sem índice.
+- **`idx_bot_state_student_id`** — FK `student_id` em `bot_state` sem índice.
+- **`idx_exercises_personal_id`** — tabela legada `exercises` sem índice em `personal_id`. Toda query de leitura de exercícios privados fazia seq-scan.
+- **`idx_exercise_variations_muscle_group_id`** e **`idx_exercise_combo_cache_muscle_group_id`** — FKs de baixa prioridade sem índice.
+
+#### Índices redundantes removidos
+- **`idx_bot_state_lookup`** — indexava `whatsapp_number` que já é a **PRIMARY KEY** da tabela (índice 100% inútil, duplicava espaço e overhead de escrita).
+- **`idx_students_whatsapp`** — índice btree simples criado em 2026-05; substituído completamente pelo índice `UNIQUE` global criado em 2026-06 na mesma coluna.
+
+### Limpeza de dados (migration `202607280005`)
+
+#### Limpeza imediata executada
+- `processed_webhook_events` com mais de 1 hora removidos (TTL normal é 10 min; acumulados entre deploys)
+- `bot_anomaly_logs` resolvidos com mais de 90 dias removidos
+- `bot_anomaly_logs` não resolvidos de baixa severidade (info/warn) com mais de 6 meses removidos
+- `daily_sessions` abandonadas com mais de 1 ano removidas (cascade remove `set_logs` vinculados)
+- Registros de `exercises` completamente órfãos (sem `exercise_catalog` e sem `workout_exercises`) removidos
+
+#### pg_cron — 3 novos jobs de manutenção automática
+| Job | Frequência | O que limpa |
+|---|---|---|
+| `repzfit-cleanup-webhook-events` | Diariamente às 3h | `processed_webhook_events` > 1 hora |
+| `repzfit-cleanup-anomaly-logs` | Segunda-feira às 3h30 | `bot_anomaly_logs` resolvidos > 90 dias + não-resolvidos warn/info > 6 meses |
+| `repzfit-cleanup-abandoned-sessions` | 1º de cada mês às 4h | `daily_sessions` abandonadas > 1 ano (cascade em `set_logs`) |
+
+### Migration executada
+- `supabase/migrations/202607280004_db_indexes_optimization.sql`
+- `supabase/migrations/202607280005_db_cleanup_and_retention.sql`
+
+---
+
 ## [2026-07-28] – Otimização de performance do frontend (v1.2.7)
 
 ### Melhorado
