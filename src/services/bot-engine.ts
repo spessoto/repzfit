@@ -441,12 +441,12 @@ async function logBotAnomaly(app: FastifyInstance, input: BotAnomalyInput) {
     severity,
     category: input.category,
     code: input.code,
-    message: encrypt(input.message) ?? input.message,
+    message: input.message,                                           // texto hardcoded do sistema — não criptografar
     whatsapp_number: input.whatsapp_number ?? null,
     student_id: input.student_id ?? null,
     session_id: input.session_id ?? null,
     current_state: input.current_state ?? null,
-    input_excerpt: encrypt(toInputExcerpt(input.input_excerpt ?? null)),
+    input_excerpt: encrypt(toInputExcerpt(input.input_excerpt ?? null)), // texto livre do aluno — criptografar
     context: input.context ?? {},
   };
 

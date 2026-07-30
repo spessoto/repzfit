@@ -677,8 +677,15 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
     const total = count ?? 0;
     const totalPages = Math.ceil(total / limit);
 
+    // Descriptografar campos sensíveis antes de retornar ao painel admin
+    const rows = (data ?? []).map((row: any) => ({
+      ...row,
+      message:       row.message,                                          // não criptografado (texto do sistema)
+      input_excerpt: decrypt(row.input_excerpt) ?? row.input_excerpt ?? null, // criptografado (texto do aluno)
+    }));
+
     return {
-      data: data ?? [],
+      data: rows,
       pagination: {
         page,
         limit,
