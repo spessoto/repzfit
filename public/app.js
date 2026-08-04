@@ -4435,7 +4435,7 @@
             </div>
             <div class="form-group">
               <label>Peso (kg)</label>
-              <input type="number" id="peso_${index}" min="0" step="0.5" value="0" placeholder="Ex: 20" />
+              <input type="number" id="peso_${index}" min="0" step="0.5" value="" placeholder="Ex: 20" />
             </div>
             <div class="form-group">
               <label>Descanso (s)</label>
@@ -4988,7 +4988,7 @@
                     ...(methodId ? { method_id: methodId } : {}),
                     target_sets: series,
                     target_reps: reps,
-                    target_weight: peso ? parseFloat(peso) : null,
+                    target_weight: (peso === "" || peso == null) ? null : parseFloat(peso),
                     order_index: orderCounter,
                     rest_seconds: descanso ? parseInt(descanso) : null,
                     custom_description: customDesc || null,

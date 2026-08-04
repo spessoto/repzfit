@@ -2649,6 +2649,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       1000,
     );
     const muscleGroupId = (query.muscle_group_id ?? "").trim();
+    const searchNorm = normalizeSearchComparable(search);
 
     let q = supabaseAdmin
       .from("exercise_catalog")
@@ -2657,7 +2658,14 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .order("name", { ascending: true });
 
     if (search) {
-      q = q.ilike("name", `%${search}%`);
+      // Busca tanto o termo original quanto o normalizado (sem acento) para cobrir ambos os casos
+      const safeOrig = search.replace(/_/g, "\\_");
+      const safeNorm = searchNorm.replace(/_/g, "\\_");
+      if (safeOrig === safeNorm) {
+        q = q.ilike("name", `%${safeOrig}%`);
+      } else {
+        q = q.or(`name.ilike.%${safeOrig}%,name.ilike.%${safeNorm}%`);
+      }
     }
 
     if (muscleGroupId) {
@@ -2666,7 +2674,16 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
     const { data, error } = await q.limit(limit);
     if (error) throw app.httpErrors.badRequest(error.message);
-    return (data ?? []).map((row: any) => ({
+    // Filtragem in-memory com normalização completa para garantir tolerância a acentos
+    const searchTokens = search ? tokenizeSearchTerm(search) : [];
+    const filtered = searchTokens.length
+      ? (data ?? []).filter((row: any) =>
+          searchTokens.every((tok) =>
+            normalizeSearchComparable(row.name ?? "").includes(tok),
+          ),
+        )
+      : (data ?? []);
+    return filtered.map((row: any) => ({
       id: row.id,
       name: row.name,
       notes: row.notes,
@@ -3025,6 +3042,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
       1000,
     );
+    const searchNorm = normalizeSearchComparable(search);
 
     let q = supabaseAdmin
       .from("exercise_variations")
@@ -3033,12 +3051,24 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .order("name", { ascending: true });
 
     if (search) {
-      q = q.ilike("name", `%${search}%`);
+      const safeOrig = search.replace(/_/g, "\\_");
+      const safeNorm = searchNorm.replace(/_/g, "\\_");
+      if (safeOrig === safeNorm) {
+        q = q.ilike("name", `%${safeOrig}%`);
+      } else {
+        q = q.or(`name.ilike.%${safeOrig}%,name.ilike.%${safeNorm}%`);
+      }
     }
 
     const { data, error } = await q.limit(limit);
     if (error) throw app.httpErrors.badRequest(error.message);
-    return data ?? [];
+    const searchTokens = search ? tokenizeSearchTerm(search) : [];
+    if (!searchTokens.length) return data ?? [];
+    return (data ?? []).filter((row: any) =>
+      searchTokens.every((tok) =>
+        normalizeSearchComparable(row.name ?? "").includes(tok),
+      ),
+    );
   });
 
   app.post("/exercise-variations", async (request) => {
@@ -3097,6 +3127,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
       1000,
     );
+    const searchNorm = normalizeSearchComparable(search);
 
     let q = supabaseAdmin
       .from("equipment_catalog")
@@ -3104,12 +3135,24 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .order("name", { ascending: true });
 
     if (search) {
-      q = q.ilike("name", `%${search}%`);
+      const safeOrig = search.replace(/_/g, "\\_");
+      const safeNorm = searchNorm.replace(/_/g, "\\_");
+      if (safeOrig === safeNorm) {
+        q = q.ilike("name", `%${safeOrig}%`);
+      } else {
+        q = q.or(`name.ilike.%${safeOrig}%,name.ilike.%${safeNorm}%`);
+      }
     }
 
     const { data, error } = await q.limit(limit);
     if (error) throw app.httpErrors.badRequest(error.message);
-    return data ?? [];
+    const searchTokens = search ? tokenizeSearchTerm(search) : [];
+    if (!searchTokens.length) return data ?? [];
+    return (data ?? []).filter((row: any) =>
+      searchTokens.every((tok) =>
+        normalizeSearchComparable(row.name ?? "").includes(tok),
+      ),
+    );
   });
 
   app.post("/equipment-catalog", async (request) => {
@@ -3172,6 +3215,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
       1000,
     );
+    const searchNorm = normalizeSearchComparable(search);
 
     let q = supabaseAdmin
       .from("grip_footing_catalog")
@@ -3179,12 +3223,24 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .order("name", { ascending: true });
 
     if (search) {
-      q = q.ilike("name", `%${search}%`);
+      const safeOrig = search.replace(/_/g, "\\_");
+      const safeNorm = searchNorm.replace(/_/g, "\\_");
+      if (safeOrig === safeNorm) {
+        q = q.ilike("name", `%${safeOrig}%`);
+      } else {
+        q = q.or(`name.ilike.%${safeOrig}%,name.ilike.%${safeNorm}%`);
+      }
     }
 
     const { data, error } = await q.limit(limit);
     if (error) throw app.httpErrors.badRequest(error.message);
-    return data ?? [];
+    const searchTokens = search ? tokenizeSearchTerm(search) : [];
+    if (!searchTokens.length) return data ?? [];
+    return (data ?? []).filter((row: any) =>
+      searchTokens.every((tok) =>
+        normalizeSearchComparable(row.name ?? "").includes(tok),
+      ),
+    );
   });
 
   app.post("/grip-footing-catalog", async (request) => {
@@ -3247,6 +3303,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
       1000,
     );
+    const searchNorm = normalizeSearchComparable(search);
 
     let q = supabaseAdmin
       .from("method_catalog")
@@ -3254,12 +3311,24 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .order("name", { ascending: true });
 
     if (search) {
-      q = q.ilike("name", `%${search}%`);
+      const safeOrig = search.replace(/_/g, "\\_");
+      const safeNorm = searchNorm.replace(/_/g, "\\_");
+      if (safeOrig === safeNorm) {
+        q = q.ilike("name", `%${safeOrig}%`);
+      } else {
+        q = q.or(`name.ilike.%${safeOrig}%,name.ilike.%${safeNorm}%`);
+      }
     }
 
     const { data, error } = await q.limit(limit);
     if (error) throw app.httpErrors.badRequest(error.message);
-    return data ?? [];
+    const searchTokens = search ? tokenizeSearchTerm(search) : [];
+    if (!searchTokens.length) return data ?? [];
+    return (data ?? []).filter((row: any) =>
+      searchTokens.every((tok) =>
+        normalizeSearchComparable(row.name ?? "").includes(tok),
+      ),
+    );
   });
 
   app.post("/method-catalog", async (request) => {

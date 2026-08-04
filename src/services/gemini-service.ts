@@ -3,6 +3,27 @@ import { env } from "../config/env.js";
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 const GEMINI_MODEL = "gemini-2.5-flash-lite"; // Gemini Flash-Lite Latest
 
+/**
+ * Executa uma chamada fetch ao Gemini com retry automático em caso de 503 (sobrecarga).
+ * Tenta até `maxRetries` vezes com backoff exponencial (1s, 2s, 4s).
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3,
+): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const response = await fetch(url, options);
+    if (response.status !== 503) return response;
+    lastError = new Error(`Gemini API unavailable (503) after ${attempt + 1} attempt(s)`);
+    if (attempt < maxRetries - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+    }
+  }
+  throw lastError!;
+}
+
 type GeminiMessage = {
   role: "user" | "model";
   parts: Array<{ text: string }>;
@@ -53,7 +74,7 @@ export async function generateBotResponse(context: {
     },
   ];
 
-  const response = await fetch(endpoint, {
+  const response = await fetchWithRetry(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -171,7 +192,7 @@ ${muscleGroupList}`;
 
   const endpoint = `${GEMINI_API_BASE}/models/${GEMINI_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
 
-  const response = await fetch(endpoint, {
+  const response = await fetchWithRetry(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
