@@ -3041,14 +3041,61 @@ export async function processIncomingMessage(input: IncomingMessage) {
     }
 
     if (state.last_input_attempt?.startsWith("exercise_reps_values:")) {
-      await sendTextMessage({
+      // Modo per_exercise: verifica se deve pedir PSE (só se trackingMode suportar)
+      let tMode: string = "per_exercise";
+      if (state.current_session_id) {
+        const { data: srPE } = await supabaseAdmin
+          .from("daily_sessions")
+          .select("summary")
+          .eq("id", state.current_session_id)
+          .maybeSingle();
+        try {
+          const parsedPE = JSON.parse((srPE as any)?.summary ?? "null");
+          if (parsedPE?.type === "tracking" && parsedPE?.tracking_mode) {
+            tMode = parsedPE.tracking_mode;
+          }
+        } catch {}
+      }
+
+      if (tMode === "per_exercise") {
+        // PSE ao final do exercício (comportamento correto para per_exercise)
+        await sendTextMessage({
+          instanceName: input.instance,
+          number: whatsapp,
+          text: "Ótimo! Agora me manda o PSE desse exercício (de *1 a 10*).",
+        });
+        await updateState(whatsapp, {
+          current_state: "COLLECTING_RPE",
+          last_input_attempt: `${state.last_input_attempt}|${weight}`,
+        });
+        return;
+      }
+
+      // Modos per_workout, none, per_rep: salva sem PSE e avança
+      const packed = state.last_input_attempt.replace("exercise_reps_values:", "");
+      const csvReps = packed.split("|")[0];
+      const repsList = csvReps
+        .split(",")
+        .map((v) => parseInt(v, 10))
+        .filter((v) => Number.isFinite(v));
+      if (state.current_session_id && state.current_workout_exercise_id) {
+        for (let i = 0; i < repsList.length; i++) {
+          await saveSetLog({
+            sessionId: state.current_session_id,
+            workoutExerciseId: state.current_workout_exercise_id,
+            setNumber: i + 1,
+            repsDone: repsList[i],
+            weightUsed: weight,
+            pseScore: null,
+          });
+        }
+      }
+      await advanceAfterSetLog({
+        app: input.app,
         instanceName: input.instance,
-        number: whatsapp,
-        text: "Ótimo! Agora me manda o PSE desse exercício (de *1 a 10*).",
-      });
-      await updateState(whatsapp, {
-        current_state: "COLLECTING_RPE",
-        last_input_attempt: `${state.last_input_attempt}|${weight}`,
+        whatsapp,
+        student,
+        state,
       });
       return;
     }
@@ -3072,7 +3119,12 @@ export async function processIncomingMessage(input: IncomingMessage) {
       } catch {}
     }
 
-    let collectPseNow = trackingMode === "per_rep";
+    // PSE por modo de acompanhamento:
+    // - per_rep: registra reps+peso por série, SEM PSE (PSE seria excessivo por série)
+    // - per_exercise: PSE apenas na última série do exercício
+    // - per_workout: PSE apenas ao final do treino completo (nunca por série)
+    // - none: sem PSE
+    let collectPseNow = false;
     if (trackingMode === "per_exercise" && state.current_workout_exercise_id) {
       const { data: exRow } = await supabaseAdmin
         .from("workout_exercises")
@@ -3082,15 +3134,12 @@ export async function processIncomingMessage(input: IncomingMessage) {
       const targetSets = Number((exRow as any)?.target_sets ?? 1);
       collectPseNow = state.current_set_number >= targetSets;
     }
-    if (trackingMode === "per_workout" || trackingMode === "none") {
-      collectPseNow = false;
-    }
 
     if (collectPseNow) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
-        text: "Perfeito! Agora me manda o PSE desta série (de *1 a 10*).",
+        text: "Perfeito! Agora me manda o PSE deste exercício (de *1 a 10*).",
       });
 
       await updateState(whatsapp, {
