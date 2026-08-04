@@ -130,7 +130,7 @@ function isCancelIntent(msg: string): boolean {
 
 function isSetDoneIntent(msg: string): boolean {
   const n = msg.toLowerCase().trim();
-  return /^(feito|terminei|pronto|ok|sim|s|1|done|acabei|fiz|✅|conclu)/.test(
+  return /^(feito|terminei|pronto|ok|sim|s|1|done|acabei|fiz|✅|conclu|bora|boa|vlw|valeu|foi|top|show|beleza|ótimo|otimo|👍|💪|🔥|yes|yep|claro|pode|vamo|vamos|já|ja)/.test(
     n,
   );
 }
@@ -2788,6 +2788,14 @@ export async function processIncomingMessage(input: IncomingMessage) {
       if (!restStartNotice) {
         await updateState(whatsapp, { current_state: "COLLECTING_REPS" });
       }
+      return;
+    } else {
+      // Input não reconhecido em EXECUTING_SET — orientar o aluno sem cair no fallback genérico
+      await sendTextMessage({
+        instanceName: input.instance,
+        number: whatsapp,
+        text: `💪 Quando terminar a série, é só mandar *feito* (ou ok, pronto, sim, done...). Para pausar o treino, manda *parar*.`,
+      });
       return;
     }
   }
