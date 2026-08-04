@@ -2,6 +2,42 @@
 
 Todas as mudanças relevantes do projeto serão documentadas aqui.
 
+---
+
+## [2026-08-04] – Bi-set, busca tolerante a acentos e correções de treino (v1.4.0)
+
+### Adicionado
+
+#### Bi-set na montagem e edição de treino
+- **Checkbox "Combinar com outro exercício (Bi-set)"** adicionado ao formulário de cada exercício, tanto no form de criação de novo treino quanto na aba de edição de treino existente.
+- Ao marcar o checkbox, um segundo bloco de seleção de exercício é exibido dinamicamente com busca completa em cascata: exercício, execução, equipamento, pegada/pisada, método + campos de repetições, peso e descanso após o bi-set.
+- Validação: quando bi-set marcado, o 2º exercício e as repetições são obrigatórios antes de salvar.
+- **Identificação visual** na lista de exercícios: exercícios do mesmo bi-set são agrupados em um card verde com badge **BI-SET**, separador central *"↓ Bi-set: executar em seguida sem descanso"* e indicador *"2º"* no exercício parceiro.
+- O 1º exercício do bi-set é salvo sem descanso; o descanso configurado é atribuído ao 2º (após a conclusão do par).
+- **Migration `202608040003_biset_group.sql`**: coluna `biset_group_id uuid` em `workout_exercises`; exercícios com o mesmo UUID pertencem ao mesmo bi-set; `NULL` = exercício independente; índice parcial `WHERE biset_group_id IS NOT NULL`.
+
+#### Busca tolerante a acentos nos catálogos
+- Pesquisar `"bulgaro"` agora encontra `"Agachamento búlgaro"`; `"abducao"` encontra `"Abdução"`, etc.
+- **Migration `202608040001_unaccent_search_indexes.sql`**: extensão `unaccent` habilitada; função `normalize_search(text)` criada (`unaccent + lower`); índices btree funcionais em `exercise_catalog`, `exercise_variations`, `equipment_catalog`, `grip_footing_catalog` e `method_catalog`.
+- **Migration `202608040002_search_catalog_rpc.sql`**: 5 funções RPC (`search_exercise_catalog`, `search_exercise_variations`, `search_equipment_catalog`, `search_grip_footing_catalog`, `search_method_catalog`) que aplicam `normalize_search` na coluna antes de comparar, garantindo busca insensível a acentos no lado do banco.
+- Rotas `GET /exercise-catalog`, `GET /exercise-variations`, `GET /equipment-catalog`, `GET /grip-footing-catalog` e `GET /method-catalog` reescritas para usar as RPCs.
+
+### Corrigido
+
+- **Bug: nome do 1º exercício sumia ao adicionar novo exercício ao treino** — `querySelector("p")` removia o `<p class="exercise-title">` do primeiro exercício ao tentar limpar a mensagem de lista vazia. Corrigido para `querySelector("p:not(.exercise-title)")`.
+- **Bug: `target_weight: Invalid input — expected number, received null`** no form de Novo Treino — campo peso era criado com `value="0"` e a lógica `peso ? parseFloat(peso) : null` enviava `null` para `"0"` (falsy). Corrigido para `value=""` e `(peso === "") ? null : parseFloat(peso)`.
+- **Bug: warning `unexpected_fallback_in_non_idle_state` em `EXECUTING_SET`** — estado tratava apenas `isSetDoneIntent` sem bloco `else`; qualquer outra mensagem caía no fallback genérico. Corrigido com bloco `else` que responde ao aluno com instrução clara ("manda *feito* quando terminar a série").
+- **Regex `isSetDoneIntent` expandida** com variações coloquiais: `bora`, `boa`, `vlw`, `valeu`, `foi`, `top`, `show`, `beleza`, `ótimo`, `vamos`, `já`, emojis 👍 💪 🔥, `yes`, `yep`, `claro`, `pode`.
+- **Retry automático para erro 503 do Gemini API**: função `fetchWithRetry` com backoff exponencial (1s → 2s → 4s) adicionada ao `gemini-service.ts`; todas as chamadas ao Gemini usam retry automático antes de propagar o erro.
+
+### Infraestrutura / Ferramentas
+
+- **Git** v2.55.0, **Node.js** v24.19.0 LTS, **npm** v11.17.0, **Vercel CLI** v58.5.1 e **Supabase CLI** v2.111.0 instalados e configurados no ambiente de desenvolvimento local.
+- Projeto vinculado à Vercel (`agencia-stagesixs-projects/repzfit`) e ao Supabase (`ofergzualxqqovktyxwu`, `sa-east-1`) via CLI.
+- `safe.directory` configurado no Git para resolver conflito de ownership entre usuários do domínio.
+
+---
+
 ## [2026-07-28] – Otimizações de backend e frontend (v1.2.9)
 
 ### Performance — Backend
