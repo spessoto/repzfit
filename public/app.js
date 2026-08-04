@@ -6019,7 +6019,8 @@
           const listContainer = document.getElementById(`tw_list_${workoutId}`);
           if (listContainer) {
             // Remover mensagem "sem exercícios" se existir (dentro ou irmã do container)
-            const emptyMsgInside = listContainer.querySelector("p");
+            // IMPORTANTE: usar seletor específico para não remover o título do primeiro exercício
+            const emptyMsgInside = listContainer.querySelector("p:not(.exercise-title)");
             if (emptyMsgInside) emptyMsgInside.remove();
             const emptyMsgSibling = document.getElementById(`tw_empty_${workoutId}`);
             if (emptyMsgSibling) emptyMsgSibling.remove();
