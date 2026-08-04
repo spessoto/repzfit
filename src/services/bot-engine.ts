@@ -96,8 +96,12 @@ export function buildSetRestTransitionMessage(params: {
   restSeconds?: number | null;
   remainingSeconds?: number | null;
   state: "started" | "already_started" | "expired" | "no_rest";
+  bisetPartnerName?: string | null;
 }): string {
-  const base = `🔥 Série ${params.currentSet}/${params.targetSets} concluída!`;
+  const bisetLabel = params.bisetPartnerName
+    ? ` *(Bi-set: 🅐 + 🅑 ${params.bisetPartnerName})*`
+    : "";
+  const base = `🔥 Série ${params.currentSet}/${params.targetSets} concluída!${bisetLabel}`;
 
   if (params.state === "already_started") {
     const remaining = params.remainingSeconds ?? 0;
@@ -285,7 +289,6 @@ async function isTrainingStartIntent(
 
 function formatExerciseDetails(ex: WorkoutExercise): string {
   const lines: string[] = [];
-  if (ex.muscle_group) lines.push(`💪 Músculo: ${ex.muscle_group}`);
   if (ex.variation_name) lines.push(`🎯 Execução: ${ex.variation_name}`);
   if (ex.equipment_name || ex.equipment)
     lines.push(`🏋️ Equipamento: ${ex.equipment_name ?? ex.equipment}`);
@@ -1433,7 +1436,7 @@ async function advanceAfterSetLog(params: {
   const exerciseResult = await supabaseAdmin
     .from("workout_exercises")
     .select(
-      "target_sets,exercise_id,rest_seconds,exercise_catalog(name),exercise_variations(name),exercises(name)",
+      "target_sets,exercise_id,rest_seconds,biset_group_id,exercise_catalog(name),exercise_variations(name),exercises(name)",
     )
     .eq("id", state.current_workout_exercise_id!)
     .single();
@@ -1478,6 +1481,34 @@ async function advanceAfterSetLog(params: {
     state.current_state === "COLLECTING_WEIGHT" ||
     state.current_state === "COLLECTING_RPE";
 
+  // ── Bi-set: buscar nome do parceiro para incluir nas mensagens de série ──
+  const bisetGroupId = (exerciseResult.data as any).biset_group_id ?? null;
+  let bisetPartnerName: string | null = null;
+  let bisetPartnerId: string | null = null;
+  if (bisetGroupId && state.current_session_id) {
+    // Lê o tracking para encontrar o parceiro pelo biset_group_id
+    const { data: sessionForBiset } = await supabaseAdmin
+      .from("daily_sessions")
+      .select("summary")
+      .eq("id", state.current_session_id)
+      .maybeSingle();
+    try {
+      const parsedBiset = JSON.parse((sessionForBiset as any)?.summary ?? "null");
+      if (parsedBiset?.type === "tracking") {
+        const details = parsedBiset.exercise_details as Record<string, { name: string; biset_group_id?: string | null }>;
+        const partnerEntry = Object.entries(details).find(
+          ([pid, det]) =>
+            pid !== state.current_workout_exercise_id &&
+            det.biset_group_id === bisetGroupId,
+        );
+        if (partnerEntry) {
+          bisetPartnerId = partnerEntry[0];
+          bisetPartnerName = partnerEntry[1].name;
+        }
+      }
+    } catch {}
+  }
+
   if (nextSet <= targetSets) {
     if (restSeconds && restSeconds > 0) {
       const nowMs = Date.now();
@@ -1501,6 +1532,7 @@ async function advanceAfterSetLog(params: {
             targetSets,
             remainingSeconds: remaining,
             state: "already_started",
+            bisetPartnerName,
           }),
         });
       } else if (startedRestEndMs > 0) {
@@ -1511,6 +1543,7 @@ async function advanceAfterSetLog(params: {
             currentSet: state.current_set_number,
             targetSets,
             state: "expired",
+            bisetPartnerName,
           }),
         });
 
@@ -1530,6 +1563,7 @@ async function advanceAfterSetLog(params: {
             currentSet: state.current_set_number,
             targetSets,
             state: "expired",
+            bisetPartnerName,
           }),
         });
 
@@ -1555,6 +1589,7 @@ async function advanceAfterSetLog(params: {
             targetSets,
             restSeconds,
             state: "started",
+            bisetPartnerName,
           }),
         });
       }
@@ -1566,6 +1601,7 @@ async function advanceAfterSetLog(params: {
           currentSet: state.current_set_number,
           targetSets,
           state: "no_rest",
+          bisetPartnerName,
         }),
       });
 
@@ -1611,6 +1647,24 @@ async function advanceAfterSetLog(params: {
     exerciseTracking.remaining_ids = (
       exerciseTracking.remaining_ids ?? []
     ).filter((id) => id !== state.current_workout_exercise_id);
+
+    // ── Bi-set: marcar o parceiro B como done também e remover dos remaining ──
+    if (bisetPartnerId) {
+      const partnerAlreadyDone = (exerciseTracking.done ?? []).some(
+        (d) => d.id === bisetPartnerId,
+      );
+      if (!partnerAlreadyDone) {
+        const partnerName = exerciseTracking.exercise_details[bisetPartnerId]?.name ?? bisetPartnerId;
+        exerciseTracking.done.push({
+          id: bisetPartnerId,
+          name: partnerName,
+          exec_order: exerciseTracking.done.length + 1,
+        });
+      }
+      exerciseTracking.remaining_ids = exerciseTracking.remaining_ids.filter(
+        (id) => id !== bisetPartnerId,
+      );
+    }
 
     await supabaseAdmin
       .from("daily_sessions")
@@ -1677,65 +1731,11 @@ async function advanceAfterSetLog(params: {
       return;
     }
 
-    // ── Bi-set: verificar se o exercício concluído tem um parceiro pendente ──
-    const completedDet =
-      state.current_workout_exercise_id
-        ? exerciseTracking.exercise_details[state.current_workout_exercise_id]
-        : null;
-    const completedBisetGroup = completedDet?.biset_group_id ?? null;
+    // ── Bi-set: o parceiro B já foi marcado como done no bloco acima ──
+    // Não há mais necessidade de ir para B como exercício separado.
+    // O remaining já foi atualizado para excluir A e B.
 
-    if (completedBisetGroup) {
-      // Procura o parceiro do bi-set nos exercícios AINDA remaining (após remover o atual)
-      const bisetPartnerId = remaining.find(
-        (pid) =>
-          exerciseTracking!.exercise_details[pid]?.biset_group_id ===
-          completedBisetGroup,
-      );
-
-      if (bisetPartnerId) {
-        // Existe parceiro: ir direto para ele, SEM descanso, SEM menu
-        const partnerDet = exerciseTracking.exercise_details[bisetPartnerId];
-
-        const partnerExercise: WorkoutExercise = {
-          id: bisetPartnerId,
-          exercise_id: bisetPartnerId,
-          exercise_name: partnerDet.name,
-          variation_name: partnerDet.execution ?? null,
-          muscle_group: partnerDet.muscle,
-          equipment: partnerDet.equipment,
-          equipment_name: partnerDet.equipment,
-          grip_footing_name: partnerDet.grip_footing ?? null,
-          method_name: partnerDet.method ?? null,
-          description: partnerDet.description,
-          custom_description: null,
-          target_sets: partnerDet.sets,
-          target_reps: partnerDet.reps,
-          target_weight: partnerDet.weight,
-          order_index: 0,
-          rest_seconds: partnerDet.rest,
-          biset_group_id: completedBisetGroup,
-        };
-
-        await updateState(whatsapp, {
-          current_state: "EXECUTING_SET",
-          current_workout_exercise_id: bisetPartnerId,
-          current_set_number: 1,
-          last_input_attempt: null,
-          rest_end_at: null,
-        });
-
-        await sendTextMessage({
-          instanceName,
-          number: whatsapp,
-          text:
-            `🔁 *Bi-set!* Sem descanso — próximo exercício:\n\n` +
-            `🔥 *${partnerDet.name}*\n${formatExerciseDetails(partnerExercise)}\n\nQuando terminar, manda *feito*.`,
-        });
-        return;
-      }
-    }
-
-    // Ainda há exercícios restantes (sem bi-set pendente)
+    // Ainda há exercícios restantes
     await updateState(whatsapp, {
       current_state: "AWAITING_EXERCISE_ORDER_SELECTION",
       current_workout_exercise_id: null,
@@ -2659,18 +2659,50 @@ export async function processIncomingMessage(input: IncomingMessage) {
       last_input_attempt: null,
     });
 
-    // Se é bi-set, avisar que virá o 2º exercício em seguida
-    const isBisetEntry = !!(det.biset_group_id && tracking.remaining_ids.find(
-      (pid) => pid !== selectedExerciseId && tracking!.exercise_details[pid]?.biset_group_id === det.biset_group_id,
-    ));
-    const bisetHint = isBisetEntry
-      ? `\n\n⚡ *Bi-set:* ao terminar, o próximo exercício virá automaticamente sem descanso.`
-      : "";
+    // Se é bi-set, montar bloco completo com os dois exercícios
+    const bisetPartnerId = det.biset_group_id
+      ? tracking.remaining_ids.find(
+          (pid) =>
+            pid !== selectedExerciseId &&
+            tracking!.exercise_details[pid]?.biset_group_id === det.biset_group_id,
+        )
+      : null;
+
+    let messageText: string;
+    if (bisetPartnerId) {
+      const partnerDet = tracking.exercise_details[bisetPartnerId];
+      const partnerExercise: WorkoutExercise = {
+        id: bisetPartnerId,
+        exercise_id: bisetPartnerId,
+        exercise_name: partnerDet.name,
+        variation_name: partnerDet.execution ?? null,
+        muscle_group: partnerDet.muscle,
+        equipment: partnerDet.equipment,
+        equipment_name: partnerDet.equipment,
+        grip_footing_name: partnerDet.grip_footing ?? null,
+        method_name: partnerDet.method ?? null,
+        description: partnerDet.description,
+        custom_description: null,
+        target_sets: partnerDet.sets,
+        target_reps: partnerDet.reps,
+        target_weight: partnerDet.weight,
+        order_index: 0,
+        rest_seconds: partnerDet.rest,
+        biset_group_id: det.biset_group_id,
+      };
+      messageText =
+        `⚡ *Bi-set:* avise quando terminar a série dos dois exercícios para avançar para a próxima repetição.\n\n` +
+        `🅐 *${det.name}*\n${formatExerciseDetails(selectedExercise)}\n\n` +
+        `🅑 *${partnerDet.name}*\n${formatExerciseDetails(partnerExercise)}\n\n` +
+        `Quando terminar a série dos dois, manda *feito*.`;
+    } else {
+      messageText = `🔥 *${det.name}*\n${formatExerciseDetails(selectedExercise)}\n\nQuando terminar a série, manda *feito*.`;
+    }
 
     await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: `🔥 *${det.name}*\n${formatExerciseDetails(selectedExercise)}${bisetHint}\n\nQuando terminar a série, manda *feito*.`,
+      text: messageText,
     });
     return;
   }
