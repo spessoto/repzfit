@@ -65,6 +65,7 @@ type WorkoutExercise = {
   target_weight: number | null;
   order_index: number;
   rest_seconds: number | null;
+  biset_group_id?: string | null;
 };
 
 type AssignedWorkout = {
@@ -738,6 +739,7 @@ async function getWorkoutExercises(
       order_index,
       rest_seconds,
       custom_description,
+      biset_group_id,
       exercise_catalog ( name, muscle_groups ( name ) ),
       exercise_variations ( name ),
       equipment_catalog ( name ),
@@ -810,6 +812,7 @@ function mapWorkoutExerciseRow(item: any): WorkoutExercise {
     target_weight: item.target_weight,
     order_index: item.order_index,
     rest_seconds: item.rest_seconds ?? null,
+    biset_group_id: item.biset_group_id ?? null,
   };
 }
 
@@ -1146,28 +1149,73 @@ function buildSimpleExerciseList(
 
 /**
  * Monta o menu de seleção de exercícios, sempre com [0] Encerrar treino no final.
+ * Pares de bi-set (mesmo biset_group_id) são exibidos como UMA entrada numerada:
+ *   N️⃣ *Exercício A* + *Exercício B*  [BI-SET] (Músculo) — Nx(RepsA + RepsB)
+ * O aluno seleciona o número e o bot inicia o 1º exercício do par automaticamente.
  */
 function buildExerciseSelectionMenu(
   tracking: SessionTrackingData,
   headerText: string,
 ): string {
-  const list = tracking.remaining_ids
-    .map((id, i) => {
-      const det = tracking.exercise_details[id];
-      const muscle = det.muscle ? ` (${det.muscle})` : "";
-      const extra = [
-        det.execution ? `Execução: ${det.execution}` : null,
-        det.equipment ? `Equip.: ${det.equipment}` : null,
-        det.grip_footing ? `Peg./Pis.: ${det.grip_footing}` : null,
-        det.method ? `Método: ${det.method}` : null,
-      ]
-        .filter(Boolean)
-        .join(" | ");
-      return `${i + 1}️⃣ *${det.name}*${muscle} — ${det.sets}×${det.reps}${extra ? `\n   ${extra}` : ""}`;
-    })
-    .join("\n");
+  const seenGroups = new Set<string>();
+  const items: string[] = [];
+  let counter = 1;
 
-  return `${headerText}\n\n${list}\n0️⃣ *[Encerrar treino]*\n\nResponda com o *número*.`;
+  for (const id of tracking.remaining_ids) {
+    const det = tracking.exercise_details[id];
+    const groupId = det.biset_group_id;
+
+    // Se é 2º exercício de um bi-set já processado, pula (já foi incluído no 1º)
+    if (groupId && seenGroups.has(groupId)) continue;
+
+    if (groupId) {
+      // Encontra o parceiro do bi-set nos remaining_ids
+      const partnerId = tracking.remaining_ids.find(
+        (pid) =>
+          pid !== id &&
+          tracking.exercise_details[pid]?.biset_group_id === groupId,
+      );
+      const partner = partnerId ? tracking.exercise_details[partnerId] : null;
+
+      if (partner && partnerId) {
+        seenGroups.add(groupId);
+        const muscle = det.muscle ? ` (${det.muscle})` : "";
+        const extraA = [
+          det.execution ? `Exec.: ${det.execution}` : null,
+          det.equipment ? `Equip.: ${det.equipment}` : null,
+        ].filter(Boolean).join(" | ");
+        const extraB = [
+          partner.execution ? `Exec.: ${partner.execution}` : null,
+          partner.equipment ? `Equip.: ${partner.equipment}` : null,
+        ].filter(Boolean).join(" | ");
+
+        items.push(
+          `${counter}️⃣ *[BI-SET]*${muscle} — ${det.sets}×série\n` +
+          `   🅐 *${det.name}* — ${det.reps} reps${extraA ? ` | ${extraA}` : ""}\n` +
+          `   🅑 *${partner.name}* — ${partner.reps} reps${extraB ? ` | ${extraB}` : ""}`,
+        );
+        counter += 1;
+        continue;
+      }
+    }
+
+    // Exercício individual (sem bi-set ou parceiro não encontrado)
+    const muscle = det.muscle ? ` (${det.muscle})` : "";
+    const extra = [
+      det.execution ? `Execução: ${det.execution}` : null,
+      det.equipment ? `Equip.: ${det.equipment}` : null,
+      det.grip_footing ? `Peg./Pis.: ${det.grip_footing}` : null,
+      det.method ? `Método: ${det.method}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+    items.push(
+      `${counter}️⃣ *${det.name}*${muscle} — ${det.sets}×${det.reps}${extra ? `\n   ${extra}` : ""}`,
+    );
+    counter += 1;
+  }
+
+  return `${headerText}\n\n${items.join("\n")}\n0️⃣ *[Encerrar treino]*\n\nResponda com o *número*.`;
 }
 
 type SessionTrackingData = {
@@ -1192,6 +1240,7 @@ type SessionTrackingData = {
       reps: number;
       weight: number | null;
       rest: number | null;
+      biset_group_id?: string | null;
     }
   >;
 };
@@ -1627,7 +1676,65 @@ async function advanceAfterSetLog(params: {
       return;
     }
 
-    // Ainda há exercícios restantes
+    // ── Bi-set: verificar se o exercício concluído tem um parceiro pendente ──
+    const completedDet =
+      state.current_workout_exercise_id
+        ? exerciseTracking.exercise_details[state.current_workout_exercise_id]
+        : null;
+    const completedBisetGroup = completedDet?.biset_group_id ?? null;
+
+    if (completedBisetGroup) {
+      // Procura o parceiro do bi-set nos exercícios AINDA remaining (após remover o atual)
+      const bisetPartnerId = remaining.find(
+        (pid) =>
+          exerciseTracking!.exercise_details[pid]?.biset_group_id ===
+          completedBisetGroup,
+      );
+
+      if (bisetPartnerId) {
+        // Existe parceiro: ir direto para ele, SEM descanso, SEM menu
+        const partnerDet = exerciseTracking.exercise_details[bisetPartnerId];
+
+        const partnerExercise: WorkoutExercise = {
+          id: bisetPartnerId,
+          exercise_id: bisetPartnerId,
+          exercise_name: partnerDet.name,
+          variation_name: partnerDet.execution ?? null,
+          muscle_group: partnerDet.muscle,
+          equipment: partnerDet.equipment,
+          equipment_name: partnerDet.equipment,
+          grip_footing_name: partnerDet.grip_footing ?? null,
+          method_name: partnerDet.method ?? null,
+          description: partnerDet.description,
+          custom_description: null,
+          target_sets: partnerDet.sets,
+          target_reps: partnerDet.reps,
+          target_weight: partnerDet.weight,
+          order_index: 0,
+          rest_seconds: partnerDet.rest,
+          biset_group_id: completedBisetGroup,
+        };
+
+        await updateState(whatsapp, {
+          current_state: "EXECUTING_SET",
+          current_workout_exercise_id: bisetPartnerId,
+          current_set_number: 1,
+          last_input_attempt: null,
+          rest_end_at: null,
+        });
+
+        await sendTextMessage({
+          instanceName,
+          number: whatsapp,
+          text:
+            `🔁 *Bi-set!* Sem descanso — próximo exercício:\n\n` +
+            `🔥 *${partnerDet.name}*\n${formatExerciseDetails(partnerExercise)}\n\nQuando terminar, manda *feito*.`,
+        });
+        return;
+      }
+    }
+
+    // Ainda há exercícios restantes (sem bi-set pendente)
     await updateState(whatsapp, {
       current_state: "AWAITING_EXERCISE_ORDER_SELECTION",
       current_workout_exercise_id: null,
@@ -2368,6 +2475,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
               reps: e.target_reps,
               weight: e.target_weight,
               rest: e.rest_seconds,
+              biset_group_id: e.biset_group_id ?? null,
             },
           ]),
         ),
@@ -2491,23 +2599,35 @@ export async function processIncomingMessage(input: IncomingMessage) {
       return;
     }
 
+    // Reconstruir o mapeamento número→exercícioId igual ao buildExerciseSelectionMenu
+    // (bi-sets aparecem como uma única entrada numerada)
+    const seenGroups = new Set<string>();
+    const menuIdMap: string[] = []; // índice 0 = opção 1, índice 1 = opção 2, etc.
+    for (const id of tracking.remaining_ids) {
+      const det = tracking.exercise_details[id];
+      const groupId = det?.biset_group_id;
+      if (groupId && seenGroups.has(groupId)) continue; // 2º do par já foi incluído
+      if (groupId) seenGroups.add(groupId);
+      menuIdMap.push(id);
+    }
+
     if (
       Number.isNaN(selectedNumber) ||
       selectedNumber < 1 ||
-      selectedNumber > tracking.remaining_ids.length
+      selectedNumber > menuIdMap.length
     ) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
         text: buildExerciseSelectionMenu(
           tracking,
-          `Responda com o número do exercício (1 a ${tracking.remaining_ids.length}) ou 0 para encerrar:`,
+          `Responda com o número do exercício (1 a ${menuIdMap.length}) ou 0 para encerrar:`,
         ),
       });
       return;
     }
 
-    const selectedExerciseId = tracking.remaining_ids[selectedNumber - 1];
+    const selectedExerciseId = menuIdMap[selectedNumber - 1];
     const det = tracking.exercise_details[selectedExerciseId];
 
     // Montar WorkoutExercise a partir do tracking para exibir detalhes
@@ -2528,6 +2648,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       target_weight: det.weight,
       order_index: 0,
       rest_seconds: det.rest,
+      biset_group_id: det.biset_group_id ?? null,
     };
 
     await updateState(whatsapp, {
@@ -2537,10 +2658,18 @@ export async function processIncomingMessage(input: IncomingMessage) {
       last_input_attempt: null,
     });
 
+    // Se é bi-set, avisar que virá o 2º exercício em seguida
+    const isBisetEntry = !!(det.biset_group_id && tracking.remaining_ids.find(
+      (pid) => pid !== selectedExerciseId && tracking!.exercise_details[pid]?.biset_group_id === det.biset_group_id,
+    ));
+    const bisetHint = isBisetEntry
+      ? `\n\n⚡ *Bi-set:* ao terminar, o próximo exercício virá automaticamente sem descanso.`
+      : "";
+
     await sendTextMessage({
       instanceName: input.instance,
       number: whatsapp,
-      text: `🔥 *${det.name}*\n${formatExerciseDetails(selectedExercise)}\n\nVamos começar! Quando terminar a série, manda *feito*.`,
+      text: `🔥 *${det.name}*\n${formatExerciseDetails(selectedExercise)}${bisetHint}\n\nQuando terminar a série, manda *feito*.`,
     });
     return;
   }
