@@ -295,7 +295,9 @@ function formatExerciseDetails(ex: WorkoutExercise): string {
   if (ex.grip_footing_name)
     lines.push(`🤲 Pegada/Pisada: ${ex.grip_footing_name}`);
   if (ex.method_name) lines.push(`🧩 Método: ${ex.method_name}`);
-  if (ex.description) lines.push(`📝 ${ex.description}`);
+  // Exibe apenas descrição personalizada pelo personal (custom_description),
+  // nunca a descrição genérica do catálogo (que se repete no prompt da IA)
+  if (ex.custom_description) lines.push(`📝 ${ex.custom_description}`);
   const weight = ex.target_weight ? ` com ${ex.target_weight}kg` : "";
   lines.push(`📊 Meta: ${ex.target_sets}x${ex.target_reps}${weight}`);
   if (ex.rest_seconds && ex.rest_seconds > 0)
@@ -1240,6 +1242,7 @@ type SessionTrackingData = {
       grip_footing: string | null;
       method: string | null;
       description: string | null;
+      custom_description?: string | null;
       sets: number;
       reps: number;
       weight: number | null;
@@ -1481,32 +1484,35 @@ async function advanceAfterSetLog(params: {
     state.current_state === "COLLECTING_WEIGHT" ||
     state.current_state === "COLLECTING_RPE";
 
-  // ── Bi-set: buscar nome do parceiro para incluir nas mensagens de série ──
-  const bisetGroupId = (exerciseResult.data as any).biset_group_id ?? null;
-  let bisetPartnerName: string | null = null;
-  let bisetPartnerId: string | null = null;
-  if (bisetGroupId && state.current_session_id) {
-    // Lê o tracking para encontrar o parceiro pelo biset_group_id
-    const { data: sessionForBiset } = await supabaseAdmin
+  // ── Lê o tracking UMA única vez — usado tanto para bi-set quanto para roteamento ──
+  let preloadedTracking: SessionTrackingData | null = null;
+  if (state.current_session_id) {
+    const { data: sessionForTracking } = await supabaseAdmin
       .from("daily_sessions")
       .select("summary")
       .eq("id", state.current_session_id)
       .maybeSingle();
     try {
-      const parsedBiset = JSON.parse((sessionForBiset as any)?.summary ?? "null");
-      if (parsedBiset?.type === "tracking") {
-        const details = parsedBiset.exercise_details as Record<string, { name: string; biset_group_id?: string | null }>;
-        const partnerEntry = Object.entries(details).find(
-          ([pid, det]) =>
-            pid !== state.current_workout_exercise_id &&
-            det.biset_group_id === bisetGroupId,
-        );
-        if (partnerEntry) {
-          bisetPartnerId = partnerEntry[0];
-          bisetPartnerName = partnerEntry[1].name;
-        }
-      }
+      const parsedTracking = JSON.parse((sessionForTracking as any)?.summary ?? "null");
+      if (parsedTracking?.type === "tracking") preloadedTracking = parsedTracking as SessionTrackingData;
     } catch {}
+  }
+
+  // ── Bi-set: buscar nome do parceiro para incluir nas mensagens de série ──
+  const bisetGroupId = (exerciseResult.data as any).biset_group_id ?? null;
+  let bisetPartnerName: string | null = null;
+  let bisetPartnerId: string | null = null;
+  if (bisetGroupId && preloadedTracking) {
+    const details = preloadedTracking.exercise_details as Record<string, { name: string; biset_group_id?: string | null }>;
+    const partnerEntry = Object.entries(details).find(
+      ([pid, det]) =>
+        pid !== state.current_workout_exercise_id &&
+        det.biset_group_id === bisetGroupId,
+    );
+    if (partnerEntry) {
+      bisetPartnerId = partnerEntry[0];
+      bisetPartnerName = partnerEntry[1].name;
+    }
   }
 
   if (nextSet <= targetSets) {
@@ -1616,19 +1622,8 @@ async function advanceAfterSetLog(params: {
   }
 
   // Exercício completo! Verificar modo de execução
-  // Checar se estamos em modo de ordem livre
-  let exerciseTracking: SessionTrackingData | null = null;
-  if (state.current_session_id) {
-    const { data: sessionRow } = await supabaseAdmin
-      .from("daily_sessions")
-      .select("summary")
-      .eq("id", state.current_session_id)
-      .maybeSingle();
-    try {
-      const parsed = JSON.parse((sessionRow as any)?.summary ?? "null");
-      if (parsed?.type === "tracking") exerciseTracking = parsed;
-    } catch {}
-  }
+  // Reutiliza o tracking já carregado acima (preloadedTracking) — evita segunda query ao BD
+  let exerciseTracking: SessionTrackingData | null = preloadedTracking;
 
   if (exerciseTracking && state.current_workout_exercise_id) {
     const alreadyDone = (exerciseTracking.done ?? []).some(
@@ -2472,6 +2467,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
               grip_footing: e.grip_footing_name ?? null,
               method: e.method_name ?? null,
               description: e.description,
+              custom_description: e.custom_description ?? null,
               sets: e.target_sets,
               reps: e.target_reps,
               weight: e.target_weight,
@@ -2643,7 +2639,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
       grip_footing_name: det.grip_footing ?? null,
       method_name: det.method ?? null,
       description: det.description,
-      custom_description: null,
+      custom_description: det.custom_description ?? null,
       target_sets: det.sets,
       target_reps: det.reps,
       target_weight: det.weight,
@@ -2682,7 +2678,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
         grip_footing_name: partnerDet.grip_footing ?? null,
         method_name: partnerDet.method ?? null,
         description: partnerDet.description,
-        custom_description: null,
+        custom_description: partnerDet.custom_description ?? null,
         target_sets: partnerDet.sets,
         target_reps: partnerDet.reps,
         target_weight: partnerDet.weight,
