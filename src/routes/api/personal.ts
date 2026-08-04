@@ -2648,47 +2648,43 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
       1000,
     );
-    const muscleGroupId = (query.muscle_group_id ?? "").trim();
-    const searchNorm = normalizeSearchComparable(search);
+    const muscleGroupId = (query.muscle_group_id ?? "").trim() || null;
 
-    let q = supabaseAdmin
-      .from("exercise_catalog")
-      .select("id,name,notes,muscle_group_id,muscle_groups(name)")
-      .or(`personal_id.is.null,personal_id.eq.${personalId}`)
-      .order("name", { ascending: true });
+    // Usa RPC search_exercise_catalog que aplica normalize_search (unaccent+lower) na coluna,
+    // permitindo buscar "bulgaro" e encontrar "búlgaro", "abducao" → "Abdução", etc.
+    const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc(
+      "search_exercise_catalog",
+      {
+        p_search: search || null,
+        p_personal_id: personalId,
+        p_muscle_group_id: muscleGroupId || null,
+        p_limit: limit,
+      },
+    );
+    if (rpcError) throw app.httpErrors.badRequest(rpcError.message);
 
-    if (search) {
-      // Busca tanto o termo original quanto o normalizado (sem acento) para cobrir ambos os casos
-      const safeOrig = search.replace(/_/g, "\\_");
-      const safeNorm = searchNorm.replace(/_/g, "\\_");
-      if (safeOrig === safeNorm) {
-        q = q.ilike("name", `%${safeOrig}%`);
-      } else {
-        q = q.or(`name.ilike.%${safeOrig}%,name.ilike.%${safeNorm}%`);
-      }
+    // Enriquecer com muscle_group_name via join manual (a RPC não retorna o nome do grupo)
+    const rows = rpcData ?? [];
+    const uniqueGroupIds = [
+      ...new Set(rows.map((r: any) => r.muscle_group_id).filter(Boolean)),
+    ];
+    let groupNameMap: Record<string, string> = {};
+    if (uniqueGroupIds.length > 0) {
+      const { data: groups } = await supabaseAdmin
+        .from("muscle_groups")
+        .select("id,name")
+        .in("id", uniqueGroupIds);
+      groupNameMap = Object.fromEntries(
+        (groups ?? []).map((g: any) => [g.id, g.name]),
+      );
     }
 
-    if (muscleGroupId) {
-      q = q.eq("muscle_group_id", muscleGroupId);
-    }
-
-    const { data, error } = await q.limit(limit);
-    if (error) throw app.httpErrors.badRequest(error.message);
-    // Filtragem in-memory com normalização completa para garantir tolerância a acentos
-    const searchTokens = search ? tokenizeSearchTerm(search) : [];
-    const filtered = searchTokens.length
-      ? (data ?? []).filter((row: any) =>
-          searchTokens.every((tok) =>
-            normalizeSearchComparable(row.name ?? "").includes(tok),
-          ),
-        )
-      : (data ?? []);
-    return filtered.map((row: any) => ({
+    return rows.map((row: any) => ({
       id: row.id,
       name: row.name,
       notes: row.notes,
       muscle_group_id: row.muscle_group_id ?? null,
-      muscle_group_name: row.muscle_groups?.name ?? null,
+      muscle_group_name: groupNameMap[row.muscle_group_id] ?? null,
     }));
   });
 
@@ -3042,33 +3038,13 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
       1000,
     );
-    const searchNorm = normalizeSearchComparable(search);
 
-    let q = supabaseAdmin
-      .from("exercise_variations")
-      .select("id,name")
-      .or(`personal_id.is.null,personal_id.eq.${personalId}`)
-      .order("name", { ascending: true });
-
-    if (search) {
-      const safeOrig = search.replace(/_/g, "\\_");
-      const safeNorm = searchNorm.replace(/_/g, "\\_");
-      if (safeOrig === safeNorm) {
-        q = q.ilike("name", `%${safeOrig}%`);
-      } else {
-        q = q.or(`name.ilike.%${safeOrig}%,name.ilike.%${safeNorm}%`);
-      }
-    }
-
-    const { data, error } = await q.limit(limit);
-    if (error) throw app.httpErrors.badRequest(error.message);
-    const searchTokens = search ? tokenizeSearchTerm(search) : [];
-    if (!searchTokens.length) return data ?? [];
-    return (data ?? []).filter((row: any) =>
-      searchTokens.every((tok) =>
-        normalizeSearchComparable(row.name ?? "").includes(tok),
-      ),
+    const { data, error } = await supabaseAdmin.rpc(
+      "search_exercise_variations",
+      { p_search: search || null, p_personal_id: personalId, p_limit: limit },
     );
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data ?? [];
   });
 
   app.post("/exercise-variations", async (request) => {
@@ -3127,32 +3103,13 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
       1000,
     );
-    const searchNorm = normalizeSearchComparable(search);
 
-    let q = supabaseAdmin
-      .from("equipment_catalog")
-      .select("id,name")
-      .order("name", { ascending: true });
-
-    if (search) {
-      const safeOrig = search.replace(/_/g, "\\_");
-      const safeNorm = searchNorm.replace(/_/g, "\\_");
-      if (safeOrig === safeNorm) {
-        q = q.ilike("name", `%${safeOrig}%`);
-      } else {
-        q = q.or(`name.ilike.%${safeOrig}%,name.ilike.%${safeNorm}%`);
-      }
-    }
-
-    const { data, error } = await q.limit(limit);
-    if (error) throw app.httpErrors.badRequest(error.message);
-    const searchTokens = search ? tokenizeSearchTerm(search) : [];
-    if (!searchTokens.length) return data ?? [];
-    return (data ?? []).filter((row: any) =>
-      searchTokens.every((tok) =>
-        normalizeSearchComparable(row.name ?? "").includes(tok),
-      ),
+    const { data, error } = await supabaseAdmin.rpc(
+      "search_equipment_catalog",
+      { p_search: search || null, p_limit: limit },
     );
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data ?? [];
   });
 
   app.post("/equipment-catalog", async (request) => {
@@ -3215,32 +3172,13 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
       1000,
     );
-    const searchNorm = normalizeSearchComparable(search);
 
-    let q = supabaseAdmin
-      .from("grip_footing_catalog")
-      .select("id,name")
-      .order("name", { ascending: true });
-
-    if (search) {
-      const safeOrig = search.replace(/_/g, "\\_");
-      const safeNorm = searchNorm.replace(/_/g, "\\_");
-      if (safeOrig === safeNorm) {
-        q = q.ilike("name", `%${safeOrig}%`);
-      } else {
-        q = q.or(`name.ilike.%${safeOrig}%,name.ilike.%${safeNorm}%`);
-      }
-    }
-
-    const { data, error } = await q.limit(limit);
-    if (error) throw app.httpErrors.badRequest(error.message);
-    const searchTokens = search ? tokenizeSearchTerm(search) : [];
-    if (!searchTokens.length) return data ?? [];
-    return (data ?? []).filter((row: any) =>
-      searchTokens.every((tok) =>
-        normalizeSearchComparable(row.name ?? "").includes(tok),
-      ),
+    const { data, error } = await supabaseAdmin.rpc(
+      "search_grip_footing_catalog",
+      { p_search: search || null, p_limit: limit },
     );
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data ?? [];
   });
 
   app.post("/grip-footing-catalog", async (request) => {
@@ -3303,32 +3241,13 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       Math.max(parseInt(query.limit ?? "20", 10) || 20, 1),
       1000,
     );
-    const searchNorm = normalizeSearchComparable(search);
 
-    let q = supabaseAdmin
-      .from("method_catalog")
-      .select("id,name")
-      .order("name", { ascending: true });
-
-    if (search) {
-      const safeOrig = search.replace(/_/g, "\\_");
-      const safeNorm = searchNorm.replace(/_/g, "\\_");
-      if (safeOrig === safeNorm) {
-        q = q.ilike("name", `%${safeOrig}%`);
-      } else {
-        q = q.or(`name.ilike.%${safeOrig}%,name.ilike.%${safeNorm}%`);
-      }
-    }
-
-    const { data, error } = await q.limit(limit);
-    if (error) throw app.httpErrors.badRequest(error.message);
-    const searchTokens = search ? tokenizeSearchTerm(search) : [];
-    if (!searchTokens.length) return data ?? [];
-    return (data ?? []).filter((row: any) =>
-      searchTokens.every((tok) =>
-        normalizeSearchComparable(row.name ?? "").includes(tok),
-      ),
+    const { data, error } = await supabaseAdmin.rpc(
+      "search_method_catalog",
+      { p_search: search || null, p_limit: limit },
     );
+    if (error) throw app.httpErrors.badRequest(error.message);
+    return data ?? [];
   });
 
   app.post("/method-catalog", async (request) => {
