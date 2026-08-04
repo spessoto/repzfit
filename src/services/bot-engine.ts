@@ -1061,7 +1061,7 @@ async function buildWorkoutSummary(
 
 /**
  * Lê o tracking_mode configurado pelo personal para o par aluno+treino.
- * Retorna 'per_rep' como fallback (compatibilidade retroativa).
+ * Retorna 'per_exercise' como fallback (per_rep foi descontinuado).
  */
 async function getStudentWorkoutTrackingMode(
   studentId: string,
@@ -1081,9 +1081,10 @@ async function getStudentWorkoutTrackingMode(
     mode === "per_workout" ||
     mode === "none"
   ) {
-    return mode;
+    // per_rep legado: tratar como per_exercise
+    return mode === "per_rep" ? "per_exercise" : mode;
   }
-  return "per_rep";
+  return "per_exercise";
 }
 
 /**
@@ -1253,7 +1254,7 @@ function buildPersonalReport(
   const today = tracking?.session_date
     ? new Date(`${tracking.session_date}T00:00:00`).toLocaleDateString("pt-BR")
     : new Date().toLocaleDateString("pt-BR");
-  const trackingMode = tracking?.tracking_mode ?? "per_rep";
+  const trackingMode = tracking?.tracking_mode ?? "per_exercise";
 
   const modeLabel: Record<string, string> = {
     per_rep: "Série por série",
@@ -2833,7 +2834,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
   if (state.current_state === "EXECUTING_SET") {
     if (isSetDoneIntent(effectiveInput)) {
       const tracking = await getSessionTrackingData(state.current_session_id);
-      const trackingMode = tracking?.tracking_mode ?? "per_rep";
+      const trackingMode = tracking?.tracking_mode ?? "per_exercise";
 
       if (trackingMode === "per_workout" || trackingMode === "none") {
         // Sem coleta de reps/carga por série: só progressão e descanso.
@@ -3104,7 +3105,7 @@ export async function processIncomingMessage(input: IncomingMessage) {
     const reps = parseInt(repsStr, 10);
 
     let trackingMode: "per_rep" | "per_exercise" | "per_workout" | "none" =
-      "per_rep";
+      "per_exercise";
     if (state.current_session_id) {
       const { data: sr } = await supabaseAdmin
         .from("daily_sessions")

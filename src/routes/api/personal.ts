@@ -213,7 +213,6 @@ const WorkoutPatchSchema = z
   });
 
 const TRACKING_MODE_VALUES = [
-  "per_rep",
   "per_exercise",
   "per_workout",
   "none",
@@ -1435,7 +1434,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         assignment_id: assignment.id,
         assignment_start_date: assignment.start_date,
         assignment_valid_until: assignment.valid_until,
-        assignment_tracking_mode: assignment.tracking_mode ?? "per_rep",
+        assignment_tracking_mode: assignment.tracking_mode === "per_rep" ? "per_exercise" : (assignment.tracking_mode ?? "per_exercise"),
       };
     });
 
@@ -1984,7 +1983,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         assignment_id: assignment.id,
         assignment_start_date: assignment.start_date,
         assignment_valid_until: assignment.valid_until,
-        assignment_tracking_mode: assignment.tracking_mode ?? "per_rep",
+        assignment_tracking_mode: assignment.tracking_mode === "per_rep" ? "per_exercise" : (assignment.tracking_mode ?? "per_exercise"),
       };
     });
 
@@ -4119,7 +4118,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         workout_exercises: normalisedExercises,
         assignment_start_date: assignment.start_date,
         assignment_valid_until: assignment.valid_until,
-        assignment_tracking_mode: assignment.tracking_mode ?? "per_rep",
+        assignment_tracking_mode: assignment.tracking_mode === "per_rep" ? "per_exercise" : (assignment.tracking_mode ?? "per_exercise"),
       };
     });
   });

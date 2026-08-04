@@ -1399,10 +1399,7 @@
                   "pt-BR",
                 )
               : "Sem validade";
-            const trackingMode =
-              workout.assignment_tracking_mode === "per_rep"
-                ? "per_exercise"
-                : workout.assignment_tracking_mode || "per_exercise";
+            const trackingMode = workout.assignment_tracking_mode || "per_exercise";
             return `
               <details class="workout-card workout-accordion">
                 <summary>
