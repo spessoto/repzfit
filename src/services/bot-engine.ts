@@ -1667,6 +1667,44 @@ async function advanceAfterSetLog(params: {
       .eq("id", state.current_session_id!);
   }
 
+  // ── Se é um bi-set, SEMPRE trata como bloco — independente do mode do tracking ──
+  // Evita que o modo fixo/legado trate o parceiro B como "próximo exercício" separado.
+  if (bisetPartnerId) {
+    const remaining = exerciseTracking?.remaining_ids ?? [];
+    if (remaining.length === 0 && exerciseTracking) {
+      // Bi-set era o último bloco — treino concluído
+      let workoutSummary = "";
+      try {
+        workoutSummary = await buildWorkoutSummary(state.current_session_id!, exerciseTracking);
+      } catch (err) {
+        app.log.error(err, "Failed to build workout summary");
+      }
+      const finalReport = buildPersonalReport(student.name, exerciseTracking, workoutSummary);
+      await completeSession(state.current_session_id!, finalReport);
+      const congratsMessage = await safeCoachReply(
+        app,
+        `O aluno ${student.name} acabou de completar o treino! Parabenize de forma entusiasmada e motivadora (2-3 linhas). Celebre a conquista!`,
+        "Parabéns! Treino concluído com sucesso. Você mandou muito bem hoje! 🔥💪",
+      );
+      await sendTextMessage({ instanceName, number: whatsapp, text: `🎉 TREINO CONCLUÍDO!\n\n${congratsMessage}` });
+      if (workoutSummary) await sendTextMessage({ instanceName, number: whatsapp, text: workoutSummary });
+      await sendReportToPersonal({ app, instanceName, personalId: student.personal_id, studentName: student.name, tracking: exerciseTracking, monitoredSummary: workoutSummary });
+      await updateState(whatsapp, { current_state: "IDLE", current_session_id: null, current_workout_exercise_id: null, current_set_number: 1, last_input_attempt: null, rest_end_at: null });
+      return;
+    }
+    // Ainda há exercícios — volta ao menu
+    await updateState(whatsapp, { current_state: "AWAITING_EXERCISE_ORDER_SELECTION", current_workout_exercise_id: null, current_set_number: 1, last_input_attempt: null, rest_end_at: null });
+    if (exerciseTracking) {
+      await sendTextMessage({
+        instanceName, number: whatsapp,
+        text: buildExerciseSelectionMenu(exerciseTracking, `✅ *Bi-set concluído!* Boa! 💪\n\n*Qual exercício quer fazer agora?*`),
+      });
+    } else {
+      await sendTextMessage({ instanceName, number: whatsapp, text: "✅ Bi-set concluído! Bora para o próximo exercício. 💪" });
+    }
+    return;
+  }
+
   if (exerciseTracking?.mode === "monitored_free") {
     const remaining = exerciseTracking.remaining_ids ?? [];
 
@@ -1726,10 +1764,6 @@ async function advanceAfterSetLog(params: {
       return;
     }
 
-    // ── Bi-set: o parceiro B já foi marcado como done no bloco acima ──
-    // Não há mais necessidade de ir para B como exercício separado.
-    // O remaining já foi atualizado para excluir A e B.
-
     // Ainda há exercícios restantes
     await updateState(whatsapp, {
       current_state: "AWAITING_EXERCISE_ORDER_SELECTION",
@@ -1751,6 +1785,8 @@ async function advanceAfterSetLog(params: {
   }
 
   // Modo fixo (legado ou sem tracking): buscar próximo exercício na ordem
+  // Guard: se é um bi-set mas o tracking não estava disponível, não deve
+  // tratar o parceiro B como "próximo" exercício independente
   const allExercises = await getWorkoutExercises(
     (
       await supabaseAdmin
@@ -1764,7 +1800,12 @@ async function advanceAfterSetLog(params: {
   const currentIndex = allExercises.findIndex(
     (ex) => ex.id === state.current_workout_exercise_id,
   );
-  const nextExercise = allExercises[currentIndex + 1];
+  // Pular o próximo exercício se ele for o parceiro B do bi-set atual
+  let nextExercise = allExercises[currentIndex + 1];
+  if (nextExercise && bisetGroupId && nextExercise.biset_group_id === bisetGroupId) {
+    // O próximo na ordem é o parceiro B — pular para o exercício depois dele
+    nextExercise = allExercises[currentIndex + 2];
+  }
 
   if (nextExercise) {
     // Próximo exercício
