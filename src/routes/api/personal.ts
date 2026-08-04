@@ -154,6 +154,7 @@ const WorkoutCreateSchema = z.object({
             .max(3600)
             .nullable()
             .optional(),
+          biset_group_id: z.string().uuid().nullable().optional(),
         })
         .refine(
           (value) =>
@@ -187,6 +188,7 @@ const WorkoutExerciseCreateSchema = z.object({
   custom_description: z
     .union([z.string().max(2000), z.null(), z.literal("")])
     .optional(),
+  biset_group_id: z.string().uuid().nullable().optional(),
 }).refine(
   (value) =>
     Boolean(
@@ -252,6 +254,7 @@ const WorkoutExercisePatchSchema = z
     custom_description: z
       .union([z.string().max(2000), z.null(), z.literal("")])
       .optional(),
+    biset_group_id: z.string().uuid().nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field must be provided",
@@ -3574,6 +3577,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
           order_index: ex.order_index,
           rest_seconds: ex.rest_seconds ?? null,
           custom_description: (ex as any).custom_description === "" ? null : ((ex as any).custom_description ?? null),
+          biset_group_id: (ex as any).biset_group_id ?? null,
         });
       }
 
@@ -3633,7 +3637,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         "student_workouts(student_id,students(name))," +
         "workout_exercises(id,order_index," +
           "target_sets,target_reps,target_weight,rest_seconds,custom_description," +
-          "exercise_catalog_id,exercise_variation_id,exercise_id," +
+          "exercise_catalog_id,exercise_variation_id,exercise_id,biset_group_id," +
           "exercise_catalog(name)," +
           "exercise_variations(name)," +
           "exercises(id,name,description))",
@@ -3665,6 +3669,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
             custom_description: we.custom_description ?? null,
             description:        leg?.description ?? null,
             description_default: leg?.description ?? null,
+            biset_group_id:     we.biset_group_id ?? null,
           };
         })
         .sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0));
@@ -3733,9 +3738,10 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
           parsed.data.custom_description === ""
             ? null
             : (parsed.data.custom_description ?? null),
+        biset_group_id: parsed.data.biset_group_id ?? null,
       })
       .select(
-        "id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,grip_footing_id,method_id,created_at",
+        "id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,grip_footing_id,method_id,biset_group_id,created_at",
       )
       .single();
 
@@ -3994,7 +4000,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         .eq("id", workoutExerciseId)
         .eq("workout_id", workoutId)
         .select(
-          "id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,grip_footing_id,method_id,exercises(id,name)",
+          "id,workout_id,exercise_id,exercise_variation_id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,grip_footing_id,method_id,biset_group_id,exercises(id,name)",
         )
         .maybeSingle();
 
@@ -4129,7 +4135,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error } = await client
       .from("workout_exercises")
       .select(
-        "id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercise_catalog_id,equipment_id,grip_footing_id,method_id,exercise_variation_id,exercise_catalog(name),exercise_variations(name),equipment_catalog(name),grip_footing_catalog(name),method_catalog(name),exercises(id,name,description,muscle_group,equipment,gif_url)",
+        "id,target_sets,target_reps,target_weight,order_index,rest_seconds,custom_description,exercise_catalog_id,equipment_id,grip_footing_id,method_id,exercise_variation_id,biset_group_id,exercise_catalog(name),exercise_variations(name),equipment_catalog(name),grip_footing_catalog(name),method_catalog(name),exercises(id,name,description,muscle_group,equipment,gif_url)",
       )
       .eq("workout_id", workoutId)
       .order("order_index", { ascending: true });
@@ -4173,6 +4179,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         equipment_id: we.equipment_id ?? null,
         grip_footing_id: (we as any).grip_footing_id ?? null,
         method_id: (we as any).method_id ?? null,
+        biset_group_id: (we as any).biset_group_id ?? null,
         name: displayName,
         exercise_name: displayBaseName,
         variation_name: variation?.name ?? null,

@@ -4442,6 +4442,100 @@
               <input type="number" id="descanso_${index}" min="0" max="3600" step="5" value="0" placeholder="Ex: 60" />
             </div>
           </div>
+
+          <!-- ── Bi-set ────────────────────────────────────────────────────── -->
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;color:#374151;">
+              <input type="checkbox" id="biset_check_${index}"
+                     onchange="toggleBiset(${index})"
+                     style="width:16px;height:16px;accent-color:#16a34a;cursor:pointer;" />
+              Combinar com outro exercício <span style="background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:9999px;letter-spacing:.4px;">BI-SET</span>
+            </label>
+          </div>
+
+          <!-- Bloco do segundo exercício do bi-set (oculto por padrão) -->
+          <div id="biset_block_${index}" style="display:none;margin-top:12px;padding:12px;background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;position:relative;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:9999px;">BI-SET</span>
+              <span style="font-size:13px;color:#15803d;font-weight:500;">2º exercício — executado em sequência, sem descanso</span>
+            </div>
+
+            <div class="workout-add-grid">
+              <div class="form-group" style="position:relative;">
+                <label>Grupo muscular <small style="font-weight:400;color:#6b7280;">(filtro opcional)</small></label>
+                <div style="position:relative;display:flex;align-items:center;">
+                  <input type="text" id="bs_exmg_search_${index}"
+                         placeholder="Opcional: filtrar por grupo..."
+                         autocomplete="off"
+                         oninput="buscarGrupoMuscularBiset(${index}, this.value)"
+                         onfocus="buscarGrupoMuscularBiset(${index}, this.value)"
+                         style="padding-right:28px;width:100%;" />
+                  <button type="button"
+                          style="position:absolute;right:6px;background:none;border:none;cursor:pointer;color:#9ca3af;font-size:16px;line-height:1;padding:2px 4px;"
+                          onclick="limparFiltroGrupoMuscularBiset(${index})">&times;</button>
+                </div>
+                <input type="hidden" id="bs_exmg_id_${index}" />
+                <div id="bs_exmg_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+              </div>
+
+              <div class="form-group" style="position:relative;">
+                <label>Exercício * <small style="font-weight:400;color:#dc2626;">(obrigatório no bi-set)</small></label>
+                <input type="text" id="bs_excat_search_${index}"
+                       placeholder="Digite para buscar o 2º exercício..."
+                       autocomplete="off"
+                       oninput="buscarCatalogoBiset(${index}, this.value)"
+                       onfocus="buscarCatalogoBiset(${index}, this.value)" />
+                <input type="hidden" id="bs_excat_id_${index}" />
+                <div id="bs_excat_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+              </div>
+            </div>
+
+            <div class="workout-optional-grid" style="margin-top:8px;">
+              <div class="form-group" style="position:relative;">
+                <label>Equipamento <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                <input type="text" id="bs_exequip_search_${index}" placeholder="Equipamento..." autocomplete="off"
+                       oninput="buscarEquipamentoBiset(${index}, this.value)" onfocus="buscarEquipamentoBiset(${index}, this.value)" />
+                <input type="hidden" id="bs_exequip_id_${index}" />
+                <div id="bs_exequip_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+              </div>
+              <div class="form-group" style="position:relative;">
+                <label>Execução <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                <input type="text" id="bs_exvar_search_${index}" placeholder="Execução..." autocomplete="off"
+                       oninput="buscarVariacaoBiset(${index}, this.value)" onfocus="buscarVariacaoBiset(${index}, this.value)" />
+                <input type="hidden" id="bs_exvarid_${index}" />
+                <div id="bs_exvar_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+              </div>
+              <div class="form-group" style="position:relative;">
+                <label>Pegada/Pisada <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                <input type="text" id="bs_exgrip_search_${index}" placeholder="Pegada/Pisada..." autocomplete="off"
+                       oninput="buscarPegadaBiset(${index}, this.value)" onfocus="buscarPegadaBiset(${index}, this.value)" />
+                <input type="hidden" id="bs_exgrip_id_${index}" />
+                <div id="bs_exgrip_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+              </div>
+              <div class="form-group" style="position:relative;">
+                <label>Método <small style="font-weight:400;color:#6b7280;">(opcional)</small></label>
+                <input type="text" id="bs_exmethod_search_${index}" placeholder="Método..." autocomplete="off"
+                       oninput="buscarMetodoBiset(${index}, this.value)" onfocus="buscarMetodoBiset(${index}, this.value)" />
+                <input type="hidden" id="bs_exmethod_id_${index}" />
+                <div id="bs_exmethod_dropdown_${index}" class="autocomplete-dropdown" style="display:none;"></div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px;">
+              <div class="form-group">
+                <label>Repetições *</label>
+                <input type="number" id="bs_reps_${index}" min="1" placeholder="Ex: 12" />
+              </div>
+              <div class="form-group">
+                <label>Peso (kg)</label>
+                <input type="number" id="bs_peso_${index}" min="0" step="0.5" placeholder="Ex: 20" />
+              </div>
+              <div class="form-group">
+                <label>Descanso após bi-set (s)</label>
+                <input type="number" id="bs_descanso_${index}" min="0" max="3600" step="5" placeholder="Ex: 60" />
+              </div>
+            </div>
+          </div>
         `;
 
         container.appendChild(exercicioDiv);
@@ -4453,6 +4547,248 @@
       const exEquipState = {};  // { [index]: [{id, name}] }
       const exGripState = {};   // { [index]: [{id, name}] }
       const exMethodState = {}; // { [index]: [{id, name}] }
+
+      // ── Bi-set: estado in-memory para seleção em cascata do 2º exercício ──
+      const bsBuscaTimeout = {};  // debounce por index
+      const bsMgState = {};       // { [index]: { id, name } } — grupo muscular do 2º exercício
+
+      // Mostra/oculta o bloco do 2º exercício do bi-set
+      function toggleBiset(index) {
+        const checked = document.getElementById(`biset_check_${index}`)?.checked;
+        const block   = document.getElementById(`biset_block_${index}`);
+        if (!block) return;
+        block.style.display = checked ? "block" : "none";
+        if (!checked) {
+          // Limpa campos do 2º exercício ao desmarcar
+          const fields = ["bs_exmg_search_","bs_excat_search_","bs_exequip_search_",
+                          "bs_exvar_search_","bs_exgrip_search_","bs_exmethod_search_",
+                          "bs_reps_","bs_peso_","bs_descanso_"];
+          fields.forEach(f => { const el = document.getElementById(`${f}${index}`); if (el) el.value = ""; });
+          const hiddens = ["bs_exmg_id_","bs_excat_id_","bs_exequip_id_",
+                           "bs_exvarid_","bs_exgrip_id_","bs_exmethod_id_"];
+          hiddens.forEach(f => { const el = document.getElementById(`${f}${index}`); if (el) el.value = ""; });
+          if (bsMgState[index]) delete bsMgState[index];
+        }
+      }
+
+      // ── Busca de grupo muscular para o 2º exercício do bi-set ──
+      function buscarGrupoMuscularBiset(index, termo) {
+        const dropdown = document.getElementById(`bs_exmg_dropdown_${index}`);
+        if (!dropdown) return;
+        if (!termo || !termo.trim()) { dropdown.style.display = "none"; return; }
+        clearTimeout(bsBuscaTimeout[`mg_${index}`]);
+        bsBuscaTimeout[`mg_${index}`] = setTimeout(async () => {
+          try {
+            const res = await fetch(`${getApiBaseUrl()}/api/muscle-groups?search=${encodeURIComponent(termo)}&limit=20`,
+              { headers: { Authorization: `Bearer ${authToken}` } });
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhum grupo encontrado.</div>'; dropdown.style.display = "block"; return; }
+            dropdown.innerHTML = items.map(item =>
+              `<div class="autocomplete-item"
+                    onclick="selecionarGrupoMuscularBiset(${index},'${escapeHtml(item.id)}','${escapeHtml(item.name).replace(/'/g,"\\'")}')"
+                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                 ${escapeHtml(item.name)}
+               </div>`
+            ).join("");
+            dropdown.style.display = "block";
+          } catch(e) { dropdown.style.display = "none"; }
+        }, 200);
+      }
+      function selecionarGrupoMuscularBiset(index, id, name) {
+        bsMgState[index] = { id, name };
+        const el = document.getElementById(`bs_exmg_search_${index}`);
+        if (el) el.value = name;
+        const hidEl = document.getElementById(`bs_exmg_id_${index}`);
+        if (hidEl) hidEl.value = id;
+        const dd = document.getElementById(`bs_exmg_dropdown_${index}`);
+        if (dd) dd.style.display = "none";
+        // Limpa o exercício selecionado quando muda o grupo
+        const catSearch = document.getElementById(`bs_excat_search_${index}`);
+        if (catSearch) catSearch.value = "";
+        const catId = document.getElementById(`bs_excat_id_${index}`);
+        if (catId) catId.value = "";
+      }
+      function limparFiltroGrupoMuscularBiset(index) {
+        if (bsMgState[index]) delete bsMgState[index];
+        const el = document.getElementById(`bs_exmg_search_${index}`);
+        if (el) el.value = "";
+        const hidEl = document.getElementById(`bs_exmg_id_${index}`);
+        if (hidEl) hidEl.value = "";
+        const dd = document.getElementById(`bs_exmg_dropdown_${index}`);
+        if (dd) dd.style.display = "none";
+      }
+
+      // ── Busca de exercício (catálogo) para o 2º exercício do bi-set ──
+      function buscarCatalogoBiset(index, termo) {
+        const dropdown = document.getElementById(`bs_excat_dropdown_${index}`);
+        if (!dropdown) return;
+        clearTimeout(bsBuscaTimeout[`cat_${index}`]);
+        const query = (termo || "").trim();
+        bsBuscaTimeout[`cat_${index}`] = setTimeout(async () => {
+          try {
+            const params = new URLSearchParams();
+            if (query) params.set("search", query);
+            params.set("limit", "1000");
+            const groupId = bsMgState[index]?.id;
+            if (groupId) params.set("muscle_group_id", groupId);
+            const res = await fetch(`${getApiBaseUrl()}/api/exercise-catalog?${params.toString()}`,
+              { headers: { Authorization: `Bearer ${authToken}` } });
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhum exercício encontrado.</div>'; dropdown.style.display = "block"; return; }
+            dropdown.innerHTML = items.map(item =>
+              `<div class="autocomplete-item"
+                    onclick="selecionarCatalogoBiset(${index},'${escapeHtml(item.id)}','${escapeHtml(item.name).replace(/'/g,"\\'")}')"
+                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                 <strong>${escapeHtml(item.name)}</strong>
+                 ${item.muscle_group_name ? `<span style="font-size:11px;color:#6b7280;margin-left:6px;">${escapeHtml(item.muscle_group_name)}</span>` : ""}
+               </div>`
+            ).join("");
+            dropdown.style.display = "block";
+          } catch(e) { dropdown.style.display = "none"; }
+        }, 300);
+      }
+      function selecionarCatalogoBiset(index, id, name) {
+        const search = document.getElementById(`bs_excat_search_${index}`);
+        if (search) search.value = name;
+        const hidden = document.getElementById(`bs_excat_id_${index}`);
+        if (hidden) hidden.value = id;
+        const dd = document.getElementById(`bs_excat_dropdown_${index}`);
+        if (dd) dd.style.display = "none";
+      }
+
+      // ── Busca de equipamento para o 2º exercício do bi-set ──
+      function buscarEquipamentoBiset(index, termo) {
+        const dropdown = document.getElementById(`bs_exequip_dropdown_${index}`);
+        if (!dropdown) return;
+        clearTimeout(bsBuscaTimeout[`equip_${index}`]);
+        const query = (termo || "").trim();
+        bsBuscaTimeout[`equip_${index}`] = setTimeout(async () => {
+          try {
+            const res = await fetch(`${getApiBaseUrl()}/api/equipment-catalog?search=${encodeURIComponent(query)}&limit=100`,
+              { headers: { Authorization: `Bearer ${authToken}` } });
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhum equipamento encontrado.</div>'; dropdown.style.display = "block"; return; }
+            dropdown.innerHTML = items.map(item =>
+              `<div class="autocomplete-item"
+                    onclick="selecionarEquipamentoBiset(${index},'${escapeHtml(item.id)}','${escapeHtml(item.name).replace(/'/g,"\\'")}')"
+                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                 ${escapeHtml(item.name)}
+               </div>`
+            ).join("");
+            dropdown.style.display = "block";
+          } catch(e) { dropdown.style.display = "none"; }
+        }, 250);
+      }
+      function selecionarEquipamentoBiset(index, id, name) {
+        const search = document.getElementById(`bs_exequip_search_${index}`);
+        if (search) search.value = name;
+        const hidden = document.getElementById(`bs_exequip_id_${index}`);
+        if (hidden) hidden.value = id;
+        const dd = document.getElementById(`bs_exequip_dropdown_${index}`);
+        if (dd) dd.style.display = "none";
+      }
+
+      // ── Busca de variação/execução para o 2º exercício do bi-set ──
+      function buscarVariacaoBiset(index, termo) {
+        const dropdown = document.getElementById(`bs_exvar_dropdown_${index}`);
+        if (!dropdown) return;
+        clearTimeout(bsBuscaTimeout[`var_${index}`]);
+        const query = (termo || "").trim();
+        bsBuscaTimeout[`var_${index}`] = setTimeout(async () => {
+          try {
+            const res = await fetch(`${getApiBaseUrl()}/api/exercise-variations?search=${encodeURIComponent(query)}&limit=100`,
+              { headers: { Authorization: `Bearer ${authToken}` } });
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhuma execução encontrada.</div>'; dropdown.style.display = "block"; return; }
+            dropdown.innerHTML = items.map(item =>
+              `<div class="autocomplete-item"
+                    onclick="selecionarVariacaoBiset(${index},'${escapeHtml(item.id)}','${escapeHtml(item.name).replace(/'/g,"\\'")}')"
+                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                 ${escapeHtml(item.name)}
+               </div>`
+            ).join("");
+            dropdown.style.display = "block";
+          } catch(e) { dropdown.style.display = "none"; }
+        }, 300);
+      }
+      function selecionarVariacaoBiset(index, id, name) {
+        const search = document.getElementById(`bs_exvar_search_${index}`);
+        if (search) search.value = name;
+        const hidden = document.getElementById(`bs_exvarid_${index}`);
+        if (hidden) hidden.value = id;
+        const dd = document.getElementById(`bs_exvar_dropdown_${index}`);
+        if (dd) dd.style.display = "none";
+      }
+
+      // ── Busca de pegada/pisada para o 2º exercício do bi-set ──
+      function buscarPegadaBiset(index, termo) {
+        const dropdown = document.getElementById(`bs_exgrip_dropdown_${index}`);
+        if (!dropdown) return;
+        clearTimeout(bsBuscaTimeout[`grip_${index}`]);
+        const query = (termo || "").trim();
+        bsBuscaTimeout[`grip_${index}`] = setTimeout(async () => {
+          try {
+            const res = await fetch(`${getApiBaseUrl()}/api/grip-footing-catalog?search=${encodeURIComponent(query)}&limit=100`,
+              { headers: { Authorization: `Bearer ${authToken}` } });
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhuma pegada encontrada.</div>'; dropdown.style.display = "block"; return; }
+            dropdown.innerHTML = items.map(item =>
+              `<div class="autocomplete-item"
+                    onclick="selecionarPegadaBiset(${index},'${escapeHtml(item.id)}','${escapeHtml(item.name).replace(/'/g,"\\'")}')"
+                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                 ${escapeHtml(item.name)}
+               </div>`
+            ).join("");
+            dropdown.style.display = "block";
+          } catch(e) { dropdown.style.display = "none"; }
+        }, 250);
+      }
+      function selecionarPegadaBiset(index, id, name) {
+        const search = document.getElementById(`bs_exgrip_search_${index}`);
+        if (search) search.value = name;
+        const hidden = document.getElementById(`bs_exgrip_id_${index}`);
+        if (hidden) hidden.value = id;
+        const dd = document.getElementById(`bs_exgrip_dropdown_${index}`);
+        if (dd) dd.style.display = "none";
+      }
+
+      // ── Busca de método para o 2º exercício do bi-set ──
+      function buscarMetodoBiset(index, termo) {
+        const dropdown = document.getElementById(`bs_exmethod_dropdown_${index}`);
+        if (!dropdown) return;
+        clearTimeout(bsBuscaTimeout[`method_${index}`]);
+        const query = (termo || "").trim();
+        bsBuscaTimeout[`method_${index}`] = setTimeout(async () => {
+          try {
+            const res = await fetch(`${getApiBaseUrl()}/api/method-catalog?search=${encodeURIComponent(query)}&limit=100`,
+              { headers: { Authorization: `Bearer ${authToken}` } });
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhum método encontrado.</div>'; dropdown.style.display = "block"; return; }
+            dropdown.innerHTML = items.map(item =>
+              `<div class="autocomplete-item"
+                    onclick="selecionarMetodoBiset(${index},'${escapeHtml(item.id)}','${escapeHtml(item.name).replace(/'/g,"\\'")}')"
+                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                 ${escapeHtml(item.name)}
+               </div>`
+            ).join("");
+            dropdown.style.display = "block";
+          } catch(e) { dropdown.style.display = "none"; }
+        }, 250);
+      }
+      function selecionarMetodoBiset(index, id, name) {
+        const search = document.getElementById(`bs_exmethod_search_${index}`);
+        if (search) search.value = name;
+        const hidden = document.getElementById(`bs_exmethod_id_${index}`);
+        if (hidden) hidden.value = id;
+        const dd = document.getElementById(`bs_exmethod_dropdown_${index}`);
+        if (dd) dd.style.display = "none";
+      }
 
       // Caches para seleção em cascata - Novo Treino
       const grupoMuscularBuscaTimeout = {};
@@ -4949,10 +5285,39 @@
           const descanso = document.getElementById(`descanso_${i}`)?.value;
           const customDesc = document.getElementById(`exdesc_${i}`)?.value?.trim();
 
+          // ── Bi-set: coletar dados do 2º exercício ──
+          const isBiset = document.getElementById(`biset_check_${i}`)?.checked;
+          const bsCatalogId  = document.getElementById(`bs_excat_id_${i}`)?.value;
+          const bsVariacaoId = document.getElementById(`bs_exvarid_${i}`)?.value;
+          const bsEquipId    = document.getElementById(`bs_exequip_id_${i}`)?.value;
+          const bsGripId     = document.getElementById(`bs_exgrip_id_${i}`)?.value;
+          const bsMethodId   = document.getElementById(`bs_exmethod_id_${i}`)?.value;
+          const bsReps       = document.getElementById(`bs_reps_${i}`)?.value;
+          const bsPeso       = document.getElementById(`bs_peso_${i}`)?.value;
+          const bsDescanso   = document.getElementById(`bs_descanso_${i}`)?.value;
+
           if (!catalogId) {
             showAlert(
               "treinosAlert",
               `Selecione o exercício no item ${i + 1}.`,
+              "error",
+            );
+            return;
+          }
+
+          if (isBiset && !bsCatalogId) {
+            showAlert(
+              "treinosAlert",
+              `O item ${i + 1} está marcado como Bi-set — selecione o 2º exercício.`,
+              "error",
+            );
+            return;
+          }
+
+          if (isBiset && (!bsReps || Number(bsReps) < 1)) {
+            showAlert(
+              "treinosAlert",
+              `Preencha as repetições do 2º exercício do Bi-set no item ${i + 1}.`,
               "error",
             );
             return;
@@ -4972,6 +5337,9 @@
             return;
           }
 
+          // UUID compartilhado para os exercícios do bi-set
+          const bisetGroupId = isBiset ? crypto.randomUUID() : null;
+
           const variationLoop = variationIds.length ? variationIds : [null];
           const equipLoop = equipIds.length ? equipIds : [null];
           const gripLoop = gripIds.length ? gripIds : [null];
@@ -4990,10 +5358,31 @@
                     target_reps: reps,
                     target_weight: (peso === "" || peso == null) ? null : parseFloat(peso),
                     order_index: orderCounter,
-                    rest_seconds: descanso ? parseInt(descanso) : null,
+                    // No bi-set o descanso fica no 2º exercício; o 1º não tem descanso
+                    rest_seconds: isBiset ? null : (descanso ? parseInt(descanso) : null),
                     custom_description: customDesc || null,
+                    ...(bisetGroupId ? { biset_group_id: bisetGroupId } : {}),
                   });
                   orderCounter += 1;
+
+                  // 2º exercício do bi-set (mesmas séries, reps/peso próprios)
+                  if (isBiset && bsCatalogId) {
+                    exercises.push({
+                      ...(bsVariacaoId ? { exercise_variation_id: bsVariacaoId } : {}),
+                      exercise_catalog_id: bsCatalogId,
+                      ...(bsEquipId ? { equipment_id: bsEquipId } : {}),
+                      ...(bsGripId ? { grip_footing_id: bsGripId } : {}),
+                      ...(bsMethodId ? { method_id: bsMethodId } : {}),
+                      target_sets: series,
+                      target_reps: Number(bsReps),
+                      target_weight: (bsPeso === "" || bsPeso == null) ? null : parseFloat(bsPeso),
+                      order_index: orderCounter,
+                      rest_seconds: bsDescanso ? parseInt(bsDescanso) : null,
+                      custom_description: null,
+                      biset_group_id: bisetGroupId,
+                    });
+                    orderCounter += 1;
+                  }
                 }
               }
             }
@@ -5106,41 +5495,90 @@
                           const containerId = `tw_list_${treino.id}`;
                           if (exercises.length > 0) {
                             const sorted = [...exercises].sort((a, b) => a.order_index - b.order_index);
-                            return `<div id="${containerId}" class="exercise-list-dnd">${
-                              sorted.map((ex) => `
-                              <div class="exercise-row" draggable="true" data-we-id="${ex.workout_exercise_id}" data-workout-id="${treino.id}" data-order="${ex.order_index}">
-                                <p class="exercise-title"><span class="drag-handle" title="Arrastar para reordenar">&#9776;</span>&#127947; ${escapeHtml(ex.name || "Exerc\u00edcio")}</p>
-                                <p style="margin:4px 0; font-size:12px; color:#6b7280;">Descri&#231;&#227;o padr&#227;o: ${escapeHtml(ex.description_default || ex.description || "-")}</p>
-                                <div class="exercise-fields-grid">
-                                  <div class="exercise-field">
-                                    <label>S&#233;ries</label>
-                                    <input type="number" min="1" id="tw_sets_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_sets || ""))}" />
+
+                            // Agrupar exercícios de bi-set pelo biset_group_id
+                            const rendered = [];
+                            const seenBisetGroups = new Set();
+
+                            sorted.forEach((ex) => {
+                              const groupId = ex.biset_group_id;
+
+                              if (groupId && seenBisetGroups.has(groupId)) return; // 2º do par já foi incluído no bloco do 1º
+                              if (groupId) seenBisetGroups.add(groupId);
+
+                              const partner = groupId ? sorted.find(e => e.biset_group_id === groupId && e.workout_exercise_id !== ex.workout_exercise_id) : null;
+
+                              const bisetBadge = groupId
+                                ? `<span style="background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:9999px;margin-left:8px;vertical-align:middle;">BI-SET</span>`
+                                : "";
+
+                              const makeExerciseCard = (e, isSecond) => `
+                                <div class="exercise-row${isSecond ? "" : ""}" draggable="${!isSecond}" data-we-id="${e.workout_exercise_id}" data-workout-id="${treino.id}" data-order="${e.order_index}"
+                                     style="${isSecond ? "margin-top:0;border-top:1px dashed #86efac;border-radius:0 0 6px 6px;" : ""}">
+                                  <p class="exercise-title">
+                                    ${isSecond
+                                      ? `<span style="font-size:11px;font-weight:700;color:#16a34a;margin-right:6px;">2º</span>`
+                                      : `<span class="drag-handle" title="Arrastar para reordenar">&#9776;</span>`}
+                                    &#127947; ${escapeHtml(e.name || "Exerc\u00edcio")}
+                                    ${!isSecond ? bisetBadge : ""}
+                                  </p>
+                                  <p style="margin:4px 0; font-size:12px; color:#6b7280;">Descri&#231;&#227;o padr&#227;o: ${escapeHtml(e.description_default || e.description || "-")}</p>
+                                  <div class="exercise-fields-grid">
+                                    <div class="exercise-field">
+                                      <label>S&#233;ries</label>
+                                      <input type="number" min="1" id="tw_sets_${e.workout_exercise_id}" value="${escapeHtml(String(e.target_sets || ""))}" />
+                                    </div>
+                                    <div class="exercise-field">
+                                      <label>Repeti&#231;&#245;es</label>
+                                      <input type="number" min="1" id="tw_reps_${e.workout_exercise_id}" value="${escapeHtml(String(e.target_reps || ""))}" />
+                                    </div>
+                                    <div class="exercise-field">
+                                      <label>Peso (kg)</label>
+                                      <input type="number" min="0" step="0.1" id="tw_weight_${e.workout_exercise_id}" value="${escapeHtml(e.target_weight == null ? "" : String(e.target_weight))}" />
+                                    </div>
+                                    <input type="hidden" id="tw_order_${e.workout_exercise_id}" value="${escapeHtml(String(e.order_index || 0))}" />
+                                    <div class="exercise-field">
+                                      <label>Descanso (s)</label>
+                                      <input type="number" min="0" max="3600" step="5" id="tw_rest_${e.workout_exercise_id}" value="${escapeHtml(e.rest_seconds == null ? "" : String(e.rest_seconds))}" placeholder="Ex: 60" />
+                                    </div>
                                   </div>
-                                  <div class="exercise-field">
-                                    <label>Repeti&#231;&#245;es</label>
-                                    <input type="number" min="1" id="tw_reps_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.target_reps || ""))}" />
+                                  <div class="form-group" style="margin-top:8px;">
+                                     <label>Orienta&#231;&#245;es/observa&#231;&#245;es</label>
+                                     <textarea id="tw_desc_${e.workout_exercise_id}" rows="2" placeholder="Se vazio, usa a descri&#231;&#227;o padr&#227;o">${escapeHtml(e.custom_description || "")}</textarea>
                                   </div>
-                                  <div class="exercise-field">
-                                    <label>Peso (kg)</label>
-                                    <input type="number" min="0" step="0.1" id="tw_weight_${ex.workout_exercise_id}" value="${escapeHtml(ex.target_weight == null ? "" : String(ex.target_weight))}" />
-                                  </div>
-                                  <input type="hidden" id="tw_order_${ex.workout_exercise_id}" value="${escapeHtml(String(ex.order_index || 0))}" />
-                                  <div class="exercise-field">
-                                    <label>Descanso (s)</label>
-                                    <input type="number" min="0" max="3600" step="5" id="tw_rest_${ex.workout_exercise_id}" value="${escapeHtml(ex.rest_seconds == null ? "" : String(ex.rest_seconds))}" placeholder="Ex: 60" />
+                                  <div class="exercise-actions">
+                                    <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${treino.id}','${e.workout_exercise_id}')">Salvar exerc&#237;cio</button>
+                                    <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba('${treino.id}','${e.workout_exercise_id}')">Excluir exerc&#237;cio</button>
                                   </div>
                                 </div>
-                                <div class="form-group" style="margin-top:8px;">
-                                   <label>Orienta&#231;&#245;es/observa&#231;&#245;es</label>
-                                   <textarea id="tw_desc_${ex.workout_exercise_id}" rows="2" placeholder="Se vazio, usa a descri&#231;&#227;o padr&#227;o">${escapeHtml(ex.custom_description || "")}</textarea>
-                                </div>
-                                 <div class="exercise-actions">
-                                   <button class="btn btn-secondary" onclick="salvarExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Salvar exerc&#237;cio</button>
-                                   <button class="btn btn-danger" onclick="excluirExercicioTreinoNaAba('${treino.id}','${ex.workout_exercise_id}')">Excluir exerc&#237;cio</button>
-                                 </div>
-                              </div>
-                              `).join("")
-                            }</div>`;
+                              `;
+
+                              if (partner) {
+                                // Bloco bi-set: envolve os dois exercícios num container verde
+                                rendered.push(`
+                                  <div class="exercise-row biset-group-wrapper"
+                                       draggable="true"
+                                       data-we-id="${ex.workout_exercise_id}"
+                                       data-workout-id="${treino.id}"
+                                       data-order="${ex.order_index}"
+                                       style="padding:0;overflow:hidden;border:2px solid #16a34a;border-radius:8px;background:#f0fdf4;">
+                                    ${makeExerciseCard(ex, false)}
+                                    <div style="display:flex;align-items:center;gap:6px;padding:4px 12px;background:#dcfce7;border-top:1px solid #86efac;border-bottom:1px solid #86efac;">
+                                      <span style="font-size:11px;color:#15803d;font-weight:600;">&#8595; Bi-set: executar em seguida sem descanso</span>
+                                    </div>
+                                    ${makeExerciseCard(partner, true)}
+                                  </div>
+                                `);
+                              } else {
+                                rendered.push(`
+                                  <div class="exercise-row" draggable="true" data-we-id="${ex.workout_exercise_id}" data-workout-id="${treino.id}" data-order="${ex.order_index}">
+                                    ${makeExerciseCard(ex, false).replace(/<div class="exercise-row[^"]*"[^>]*>/, "").replace(/<\/div>\s*$/, "")}
+                                  </div>
+                                `);
+                              }
+                            });
+
+                            return `<div id="${containerId}" class="exercise-list-dnd">${rendered.join("")}</div>`;
                           } else {
                             // Sempre cria o container (mesmo vazio) para que adicionarExercicioTreinoNaAba possa injetar nele
                             return `<div id="${containerId}" class="exercise-list-dnd"></div><p id="tw_empty_${treino.id}" style="color:#6b7280;">Sem exerc&#237;cios neste treino.</p>`;
@@ -5259,6 +5697,71 @@
                             <label>Descanso (s)</label>
                             <input type="number" min="0" max="3600" step="5" id="tab_add_rest_${treino.id}" value="0" />
                           </div>
+                          </div>
+                        </div>
+
+                        <!-- ── Bi-set na aba de edição ────────────────────── -->
+                        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
+                          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;color:#374151;">
+                            <input type="checkbox" id="tab_biset_check_${treino.id}"
+                                   onchange="toggleBisetAba('${treino.id}')"
+                                   style="width:16px;height:16px;accent-color:#16a34a;cursor:pointer;" />
+                            Combinar com outro exercício
+                            <span style="background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:9999px;">BI-SET</span>
+                          </label>
+                        </div>
+
+                        <div id="tab_biset_block_${treino.id}" style="display:none;margin-top:10px;padding:12px;background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;">
+                          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                            <span style="background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:9999px;">BI-SET</span>
+                            <span style="font-size:13px;color:#15803d;font-weight:500;">2º exercício</span>
+                          </div>
+                          <div class="workout-add-grid">
+                            <div class="form-group" style="position:relative;">
+                              <label>Exercício * <small style="color:#dc2626;">(obrigatório)</small></label>
+                              <input type="text" id="tab_bs_cat_search_${treino.id}"
+                                     placeholder="Digite para buscar o 2º exercício..."
+                                     autocomplete="off"
+                                     oninput="buscarCatalogoBisetAba('${treino.id}', this.value)"
+                                     onfocus="buscarCatalogoBisetAba('${treino.id}', this.value)" />
+                              <input type="hidden" id="tab_bs_cat_id_${treino.id}" />
+                              <div id="tab_bs_cat_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                            </div>
+                            <div class="form-group" style="position:relative;">
+                              <label>Execução <small style="color:#6b7280;">(opcional)</small></label>
+                              <input type="text" id="tab_bs_var_search_${treino.id}"
+                                     placeholder="Execução..."
+                                     autocomplete="off"
+                                     oninput="buscarVariacaoBisetAba('${treino.id}', this.value)"
+                                     onfocus="buscarVariacaoBisetAba('${treino.id}', this.value)" />
+                              <input type="hidden" id="tab_bs_var_id_${treino.id}" />
+                              <div id="tab_bs_var_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                            </div>
+                          </div>
+                          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:8px;">
+                            <div class="form-group">
+                              <label>Equipamento</label>
+                              <input type="text" id="tab_bs_equip_search_${treino.id}" placeholder="Equipamento..."
+                                     autocomplete="off"
+                                     oninput="buscarEquipBisetAba('${treino.id}', this.value)"
+                                     onfocus="buscarEquipBisetAba('${treino.id}', this.value)" />
+                              <input type="hidden" id="tab_bs_equip_id_${treino.id}" />
+                              <div id="tab_bs_equip_dropdown_${treino.id}" class="autocomplete-dropdown" style="display:none;"></div>
+                            </div>
+                            <div class="form-group">
+                              <label>Repetições *</label>
+                              <input type="number" min="1" id="tab_bs_reps_${treino.id}" placeholder="Ex: 12" />
+                            </div>
+                            <div class="form-group">
+                              <label>Peso (kg)</label>
+                              <input type="number" min="0" step="0.1" id="tab_bs_peso_${treino.id}" placeholder="Ex: 20" />
+                            </div>
+                            <div class="form-group">
+                              <label>Descanso após (s)</label>
+                              <input type="number" min="0" max="3600" step="5" id="tab_bs_descanso_${treino.id}" placeholder="Ex: 60" />
+                            </div>
+                            <input type="hidden" id="tab_bs_grip_id_${treino.id}" />
+                            <input type="hidden" id="tab_bs_method_id_${treino.id}" />
                           </div>
                         </div>
 
@@ -5803,6 +6306,130 @@
         renderTabMethodTags(workoutId);
       }
 
+      // ── Bi-set na aba de edição de treino existente ──────────────────────────
+      const tabBsBuscaTimeout = {};
+
+      function toggleBisetAba(workoutId) {
+        const checked = document.getElementById(`tab_biset_check_${workoutId}`)?.checked;
+        const block   = document.getElementById(`tab_biset_block_${workoutId}`);
+        if (!block) return;
+        block.style.display = checked ? "block" : "none";
+        if (!checked) {
+          ["tab_bs_cat_search_","tab_bs_var_search_","tab_bs_equip_search_"].forEach(f => {
+            const el = document.getElementById(`${f}${workoutId}`);
+            if (el) el.value = "";
+          });
+          ["tab_bs_cat_id_","tab_bs_var_id_","tab_bs_equip_id_","tab_bs_grip_id_","tab_bs_method_id_"].forEach(f => {
+            const el = document.getElementById(`${f}${workoutId}`);
+            if (el) el.value = "";
+          });
+          ["tab_bs_reps_","tab_bs_peso_","tab_bs_descanso_"].forEach(f => {
+            const el = document.getElementById(`${f}${workoutId}`);
+            if (el) el.value = "";
+          });
+        }
+      }
+
+      function buscarCatalogoBisetAba(workoutId, termo) {
+        const dropdown = document.getElementById(`tab_bs_cat_dropdown_${workoutId}`);
+        if (!dropdown) return;
+        clearTimeout(tabBsBuscaTimeout[`cat_${workoutId}`]);
+        const query = (termo || "").trim();
+        tabBsBuscaTimeout[`cat_${workoutId}`] = setTimeout(async () => {
+          try {
+            const params = new URLSearchParams();
+            if (query) params.set("search", query);
+            params.set("limit", "1000");
+            const res = await fetch(`${getApiBaseUrl()}/api/exercise-catalog?${params.toString()}`,
+              { headers: { Authorization: `Bearer ${authToken}` } });
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhum exercício encontrado.</div>'; dropdown.style.display = "block"; return; }
+            dropdown.innerHTML = items.map(item =>
+              `<div class="autocomplete-item"
+                    onclick="selecionarCatalogoBisetAba('${escapeHtml(workoutId)}','${escapeHtml(item.id)}','${escapeHtml(item.name).replace(/'/g,"\\'")}')"
+                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                 <strong>${escapeHtml(item.name)}</strong>
+                 ${item.muscle_group_name ? `<span style="font-size:11px;color:#6b7280;margin-left:6px;">${escapeHtml(item.muscle_group_name)}</span>` : ""}
+               </div>`
+            ).join("");
+            dropdown.style.display = "block";
+          } catch(e) { dropdown.style.display = "none"; }
+        }, 300);
+      }
+      function selecionarCatalogoBisetAba(workoutId, id, name) {
+        const search = document.getElementById(`tab_bs_cat_search_${workoutId}`);
+        if (search) search.value = name;
+        const hidden = document.getElementById(`tab_bs_cat_id_${workoutId}`);
+        if (hidden) hidden.value = id;
+        const dd = document.getElementById(`tab_bs_cat_dropdown_${workoutId}`);
+        if (dd) dd.style.display = "none";
+      }
+
+      function buscarVariacaoBisetAba(workoutId, termo) {
+        const dropdown = document.getElementById(`tab_bs_var_dropdown_${workoutId}`);
+        if (!dropdown) return;
+        clearTimeout(tabBsBuscaTimeout[`var_${workoutId}`]);
+        const query = (termo || "").trim();
+        tabBsBuscaTimeout[`var_${workoutId}`] = setTimeout(async () => {
+          try {
+            const res = await fetch(`${getApiBaseUrl()}/api/exercise-variations?search=${encodeURIComponent(query)}&limit=100`,
+              { headers: { Authorization: `Bearer ${authToken}` } });
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhuma execução encontrada.</div>'; dropdown.style.display = "block"; return; }
+            dropdown.innerHTML = items.map(item =>
+              `<div class="autocomplete-item"
+                    onclick="selecionarVariacaoBisetAba('${escapeHtml(workoutId)}','${escapeHtml(item.id)}','${escapeHtml(item.name).replace(/'/g,"\\'")}')"
+                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                 ${escapeHtml(item.name)}
+               </div>`
+            ).join("");
+            dropdown.style.display = "block";
+          } catch(e) { dropdown.style.display = "none"; }
+        }, 300);
+      }
+      function selecionarVariacaoBisetAba(workoutId, id, name) {
+        const search = document.getElementById(`tab_bs_var_search_${workoutId}`);
+        if (search) search.value = name;
+        const hidden = document.getElementById(`tab_bs_var_id_${workoutId}`);
+        if (hidden) hidden.value = id;
+        const dd = document.getElementById(`tab_bs_var_dropdown_${workoutId}`);
+        if (dd) dd.style.display = "none";
+      }
+
+      function buscarEquipBisetAba(workoutId, termo) {
+        const dropdown = document.getElementById(`tab_bs_equip_dropdown_${workoutId}`);
+        if (!dropdown) return;
+        clearTimeout(tabBsBuscaTimeout[`equip_${workoutId}`]);
+        const query = (termo || "").trim();
+        tabBsBuscaTimeout[`equip_${workoutId}`] = setTimeout(async () => {
+          try {
+            const res = await fetch(`${getApiBaseUrl()}/api/equipment-catalog?search=${encodeURIComponent(query)}&limit=100`,
+              { headers: { Authorization: `Bearer ${authToken}` } });
+            if (!res.ok) return;
+            const items = await res.json();
+            if (!items.length) { dropdown.innerHTML = '<div style="padding:10px;color:#6b7280;">Nenhum equipamento encontrado.</div>'; dropdown.style.display = "block"; return; }
+            dropdown.innerHTML = items.map(item =>
+              `<div class="autocomplete-item"
+                    onclick="selecionarEquipBisetAba('${escapeHtml(workoutId)}','${escapeHtml(item.id)}','${escapeHtml(item.name).replace(/'/g,"\\'")}')"
+                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='white'">
+                 ${escapeHtml(item.name)}
+               </div>`
+            ).join("");
+            dropdown.style.display = "block";
+          } catch(e) { dropdown.style.display = "none"; }
+        }, 250);
+      }
+      function selecionarEquipBisetAba(workoutId, id, name) {
+        const search = document.getElementById(`tab_bs_equip_search_${workoutId}`);
+        if (search) search.value = name;
+        const hidden = document.getElementById(`tab_bs_equip_id_${workoutId}`);
+        if (hidden) hidden.value = id;
+        const dd = document.getElementById(`tab_bs_equip_dropdown_${workoutId}`);
+        if (dd) dd.style.display = "none";
+      }
+
       async function gerarDescricaoExercicioIAEdicao(workoutId) {
         const catalogId = document.getElementById(`tab_cat_id_${workoutId}`)?.value;
         if (!catalogId) return;
@@ -5882,8 +6509,29 @@
         const restRaw = document.getElementById(`tab_add_rest_${workoutId}`)?.value;
         const customDesc = document.getElementById(`tab_desc_${workoutId}`)?.value?.trim();
 
+        // ── Bi-set na aba de edição ──
+        const isBiset     = document.getElementById(`tab_biset_check_${workoutId}`)?.checked;
+        const bsCatalogId = document.getElementById(`tab_bs_cat_id_${workoutId}`)?.value;
+        const bsVariacaoId= document.getElementById(`tab_bs_var_id_${workoutId}`)?.value;
+        const bsEquipId   = document.getElementById(`tab_bs_equip_id_${workoutId}`)?.value;
+        const bsGripId    = document.getElementById(`tab_bs_grip_id_${workoutId}`)?.value;
+        const bsMethodId  = document.getElementById(`tab_bs_method_id_${workoutId}`)?.value;
+        const bsReps      = document.getElementById(`tab_bs_reps_${workoutId}`)?.value;
+        const bsPeso      = document.getElementById(`tab_bs_peso_${workoutId}`)?.value;
+        const bsDescanso  = document.getElementById(`tab_bs_descanso_${workoutId}`)?.value;
+
+        if (isBiset && !bsCatalogId) {
+          showAlert("treinosAlert", "Bi-set marcado — selecione o 2º exercício.", "error");
+          return;
+        }
+        if (isBiset && (!bsReps || Number(bsReps) < 1)) {
+          showAlert("treinosAlert", "Preencha as repetições do 2º exercício do Bi-set.", "error");
+          return;
+        }
+
         try {
           let localOrder = Number.isFinite(orderIndex) ? orderIndex : 0;
+          const bisetGroupId = isBiset ? crypto.randomUUID() : null;
           const variationLoop = variationIds.length ? variationIds : [null];
           const equipLoop = equipIds.length ? equipIds : [null];
           const gripLoop = gripIds.length ? gripIds : [null];
@@ -5902,8 +6550,9 @@
                     target_reps: targetReps,
                     target_weight: weightRaw === "" ? null : Number(weightRaw),
                     order_index: localOrder,
-                    rest_seconds: restRaw === "" ? null : Number(restRaw),
+                    rest_seconds: isBiset ? null : (restRaw === "" ? null : Number(restRaw)),
                     custom_description: customDesc || null,
+                    ...(bisetGroupId ? { biset_group_id: bisetGroupId } : {}),
                   };
                   localOrder += 1;
                   const response = await fetch(
@@ -5921,6 +6570,37 @@
                   if (!response.ok) {
                     const err = await response.json().catch(() => ({}));
                     throw new Error(err.message || "Erro ao adicionar exercício");
+                  }
+
+                  // 2º exercício do bi-set
+                  if (isBiset && bsCatalogId) {
+                    const bsPayload = {
+                      ...(bsVariacaoId ? { exercise_variation_id: bsVariacaoId } : {}),
+                      exercise_catalog_id: bsCatalogId,
+                      ...(bsEquipId ? { equipment_id: bsEquipId } : {}),
+                      ...(bsGripId ? { grip_footing_id: bsGripId } : {}),
+                      ...(bsMethodId ? { method_id: bsMethodId } : {}),
+                      target_sets: targetSets,
+                      target_reps: Number(bsReps),
+                      target_weight: (bsPeso === "" || bsPeso == null) ? null : Number(bsPeso),
+                      order_index: localOrder,
+                      rest_seconds: bsDescanso === "" ? null : Number(bsDescanso),
+                      custom_description: null,
+                      biset_group_id: bisetGroupId,
+                    };
+                    localOrder += 1;
+                    const bsResponse = await fetch(
+                      `${getApiBaseUrl()}/api/workouts/${workoutId}/exercises`,
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+                        body: JSON.stringify(bsPayload),
+                      },
+                    );
+                    if (!bsResponse.ok) {
+                      const err = await bsResponse.json().catch(() => ({}));
+                      throw new Error(err.message || "Erro ao adicionar 2º exercício do Bi-set");
+                    }
                   }
                 }
               }
@@ -5974,6 +6654,10 @@
           if (gripWrapper) gripWrapper.style.display = "block";
           if (methodWrapper) methodWrapper.style.display = "block";
           if (metaWrapper) metaWrapper.style.display = "block";
+
+          // Reset campos do bi-set
+          const bisetCheck = document.getElementById(`tab_biset_check_${workoutId}`);
+          if (bisetCheck) { bisetCheck.checked = false; toggleBisetAba(workoutId); }
 
           // Limpar campos numéricos e orientações que não eram resetados
           const setsInput   = document.getElementById(`tab_add_sets_${workoutId}`);
