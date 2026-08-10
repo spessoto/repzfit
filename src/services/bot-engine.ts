@@ -2184,24 +2184,24 @@ export async function processIncomingMessage(input: IncomingMessage) {
     }
 
     const state = await getOrCreateState(whatsapp, student.id);
-    if (state.current_state === "IDLE") {
-      await logBotAnomaly(input.app, {
-        severity: "info",
-        category: "intent",
-        code: "finish_requested_without_active_session",
-        message:
-          "Usuário tentou encerrar treino, mas o estado atual já estava IDLE.",
-        whatsapp_number: whatsapp,
-        student_id: student.id,
-        current_state: state.current_state,
-        input_excerpt: inputExcerpt,
-      });
 
+    // Estados sem treino ativo: IDLE, AWAITING_WORKOUT_SELECTION, AWAITING_TRAINING_START
+    // Nestes casos não há sessão para encerrar — responder de forma amigável sem logar anomalia
+    const preTrainingStates = [
+      "IDLE",
+      "AWAITING_WORKOUT_SELECTION",
+      "AWAITING_TRAINING_START",
+    ];
+    if (preTrainingStates.includes(state.current_state)) {
       await sendTextMessage({
         instanceName: input.instance,
         number: whatsapp,
         text: "Você não tem treino em andamento agora.\n\nQuer começar?\n1️⃣ *Sim, bora treinar!*\n2️⃣ *Deixar para depois* 💪",
       });
+      // Garante que estado inconsistente seja limpo
+      if (state.current_state !== "IDLE") {
+        await updateState(whatsapp, { current_state: "IDLE", current_session_id: null, last_input_attempt: null });
+      }
       return;
     }
 
