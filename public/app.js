@@ -4532,6 +4532,18 @@
                 <input type="number" id="bs_descanso_${index}" min="0" max="3600" step="5" placeholder="Ex: 60" />
               </div>
             </div>
+            <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid #86efac;">
+              <button type="button"
+                      onclick="confirmarBiset(${index})"
+                      style="flex:1;padding:8px 12px;background:#16a34a;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">
+                ✓ Confirmar Bi-set
+              </button>
+              <button type="button"
+                      onclick="cancelarBiset(${index})"
+                      style="padding:8px 12px;background:#fff;color:#6b7280;border:1px solid #d1d5db;border-radius:6px;font-weight:500;cursor:pointer;font-size:13px;">
+                ✕ Cancelar
+              </button>
+            </div>
           </div>
         `;
 
@@ -4566,6 +4578,31 @@
           hiddens.forEach(f => { const el = document.getElementById(`${f}${index}`); if (el) el.value = ""; });
           if (bsMgState[index]) delete bsMgState[index];
         }
+      }
+
+      // Confirma o bi-set: fecha o bloco e mostra resumo visual do 2º exercício selecionado
+      function confirmarBiset(index) {
+        const catSearch = document.getElementById(`bs_excat_search_${index}`)?.value;
+        const catId     = document.getElementById(`bs_excat_id_${index}`)?.value;
+        if (!catId) {
+          alert("Selecione o 2º exercício do Bi-set antes de confirmar.");
+          return;
+        }
+        const block = document.getElementById(`biset_block_${index}`);
+        if (block) {
+          // Atualiza o cabeçalho do bloco para mostrar que está confirmado
+          const header = block.querySelector(".biset-status-label");
+          if (header) header.textContent = `✓ ${catSearch || "2º exercício"} selecionado`;
+        }
+        // Mantém o bloco aberto mas scroll para o exercício principal
+        document.getElementById(`biset_check_${index}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+
+      // Cancela o bi-set: desmarca o checkbox e limpa o bloco
+      function cancelarBiset(index) {
+        const chk = document.getElementById(`biset_check_${index}`);
+        if (chk) { chk.checked = false; }
+        toggleBiset(index);
       }
 
       // ── Busca de grupo muscular para o 2º exercício do bi-set ──
@@ -5422,12 +5459,13 @@
           invalidateTab("treinos"); // garante que carregarTreinosAluno vai buscar dados frescos
           carregarTreinosAluno();
         } else {
-          const error = await response.json();
-          showAlert(
-            "treinosAlert",
-            error.message || "Erro ao criar treino",
-            "error",
-          );
+          const errData = await response.json().catch(() => ({}));
+          // Monta mensagem detalhada: usa errData.message ou serializa os erros de validação
+          let errMsg = errData.message || "Erro ao criar treino";
+          if (!errData.message && Array.isArray(errData)) {
+            errMsg = errData.map(e => `${e.path?.join(".")}: ${e.message}`).join(" | ");
+          }
+          showAlert("treinosAlert", `Erro (${response.status}): ${errMsg}`, "error");
         }
       }
 
@@ -5560,8 +5598,14 @@
                                        data-order="${ex.order_index}"
                                        style="padding:0;overflow:hidden;border:2px solid #16a34a;border-radius:8px;background:#f0fdf4;">
                                     ${makeExerciseCard(ex, false)}
-                                    <div style="display:flex;align-items:center;gap:6px;padding:4px 12px;background:#dcfce7;border-top:1px solid #86efac;border-bottom:1px solid #86efac;">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 12px;background:#dcfce7;border-top:1px solid #86efac;border-bottom:1px solid #86efac;">
                                       <span style="font-size:11px;color:#15803d;font-weight:600;">&#8595; Bi-set: executar em seguida sem descanso</span>
+                                      <button type="button"
+                                              onclick="desagruparBiset('${treino.id}','${ex.workout_exercise_id}','${partner.workout_exercise_id}')"
+                                              title="Desagrupar: mantém ambos os exercícios como individuais"
+                                              style="background:none;border:1px solid #16a34a;color:#15803d;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">
+                                        ✕ Desagrupar
+                                      </button>
                                     </div>
                                     ${makeExerciseCard(partner, true)}
                                   </div>
@@ -5961,6 +6005,34 @@
             error.message || "Erro ao excluir exercício",
             "error",
           );
+        }
+      }
+
+      // Desagrupa um par de bi-set: remove biset_group_id de ambos, mantendo os exercícios
+      async function desagruparBiset(workoutId, weIdA, weIdB) {
+        if (!confirm("Desagrupar o Bi-set? Os dois exercícios serão mantidos como exercícios individuais.")) return;
+        try {
+          const patchBisetNull = async (weId) => {
+            const res = await fetch(
+              `${getApiBaseUrl()}/api/workouts/${workoutId}/exercises/${weId}`,
+              {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+                body: JSON.stringify({ biset_group_id: null }),
+              },
+            );
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.message || `Erro ao desagrupar exercício ${weId}`);
+            }
+          };
+          await patchBisetNull(weIdA);
+          await patchBisetNull(weIdB);
+          showAlert("treinosAlert", "Bi-set desagrupado. Os dois exercícios agora são individuais.", "success");
+          invalidateTab("treinos");
+          carregarTreinosAluno();
+        } catch (error) {
+          showAlert("treinosAlert", error.message || "Erro ao desagrupar bi-set", "error");
         }
       }
 
@@ -6545,9 +6617,9 @@
                     ...(methodId ? { method_id: methodId } : {}),
                     target_sets: targetSets,
                     target_reps: targetReps,
-                    target_weight: weightRaw === "" ? null : Number(weightRaw),
+                    ...(weightRaw !== "" && weightRaw != null ? { target_weight: Number(weightRaw) } : {}),
                     order_index: localOrder,
-                    rest_seconds: isBiset ? null : (restRaw === "" ? null : Number(restRaw)),
+                    ...(isBiset ? {} : (restRaw !== "" && restRaw != null ? { rest_seconds: Number(restRaw) } : {})),
                     custom_description: customDesc || null,
                     ...(bisetGroupId ? { biset_group_id: bisetGroupId } : {}),
                   };
@@ -6579,9 +6651,9 @@
                       ...(bsMethodId ? { method_id: bsMethodId } : {}),
                       target_sets: targetSets,
                       target_reps: Number(bsReps),
-                      target_weight: (bsPeso === "" || bsPeso == null) ? null : Number(bsPeso),
+                      ...(bsPeso !== "" && bsPeso != null ? { target_weight: Number(bsPeso) } : {}),
                       order_index: localOrder,
-                      rest_seconds: bsDescanso === "" ? null : Number(bsDescanso),
+                      ...(bsDescanso !== "" && bsDescanso != null ? { rest_seconds: Number(bsDescanso) } : {}),
                       custom_description: null,
                       biset_group_id: bisetGroupId,
                     };
