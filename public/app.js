@@ -325,6 +325,156 @@
         btn.textContent = loginPasswordVisible ? "Ocultar" : "Ver";
       }
 
+      function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input || !btn) return;
+        const isVisible = input.type === "text";
+        input.type = isVisible ? "password" : "text";
+        btn.textContent = isVisible ? "Ver" : "Ocultar";
+      }
+
+      // ── Recuperação de senha ─────────────────────────────────────────────────
+
+      function showLogin() {
+        document.getElementById("loginPanel")?.classList.remove("hidden");
+        document.getElementById("forgotPasswordPanel")?.classList.add("hidden");
+        document.getElementById("resetPasswordPanel")?.classList.add("hidden");
+      }
+
+      function showForgotPassword() {
+        document.getElementById("loginPanel")?.classList.add("hidden");
+        document.getElementById("forgotPasswordPanel")?.classList.remove("hidden");
+        document.getElementById("resetPasswordPanel")?.classList.add("hidden");
+        // Pré-preenche email se já estava digitado no login
+        const loginEmail = document.getElementById("loginEmail")?.value;
+        if (loginEmail) {
+          const recEl = document.getElementById("recoveryEmail");
+          if (recEl) recEl.value = loginEmail;
+        }
+      }
+
+      async function requestPasswordRecovery() {
+        const email = document.getElementById("recoveryEmail")?.value?.trim();
+        const msgDiv = document.getElementById("recoveryMessage");
+
+        if (!email) {
+          if (msgDiv) {
+            msgDiv.className = "alert alert-error";
+            msgDiv.textContent = "Por favor, informe o seu e-mail.";
+          }
+          return;
+        }
+
+        const btn = document.querySelector('#forgotPasswordPanel .btn-primary');
+        if (btn) { btn.disabled = true; btn.textContent = "Enviando..."; }
+        if (msgDiv) msgDiv.className = "hidden";
+
+        try {
+          const res = await fetch(`${getApiBaseUrl()}/api/public/personals/password-recovery`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              redirect_to: window.location.origin + window.location.pathname,
+            }),
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (msgDiv) {
+            // Sempre exibe mensagem genérica (não revela se o email existe)
+            msgDiv.className = "alert alert-success";
+            msgDiv.textContent = data.message || "Se o e-mail existir, você receberá um link para redefinir a senha. Verifique sua caixa de entrada.";
+          }
+        } catch (e) {
+          if (msgDiv) {
+            msgDiv.className = "alert alert-error";
+            msgDiv.textContent = "Erro ao enviar. Tente novamente mais tarde.";
+          }
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = "Enviar link de recuperação"; }
+        }
+      }
+
+      async function submitNewPassword() {
+        const newPassword = document.getElementById("newPassword")?.value;
+        const confirmPassword = document.getElementById("confirmNewPassword")?.value;
+        const msgDiv = document.getElementById("resetPasswordMessage");
+
+        if (!newPassword || newPassword.length < 8) {
+          if (msgDiv) { msgDiv.className = "alert alert-error"; msgDiv.textContent = "A senha deve ter no mínimo 8 caracteres."; }
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          if (msgDiv) { msgDiv.className = "alert alert-error"; msgDiv.textContent = "As senhas não coincidem."; }
+          return;
+        }
+
+        const btn = document.querySelector('#resetPasswordPanel .btn-primary');
+        if (btn) { btn.disabled = true; btn.textContent = "Salvando..."; }
+        if (msgDiv) msgDiv.className = "hidden";
+
+        try {
+          // Usa o access_token temporário do Supabase (tipo "recovery") para atualizar a senha
+          const recoveryToken = window._recoveryAccessToken;
+          if (!recoveryToken) throw new Error("Token de recuperação não encontrado. Solicite um novo link.");
+
+          const SUPABASE_URL = "https://ofergzualxqqovktyxwu.supabase.co";
+          const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mZXJnenVhbHhxcW92a3R5eHd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3ODg1OTksImV4cCI6MjA5NTM2NDU5OX0.6MSmrE1CgGSM0c07vZ7UA3zYwYy9EzlSpPTovaIuy4o";
+
+          const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": SUPABASE_ANON_KEY || "",
+              "Authorization": `Bearer ${recoveryToken}`,
+            },
+            body: JSON.stringify({ password: newPassword }),
+          });
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error_description || err.message || `Erro ${res.status}`);
+          }
+
+          if (msgDiv) {
+            msgDiv.className = "alert alert-success";
+            msgDiv.textContent = "Senha alterada com sucesso! Redirecionando para o login...";
+          }
+
+          // Limpa o token e redireciona para login após 2s
+          window._recoveryAccessToken = null;
+          history.replaceState(null, "", window.location.pathname);
+          setTimeout(() => showLogin(), 2000);
+        } catch (e) {
+          if (msgDiv) {
+            msgDiv.className = "alert alert-error";
+            msgDiv.textContent = e.message || "Erro ao salvar nova senha. Tente novamente.";
+          }
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = "Salvar nova senha"; }
+        }
+      }
+
+      // Detecta retorno do link de recuperação do Supabase (hash #access_token=...&type=recovery)
+      (function detectPasswordRecovery() {
+        const hash = window.location.hash;
+        if (!hash) return;
+        const params = new URLSearchParams(hash.replace(/^#/, ""));
+        const type = params.get("type");
+        const accessToken = params.get("access_token");
+        if (type === "recovery" && accessToken) {
+          window._recoveryAccessToken = accessToken;
+          // Esconde a tela de login e exibe a tela de redefinição de senha
+          document.getElementById("loginScreen")?.classList.remove("hidden");
+          document.getElementById("loginPanel")?.classList.add("hidden");
+          document.getElementById("forgotPasswordPanel")?.classList.add("hidden");
+          document.getElementById("resetPasswordPanel")?.classList.remove("hidden");
+          // Remove o hash da URL para não expor o token
+          history.replaceState(null, "", window.location.pathname);
+        }
+      })();
+
       // Event listeners para login com Enter
       document.addEventListener("DOMContentLoaded", function () {
         const emailInput = document.getElementById("loginEmail");

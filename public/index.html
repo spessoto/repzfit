@@ -18,7 +18,9 @@
     <div id="loginScreen" class="login-container">
       <div class="login-shell">
         <div class="login-form-column">
-          <div class="card">
+
+          <!-- Painel: Login -->
+          <div class="card" id="loginPanel">
             <div class="login-brand">
               <img src="/img/Logo-fundo-claro.webp" alt="EZ Personal" width="240" height="45" />
             </div>
@@ -60,7 +62,102 @@
             >
               Entrar
             </button>
+            <div style="text-align: center; margin-top: 14px;">
+              <button
+                type="button"
+                onclick="showForgotPassword()"
+                style="background: none; border: none; color: #6b7280; font-size: 13px; cursor: pointer; text-decoration: underline;"
+              >
+                Esqueci minha senha
+              </button>
+            </div>
           </div>
+
+          <!-- Painel: Esqueci minha senha -->
+          <div class="card hidden" id="forgotPasswordPanel">
+            <div class="login-brand">
+              <img src="/img/Logo-fundo-claro.webp" alt="EZ Personal" width="240" height="45" />
+            </div>
+            <h2 style="margin-bottom: 8px; color: #1f2937; font-size: 18px;">Recuperar senha</h2>
+            <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">
+              Informe o e-mail cadastrado. Você receberá um link para criar uma nova senha.
+            </p>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="recoveryEmail" placeholder="seu@email.com" />
+            </div>
+            <div id="recoveryMessage" class="hidden" style="margin-bottom: 12px;"></div>
+            <button
+              class="btn btn-primary"
+              style="width: 100%"
+              onclick="requestPasswordRecovery()"
+            >
+              Enviar link de recuperação
+            </button>
+            <div style="text-align: center; margin-top: 14px;">
+              <button
+                type="button"
+                onclick="showLogin()"
+                style="background: none; border: none; color: #6b7280; font-size: 13px; cursor: pointer; text-decoration: underline;"
+              >
+                ← Voltar ao login
+              </button>
+            </div>
+          </div>
+
+          <!-- Painel: Redefinir senha (retorno do link do email) -->
+          <div class="card hidden" id="resetPasswordPanel">
+            <div class="login-brand">
+              <img src="/img/Logo-fundo-claro.webp" alt="EZ Personal" width="240" height="45" />
+            </div>
+            <h2 style="margin-bottom: 8px; color: #1f2937; font-size: 18px;">Criar nova senha</h2>
+            <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">
+              Escolha uma nova senha para a sua conta.
+            </p>
+            <div class="form-group">
+              <label>Nova senha</label>
+              <div style="position: relative">
+                <input
+                  type="password"
+                  id="newPassword"
+                  placeholder="Mínimo 8 caracteres"
+                  style="padding-right: 60px"
+                />
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  onclick="togglePasswordVisibility('newPassword', this)"
+                  style="position: absolute; right: 6px; top: 6px; padding: 6px 10px; font-size: 12px;"
+                >Ver</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Confirmar nova senha</label>
+              <div style="position: relative">
+                <input
+                  type="password"
+                  id="confirmNewPassword"
+                  placeholder="Repita a nova senha"
+                  style="padding-right: 60px"
+                />
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  onclick="togglePasswordVisibility('confirmNewPassword', this)"
+                  style="position: absolute; right: 6px; top: 6px; padding: 6px 10px; font-size: 12px;"
+                >Ver</button>
+              </div>
+            </div>
+            <div id="resetPasswordMessage" class="hidden" style="margin-bottom: 12px;"></div>
+            <button
+              class="btn btn-primary"
+              style="width: 100%"
+              onclick="submitNewPassword()"
+            >
+              Salvar nova senha
+            </button>
+          </div>
+
         </div>
 
         <div class="login-visual" aria-hidden="true">
