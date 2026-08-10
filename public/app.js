@@ -4424,11 +4424,11 @@
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-top: 10px;">
             <div class="form-group">
               <label>Séries *</label>
-              <input type="number" id="series_${index}" min="0" value="0" placeholder="Ex: 3" required />
+              <input type="number" id="series_${index}" min="1" value="" placeholder="Ex: 3" required />
             </div>
             <div class="form-group">
               <label>Repetições *</label>
-              <input type="number" id="reps_${index}" min="0" value="0" placeholder="Ex: 12" required />
+              <input type="number" id="reps_${index}" min="1" value="" placeholder="Ex: 12" required />
             </div>
             <div class="form-group">
               <label>Peso (kg)</label>
@@ -4436,7 +4436,7 @@
             </div>
             <div class="form-group">
               <label>Descanso (s)</label>
-              <input type="number" id="descanso_${index}" min="0" max="3600" step="5" value="0" placeholder="Ex: 60" />
+              <input type="number" id="descanso_${index}" min="0" max="3600" step="5" value="" placeholder="Ex: 60" />
             </div>
           </div>
 
@@ -5353,10 +5353,10 @@
                     ...(methodId ? { method_id: methodId } : {}),
                     target_sets: series,
                     target_reps: reps,
-                    target_weight: (peso === "" || peso == null) ? null : parseFloat(peso),
+                    ...(peso !== "" && peso != null ? { target_weight: parseFloat(peso) } : {}),
                     order_index: orderCounter,
                     // No bi-set o descanso fica no 2º exercício; o 1º não tem descanso
-                    rest_seconds: isBiset ? null : (descanso ? parseInt(descanso) : null),
+                    ...(isBiset ? {} : (descanso ? { rest_seconds: parseInt(descanso) } : {})),
                     custom_description: customDesc || null,
                     ...(bisetGroupId ? { biset_group_id: bisetGroupId } : {}),
                   });
@@ -5372,9 +5372,9 @@
                       ...(bsMethodId ? { method_id: bsMethodId } : {}),
                       target_sets: series,
                       target_reps: Number(bsReps),
-                      target_weight: (bsPeso === "" || bsPeso == null) ? null : parseFloat(bsPeso),
+                      ...(bsPeso !== "" && bsPeso != null ? { target_weight: parseFloat(bsPeso) } : {}),
                       order_index: orderCounter,
-                      rest_seconds: bsDescanso ? parseInt(bsDescanso) : null,
+                      ...(bsDescanso ? { rest_seconds: parseInt(bsDescanso) } : {}),
                       custom_description: null,
                       biset_group_id: bisetGroupId,
                     });

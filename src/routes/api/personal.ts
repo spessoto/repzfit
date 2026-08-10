@@ -145,7 +145,7 @@ const WorkoutCreateSchema = z.object({
             .optional(),
           target_sets: z.number().int().positive().max(100),
           target_reps: z.number().int().positive().max(1000),
-          target_weight: z.number().nonnegative().max(1000).optional(),
+          target_weight: z.union([z.number().nonnegative().max(1000), z.null()]).optional(),
           order_index: z.number().int().nonnegative().max(100),
           rest_seconds: z
             .number()
@@ -182,7 +182,7 @@ const WorkoutExerciseCreateSchema = z.object({
   method_id: NullableUuidInput.optional(),
   target_sets: z.number().int().positive().max(100),
   target_reps: z.number().int().positive().max(1000),
-  target_weight: z.number().nonnegative().max(1000).optional(),
+  target_weight: z.union([z.number().nonnegative().max(1000), z.null()]).optional(),
   order_index: z.number().int().nonnegative().max(100),
   rest_seconds: z.number().int().nonnegative().max(3600).nullable().optional(),
   custom_description: z
