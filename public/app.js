@@ -1648,6 +1648,9 @@
         }
       }
 
+      // ── Cache do dashboard financeiro para filtro local ──────────────────────
+      let _financeiroCache = null; // { payload, reference_month }
+
       function formatCurrencyBRL(value) {
         const amount = Number(value || 0);
         return amount.toLocaleString("pt-BR", {
@@ -1724,56 +1727,200 @@
             throw new Error(payload.message || "Erro ao carregar dashboard financeiro");
           }
 
-          const indicators = payload.indicators || {};
-          const referenceMonth = payload.reference_month || "";
+          _financeiroCache = payload;
 
-          const refLabel = formatReferenceMonthLabel(referenceMonth);
+          const indicators      = payload.indicators || {};
+          const referenceMonth  = payload.reference_month || "";
+          const refLabel        = formatReferenceMonthLabel(referenceMonth);
+
+          // ── Subtítulo da página ──
           const referenceEl = document.getElementById("financeiroReferenceMonth");
           if (referenceEl) {
-            referenceEl.textContent = `Referência: ${refLabel}`;
+            const now = new Date();
+            const monthName = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+            referenceEl.textContent = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} · cobrança automática 5 dias antes, no vencimento e após o vencimento`;
           }
 
-          const earnedEl = document.getElementById("financeMetricEarned");
-          const studentsEl = document.getElementById("financeMetricStudents");
-          const pendingEl = document.getElementById("financeMetricPending");
-          const upcomingEl = document.getElementById("financeMetricUpcoming");
+          // ── KPI Cards ──
+          const earnedEl      = document.getElementById("financeMetricEarned");
+          const toReceiveEl   = document.getElementById("financeMetricToReceive");
+          const overdueEl     = document.getElementById("financeMetricOverdue");
+          const tagPaidEl     = document.getElementById("financeTagPaid");
+          const tagToReceiveEl = document.getElementById("financeTagToReceive");
+          const tagOverdueEl  = document.getElementById("financeTagOverdue");
 
-          if (earnedEl) {
-            earnedEl.textContent = formatCurrencyBRL(indicators.earned_amount || 0);
+          if (earnedEl)    earnedEl.textContent    = formatCurrencyBRL(indicators.earned_amount    || 0);
+          if (toReceiveEl) toReceiveEl.textContent = formatCurrencyBRL(indicators.to_receive_amount || 0);
+          if (overdueEl)   overdueEl.textContent   = formatCurrencyBRL(indicators.overdue_amount   || 0);
+
+          if (tagPaidEl) {
+            tagPaidEl.textContent = `${indicators.paid_count || 0} de ${indicators.billable_count || 0} mensalidades`;
           }
-          if (studentsEl) {
-            studentsEl.textContent = String(indicators.students_count || 0);
+          if (tagToReceiveEl) {
+            tagToReceiveEl.textContent = `${(indicators.billable_count || 0) - (indicators.paid_count || 0) - (indicators.overdue_count || 0)} a vencer`;
           }
-          if (pendingEl) {
-            pendingEl.textContent = String(indicators.pending_count || 0);
-          }
-          if (upcomingEl) {
-            upcomingEl.textContent = String(indicators.upcoming_due_count || 0);
+          if (tagOverdueEl) {
+            tagOverdueEl.textContent = `${indicators.overdue_count || 0} atrasado${indicators.overdue_count !== 1 ? "s" : ""}`;
           }
 
-          const overdueRoot = document.getElementById("financeiroOverdueList");
-          const upcomingRoot = document.getElementById("financeiroUpcomingList");
-          if (overdueRoot) {
-            overdueRoot.innerHTML = renderFinanceStudentList(
-              payload.overdue_students || [],
-              "overdue",
-            );
-          }
-          if (upcomingRoot) {
-            upcomingRoot.innerHTML = renderFinanceStudentList(
-              payload.upcoming_due_students || [],
-              "upcoming",
-            );
-          }
+          // ── Seletor de mês (gera opções com o mês atual por padrão) ──
+          _populateFinanceMonthFilter(referenceMonth);
+
+          // ── Renderizar tabela ──
+          _renderizarTabelaFinanceiro(payload.all_students || [], "");
+
         } catch (error) {
           if (showErrors) {
-            showAlert(
-              "financeiroAlert",
-              error?.message || "Erro ao carregar dashboard financeiro",
-              "error",
-            );
+            showToast(error?.message || "Erro ao carregar dashboard financeiro", "error");
           }
         }
+      }
+
+      function _populateFinanceMonthFilter(currentMonth) {
+        const sel = document.getElementById("financeMonthFilter");
+        if (!sel) return;
+
+        // Gera últimos 6 meses + próximo mês
+        const options = [];
+        const now = new Date();
+        for (let i = -1; i <= 5; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+          const capitalized = label.charAt(0).toUpperCase() + label.slice(1);
+          const parts = capitalized.split(" de ");
+          const shortLabel = `${parts[0].slice(0, 3)}/${parts[1] || d.getFullYear()}`;
+          options.push({ value, label: shortLabel, fullLabel: capitalized });
+        }
+
+        sel.innerHTML = options.map(o =>
+          `<option value="${o.value}"${o.value === currentMonth ? " selected" : ""}>${o.label}</option>`
+        ).join("");
+      }
+
+      function filtrarTabelaFinanceiro() {
+        if (!_financeiroCache) return;
+        const statusFilter = document.getElementById("financeStatusFilter")?.value || "";
+        _renderizarTabelaFinanceiro(_financeiroCache.all_students || [], statusFilter);
+      }
+
+      function _renderizarTabelaFinanceiro(students, statusFilter) {
+        const tbody = document.getElementById("financeiroTableBody");
+        if (!tbody) return;
+
+        const filtered = statusFilter
+          ? students.filter(s => s.payment_status === statusFilter)
+          : students;
+
+        if (!filtered.length) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:32px;">Nenhum registro encontrado.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = filtered.map(s => {
+          const name        = escapeHtml(s.name || "—");
+          const amount      = escapeHtml(formatCurrencyBRL(s.monthly_fee || 0));
+          const dueDate     = s.due_date ? _formatFinanceDueDate(s.due_date) : "—";
+          const statusBadge = _financeStatusBadge(s.payment_status);
+          const actionBtn   = _financeActionBtn(s);
+
+          return `
+            <tr>
+              <td><span class="finance-student-name-cell">${name}</span></td>
+              <td><span class="finance-amount-cell">${amount}</span></td>
+              <td><span class="finance-due-cell">${dueDate}</span></td>
+              <td>${statusBadge}</td>
+              <td style="text-align:right;">${actionBtn}</td>
+            </tr>`;
+        }).join("");
+
+        // Rodapé
+        const noteEl = document.getElementById("financeiroFooterNote");
+        if (noteEl) {
+          noteEl.textContent = `${filtered.length} cobrança${filtered.length !== 1 ? "s" : ""} exibida${filtered.length !== 1 ? "s" : ""}`;
+        }
+      }
+
+      function _formatFinanceDueDate(dateStr) {
+        if (!dateStr) return "—";
+        try {
+          const [y, m, d] = dateStr.split("-");
+          return `${d}/${m}/${y}`;
+        } catch (_) { return dateStr; }
+      }
+
+      function _financeStatusBadge(status) {
+        if (status === "pago")     return `<span class="badge-pago">Pago</span>`;
+        if (status === "atrasado") return `<span class="badge-atrasado">Atrasado</span>`;
+        return `<span class="badge-pendente">Pendente</span>`;
+      }
+
+      function _financeActionBtn(student) {
+        const safeId   = escapeHtml(student.id || "");
+        const safeName = escapeHtml(student.name || "").replace(/'/g, "\\'");
+        const safePhone = escapeHtml(student.whatsapp_number || "");
+
+        if (student.payment_status === "pago") {
+          return `<button class="finance-action-btn" onclick="marcarPagamentoAluno('${safeId}', false)" title="Marcar como não pago">Recibo</button>`;
+        }
+        if (student.payment_status === "atrasado") {
+          const waLink = safePhone
+            ? `https://wa.me/${safePhone.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá ${student.name || ""}, sua mensalidade está em atraso. Podemos regularizar?`)}`
+            : null;
+          return waLink
+            ? `<button class="finance-action-btn btn-cobrar" onclick="window.open('${waLink}','_blank')" title="Cobrar via WhatsApp">Cobrar</button>`
+            : `<button class="finance-action-btn btn-cobrar" onclick="marcarPagamentoAluno('${safeId}', true)" title="Marcar como pago">Marcar pago</button>`;
+        }
+        // Pendente
+        const waLink = safePhone
+          ? `https://wa.me/${safePhone.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá ${student.name || ""}, segue o Pix para pagamento da mensalidade!`)}`
+          : null;
+        return waLink
+          ? `<button class="finance-action-btn btn-pix" onclick="window.open('${waLink}','_blank')" title="Enviar Pix via WhatsApp">Enviar Pix</button>`
+          : `<button class="finance-action-btn" onclick="marcarPagamentoAluno('${safeId}', true)" title="Marcar como pago">Marcar pago</button>`;
+      }
+
+      async function marcarPagamentoAluno(studentId, received) {
+        if (!studentId) return;
+        const now = new Date();
+        const refMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/students/${studentId}/payments/${refMonth}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+              body: JSON.stringify({ received }),
+            }
+          );
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          showToast(received ? "Pagamento marcado como recebido" : "Pagamento desmarcado", "success");
+          await carregarFinanceiroDashboard(false);
+        } catch (err) {
+          showToast(err?.message || "Erro ao atualizar pagamento", "error");
+        }
+      }
+
+      function renderFinanceStudentList(rows, mode) {
+        if (!Array.isArray(rows) || rows.length === 0) {
+          return '<p style="color:#6b7280;">Nenhum aluno nesta lista.</p>';
+        }
+        return `
+          <div class="finance-student-list">
+            ${rows.map((row) => {
+              const dueDate  = formatDateLabel(row?.due_date);
+              const amount   = formatCurrencyBRL(row?.monthly_fee);
+              const secondary = mode === "overdue"
+                ? `${row?.days_overdue || 0} dia(s) em atraso`
+                : `vence em ${row?.days_until_due || 0} dia(s)`;
+              return `
+                <div class="finance-student-item">
+                  <span class="finance-student-name">${escapeHtml(row?.name || "Aluno")}</span>
+                  <span class="finance-student-meta">Vencimento: ${escapeHtml(dueDate)} | Mensalidade: ${escapeHtml(amount)}</span>
+                  <span class="finance-student-meta">${escapeHtml(secondary)}</span>
+                </div>`;
+            }).join("")}
+          </div>`;
       }
 
       function renderHistoricoPagamentosAluno(history, paymentDay) {

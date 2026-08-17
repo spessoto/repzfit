@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/app.css?v=202608170005" />
+    <link rel="stylesheet" href="/app.css?v=202608170006" />
   </head>
   <body>
     <!-- Login Screen -->
@@ -340,44 +340,73 @@
           </div>
 
           <div id="financeiroTab" class="tab-content">
-            <div class="card">
-              <h2>Dashboard Financeiro</h2>
-              <div id="financeiroAlert"></div>
-              <p style="color:#6b7280; margin-bottom:12px;" id="financeiroReferenceMonth">
-                Carregando dados financeiros...
-              </p>
-              <div class="finance-metrics" id="financeiroMetrics">
-                <div class="finance-metric-card">
-                  <span class="finance-metric-label">Quanto ganhou no mês</span>
-                  <strong id="financeMetricEarned">R$ 0,00</strong>
-                </div>
-                <div class="finance-metric-card">
-                  <span class="finance-metric-label">Total de alunos</span>
-                  <strong id="financeMetricStudents">0</strong>
-                </div>
-                <div class="finance-metric-card">
-                  <span class="finance-metric-label">Pendentes / em atraso</span>
-                  <strong id="financeMetricPending">0</strong>
-                </div>
-                <div class="finance-metric-card">
-                  <span class="finance-metric-label">Próximos do vencimento</span>
-                  <strong id="financeMetricUpcoming">0</strong>
-                </div>
+
+            <!-- Cabeçalho da página -->
+            <div class="page-header">
+              <div class="page-header-left">
+                <h1 class="page-title">Financeiro</h1>
+                <p class="page-subtitle" id="financeiroReferenceMonth">Carregando...</p>
               </div>
             </div>
 
-            <div class="card">
-              <div class="finance-list-grid">
-                <div>
-                  <h3 style="margin-bottom:10px; color:#1f2937;">Alunos em atraso</h3>
-                  <div id="financeiroOverdueList"></div>
-                </div>
-                <div>
-                  <h3 style="margin-bottom:10px; color:#1f2937;">Alunos próximos ao vencimento</h3>
-                  <div id="financeiroUpcomingList"></div>
-                </div>
+            <!-- 3 cards de métricas -->
+            <div class="finance-kpi-grid" id="financeiroMetrics">
+              <div class="finance-kpi-card">
+                <span class="finance-kpi-label">RECEBIDO NO MÊS</span>
+                <strong class="finance-kpi-value" id="financeMetricEarned">R$ 0,00</strong>
+                <span class="finance-kpi-tag finance-kpi-tag-green" id="financeTagPaid">— de — mensalidades</span>
+              </div>
+              <div class="finance-kpi-card">
+                <span class="finance-kpi-label">A RECEBER</span>
+                <strong class="finance-kpi-value" id="financeMetricToReceive">R$ 0,00</strong>
+                <span class="finance-kpi-tag finance-kpi-tag-yellow" id="financeTagToReceive">— a vencer</span>
+              </div>
+              <div class="finance-kpi-card">
+                <span class="finance-kpi-label">INADIMPLÊNCIA</span>
+                <strong class="finance-kpi-value" id="financeMetricOverdue">R$ 0,00</strong>
+                <span class="finance-kpi-tag finance-kpi-tag-red" id="financeTagOverdue">— atrasados</span>
               </div>
             </div>
+
+            <!-- Tabela de cobranças -->
+            <div class="card finance-table-card">
+              <div class="finance-table-header">
+                <span class="card-section-title" style="margin-bottom:0;">Cobranças</span>
+                <div class="finance-table-filters">
+                  <select id="financeMonthFilter" class="finance-filter-select" onchange="filtrarTabelaFinanceiro()">
+                    <!-- preenchido via JS -->
+                  </select>
+                  <select id="financeStatusFilter" class="finance-filter-select" onchange="filtrarTabelaFinanceiro()">
+                    <option value="">Todos os status</option>
+                    <option value="pago">Pago</option>
+                    <option value="pendente">Pendente</option>
+                    <option value="atrasado">Atrasado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="finance-table-wrap">
+                <table class="finance-table">
+                  <thead>
+                    <tr>
+                      <th>ALUNO</th>
+                      <th>VALOR</th>
+                      <th>VENCIMENTO</th>
+                      <th>STATUS</th>
+                      <th style="text-align:right;">COBRANÇA</th>
+                    </tr>
+                  </thead>
+                  <tbody id="financeiroTableBody">
+                    <tr><td colspan="5" style="text-align:center;color:#6b7280;padding:32px;">Carregando...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="finance-table-footer">
+                <span class="finance-table-footer-note" id="financeiroFooterNote"></span>
+              </div>
+            </div>
+
           </div>
 
           <div id="alunoEditorTab" class="tab-content">
@@ -1478,7 +1507,7 @@
       </div>
     </div>
 
-    <script defer src="/app.js?v=202608170005"></script>
+    <script defer src="/app.js?v=202608170006"></script>
     <script>
       window.si =
         window.si ||

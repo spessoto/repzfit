@@ -1968,10 +1968,14 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     }
 
     let earnedAmount = 0;
+    let toReceiveAmount = 0;
+    let overdueAmount = 0;
     const overdueStudents: any[] = [];
     const pendingStudents: any[] = [];
     const upcomingDueStudents: any[] = [];
+    const allStudentsForTable: any[] = [];
 
+    // Adicionar alunos pagos (billable + received)
     for (const student of billableStudents) {
       const studentId = String(student.id);
       const monthlyFee = Number(student.monthly_fee || 0);
@@ -1982,6 +1986,17 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
 
       if (record?.received) {
         earnedAmount += monthlyFee;
+        allStudentsForTable.push({
+          id: studentId,
+          name: student.name,
+          whatsapp_number: student.whatsapp_number,
+          monthly_fee: Number(monthlyFee.toFixed(2)),
+          payment_day: paymentDay,
+          due_date: dueDateString,
+          payment_status: "pago",
+          days_until_due: 0,
+          days_overdue: 0,
+        });
         continue;
       }
 
@@ -1995,18 +2010,29 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         due_date: dueDateString,
       };
 
-      pendingStudents.push({
-        ...studentSummary,
-        days_until_due: daysUntilDue,
-      });
-
       if (daysUntilDue < 0) {
-        overdueStudents.push({
+        overdueAmount += monthlyFee;
+        const overdueSummary = {
           ...studentSummary,
+          payment_status: "atrasado",
           days_overdue: Math.abs(daysUntilDue),
-        });
+          days_until_due: daysUntilDue,
+        };
+        overdueStudents.push(overdueSummary);
+        pendingStudents.push({ ...studentSummary, days_until_due: daysUntilDue });
+        allStudentsForTable.push(overdueSummary);
         continue;
       }
+
+      toReceiveAmount += monthlyFee;
+      const pendingSummary = {
+        ...studentSummary,
+        payment_status: "pendente",
+        days_until_due: daysUntilDue,
+        days_overdue: 0,
+      };
+      pendingStudents.push({ ...studentSummary, days_until_due: daysUntilDue });
+      allStudentsForTable.push(pendingSummary);
 
       if (daysUntilDue <= 7) {
         upcomingDueStudents.push({
@@ -2019,19 +2045,31 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     overdueStudents.sort((a, b) => b.days_overdue - a.days_overdue);
     pendingStudents.sort((a, b) => a.days_until_due - b.days_until_due);
     upcomingDueStudents.sort((a, b) => a.days_until_due - b.days_until_due);
+    // Tabela: atrasados primeiro, depois pendentes, depois pagos — dentro de cada grupo por due_date
+    allStudentsForTable.sort((a, b) => {
+      const order: Record<string, number> = { atrasado: 0, pendente: 1, pago: 2 };
+      const diff = (order[a.payment_status] ?? 3) - (order[b.payment_status] ?? 3);
+      if (diff !== 0) return diff;
+      return (a.due_date ?? "").localeCompare(b.due_date ?? "");
+    });
 
     return {
       reference_month: currentMonthReference,
       indicators: {
-        earned_amount: Number(earnedAmount.toFixed(2)),
-        students_count: activeStudents.length,
-        pending_count: pendingStudents.length,
-        overdue_count: overdueStudents.length,
-        upcoming_due_count: upcomingDueStudents.length,
+        earned_amount:       Number(earnedAmount.toFixed(2)),
+        to_receive_amount:   Number(toReceiveAmount.toFixed(2)),
+        overdue_amount:      Number(overdueAmount.toFixed(2)),
+        students_count:      activeStudents.length,
+        paid_count:          allStudentsForTable.filter((s: any) => s.payment_status === "pago").length,
+        pending_count:       pendingStudents.length,
+        overdue_count:       overdueStudents.length,
+        upcoming_due_count:  upcomingDueStudents.length,
+        billable_count:      billableStudents.length,
       },
-      overdue_students: overdueStudents,
+      all_students:          allStudentsForTable,
+      overdue_students:      overdueStudents,
       upcoming_due_students: upcomingDueStudents,
-      pending_students: pendingStudents,
+      pending_students:      pendingStudents,
     };
   });
 
