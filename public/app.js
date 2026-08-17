@@ -560,8 +560,10 @@
           personalData = await response.json();
         }
 
-        document.getElementById("userName").textContent =
-          personalData?.name || "Personal";
+        const name = personalData?.name || "Personal";
+        document.getElementById("userName").textContent = name;
+        // Preencher avatar com iniciais
+        _setProfileAvatar(name);
       }
 
       function openPersonalProfileModal() {
@@ -583,6 +585,56 @@
           .getElementById("personalProfileModal")
           .classList.remove("open");
       }
+
+      // ── Dropdown de perfil ──────────────────────────────────────────────────
+
+      function _setProfileAvatar(name) {
+        const el = document.getElementById("topnavAvatar");
+        if (!el || !name) return;
+        const parts = name.trim().split(/\s+/);
+        const initials = parts.length === 1
+          ? parts[0].substring(0, 2).toUpperCase()
+          : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        el.textContent = initials;
+      }
+
+      function toggleProfileDropdown() {
+        const btn      = document.getElementById("editPersonalBtn");
+        const dropdown = document.getElementById("topnavProfileDropdown");
+        if (!btn || !dropdown) return;
+        const isOpen = dropdown.classList.contains("open");
+        if (isOpen) {
+          closeProfileDropdown();
+        } else {
+          dropdown.classList.add("open");
+          btn.setAttribute("aria-expanded", "true");
+          // Fechar ao clicar fora
+          setTimeout(() => {
+            document.addEventListener("click", _closeDropdownOnOutsideClick, { once: true });
+          }, 0);
+        }
+      }
+
+      function closeProfileDropdown() {
+        const btn      = document.getElementById("editPersonalBtn");
+        const dropdown = document.getElementById("topnavProfileDropdown");
+        if (dropdown) dropdown.classList.remove("open");
+        if (btn) btn.setAttribute("aria-expanded", "false");
+      }
+
+      function _closeDropdownOnOutsideClick(e) {
+        const wrap = document.getElementById("topnavProfileWrap");
+        if (wrap && !wrap.contains(e.target)) {
+          closeProfileDropdown();
+        }
+      }
+
+      // Fechar dropdown com Escape
+      document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") {
+          closeProfileDropdown();
+        }
+      });
 
       async function salvarPerfilPersonal() {
         const payload = {
@@ -628,8 +680,9 @@
         }
 
         personalData = responseData;
-        document.getElementById("userName").textContent =
-          personalData.name || "Personal";
+        const updatedName = personalData.name || "Personal";
+        document.getElementById("userName").textContent = updatedName;
+        _setProfileAvatar(updatedName);
         showAlert(
           "personalProfileAlert",
           "Perfil atualizado com sucesso!",
@@ -644,6 +697,7 @@
         document.getElementById("loginScreen").classList.add("hidden");
         document.getElementById("appScreen").classList.remove("hidden");
         document.getElementById("userName").textContent = "Admin Stagesix";
+        _setProfileAvatar("Admin Stagesix");
         generateAdminEmbedCode();
         switchTab("admin");
         await carregarAdminPersonals();

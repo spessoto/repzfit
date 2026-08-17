@@ -38,34 +38,29 @@
         align-items: center;
         gap: 0;
         padding: 0 24px;
-        height: 64px;
+        height: 60px;
         position: sticky;
         top: 0;
-        z-index: 100;
+        z-index: 200;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
         flex-shrink: 0;
       }
 
       .topnav-brand {
         display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 1px;
-        margin-right: 28px;
+        align-items: center;
+        margin-right: 24px;
         flex-shrink: 0;
       }
 
       .topnav-brand img {
-        width: 130px;
+        width: 120px;
+        height: auto;
         display: block;
       }
 
-      .topnav-brand-tagline {
-        font-size: 10px;
-        color: rgba(255, 255, 255, 0.5);
-        white-space: nowrap;
-        line-height: 1.2;
-      }
+      /* tagline removida — manter classe para não quebrar nada */
+      .topnav-brand-tagline { display: none; }
 
       .topnav-tabs {
         display: flex;
@@ -78,25 +73,24 @@
         scrollbar-width: none;
       }
 
-      .topnav-tabs::-webkit-scrollbar {
-        display: none;
-      }
+      .topnav-tabs::-webkit-scrollbar { display: none; }
 
       .topnav-tab {
         position: relative;
         display: inline-flex;
         align-items: center;
-        padding: 0 18px;
+        padding: 0 16px;
         background: transparent;
         border: none;
         border-radius: 0;
-        color: rgba(255, 255, 255, 0.7);
+        color: rgba(255, 255, 255, 0.65);
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         white-space: nowrap;
         transition: color 0.2s ease, background 0.2s ease;
         height: 100%;
+        font-family: inherit;
       }
 
       .topnav-tab::after {
@@ -118,19 +112,17 @@
         color: #024d3a;
         background: rgba(115, 213, 55, 0.9);
         border-radius: 8px;
-        margin: 12px 4px;
+        margin: 10px 4px;
         height: auto;
-        padding: 7px 18px;
+        padding: 7px 16px;
         align-self: center;
       }
 
-      .topnav-tab.active::after {
-        display: none;
-      }
+      .topnav-tab.active::after { display: none; }
 
       .topnav-tab:hover:not(.active) {
         color: #ffffff;
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.07);
       }
 
       .topnav-tab:focus-visible {
@@ -141,11 +133,191 @@
       .topnav-actions {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-left: 16px;
+        gap: 12px;
+        margin-left: 12px;
         flex-shrink: 0;
       }
 
+      /* ── WhatsApp status — texto legível (mesma cor da borda) ── */
+      .whatsapp-status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1.5px solid;
+        transition: all 0.3s;
+        white-space: nowrap;
+      }
+
+      .whatsapp-status-indicator.connected {
+        background: rgba(115, 213, 55, 0.12);
+        color: #73d537;
+        border-color: #73d537;
+      }
+
+      .whatsapp-status-indicator.disconnected {
+        background: rgba(239, 68, 68, 0.12);
+        color: #ef4444;
+        border-color: #ef4444;
+      }
+
+      .whatsapp-status-indicator.checking {
+        background: rgba(245, 158, 11, 0.12);
+        color: #f59e0b;
+        border-color: #f59e0b;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        flex-shrink: 0;
+      }
+
+      .status-dot.connected {
+        background: #73d537;
+        box-shadow: 0 0 6px #73d537;
+      }
+
+      .status-dot.disconnected {
+        background: #ef4444;
+        animation: pulse 2s infinite;
+      }
+
+      .status-dot.checking { background: #f59e0b; }
+
+      /* ── Dropdown de perfil ── */
+      .topnav-profile-wrap {
+        position: relative;
+      }
+
+      .topnav-profile-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        padding: 5px 10px 5px 5px;
+        cursor: pointer;
+        color: rgba(255, 255, 255, 0.85);
+        transition: background 0.15s ease, border-color 0.15s ease;
+        font-family: inherit;
+      }
+
+      .topnav-profile-btn:hover,
+      .topnav-profile-btn[aria-expanded="true"] {
+        background: rgba(255, 255, 255, 0.16);
+        border-color: rgba(255, 255, 255, 0.3);
+        color: #ffffff;
+      }
+
+      .topnav-profile-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #024d3a;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 800;
+        color: #ffffff;
+        flex-shrink: 0;
+        text-transform: uppercase;
+      }
+
+      .topnav-profile-chevron {
+        transition: transform 0.2s ease;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .topnav-profile-btn[aria-expanded="true"] .topnav-profile-chevron {
+        transform: rotate(180deg);
+      }
+
+      .topnav-profile-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        background: #ffffff;
+        border: 1px solid #ebedf2;
+        border-radius: 14px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
+        min-width: 200px;
+        padding: 6px;
+        z-index: 300;
+        /* fechado por padrão */
+        display: none;
+        flex-direction: column;
+        gap: 2px;
+        animation: dropdownIn 0.15s ease both;
+      }
+
+      .topnav-profile-dropdown.open {
+        display: flex;
+      }
+
+      @keyframes dropdownIn {
+        from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0)   scale(1); }
+      }
+
+      .topnav-profile-header {
+        padding: 8px 12px 6px;
+      }
+
+      .topnav-profile-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: #0d1b26;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 180px;
+      }
+
+      .topnav-profile-divider {
+        height: 1px;
+        background: #f1f5f9;
+        margin: 4px 0;
+      }
+
+      .topnav-profile-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border: none;
+        background: transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        color: #374151;
+        text-align: left;
+        width: 100%;
+        transition: background 0.12s ease, color 0.12s ease;
+        font-family: inherit;
+      }
+
+      .topnav-profile-item:hover {
+        background: #f4f5f8;
+        color: #0d1b26;
+      }
+
+      .topnav-profile-item-danger { color: #dc2626; }
+      .topnav-profile-item-danger:hover {
+        background: #fff1f2;
+        color: #b91c1c;
+      }
+
+      /* Legados mantidos para não quebrar setAdminModeUI */
       .topnav-icon-btn {
         background: rgba(255, 255, 255, 0.08);
         border: 1px solid rgba(255, 255, 255, 0.15);
@@ -158,6 +330,7 @@
         align-items: center;
         justify-content: center;
         transition: background 0.2s ease;
+        font-family: inherit;
       }
 
       .topnav-icon-btn:hover {
@@ -165,41 +338,9 @@
         color: #ffffff;
       }
 
-      .topnav-username {
-        font-size: 13px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.8);
-        max-width: 120px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
+      .topnav-username { display: none; }   /* substituído pelo dropdown */
 
-      .topnav-logout-btn {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        color: rgba(255, 255, 255, 0.8);
-        padding: 6px 14px;
-        border-radius: 7px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.2s ease, color 0.2s ease;
-        white-space: nowrap;
-      }
-
-      .topnav-logout-btn:hover {
-        background: rgba(255, 255, 255, 0.12);
-        color: #ffffff;
-      }
-
-      /* WhatsApp status in topnav — compact variant */
-      .topnav .whatsapp-status-indicator {
-        padding: 5px 12px;
-        font-size: 12px;
-        border-radius: 14px;
-        border-width: 1.5px;
-      }
+      .topnav-logout-btn { display: none; } /* substituído pelo dropdown */
 
       .login-brand {
         text-align: center;
@@ -898,57 +1039,6 @@
       .status-disconnected {
         background: #fee2e2;
         color: #991b1b;
-      }
-
-      .whatsapp-status-indicator {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-        border: 2px solid;
-        transition: all 0.3s;
-      }
-
-      .whatsapp-status-indicator.connected {
-        background: rgba(115, 213, 55, 0.2);
-        color: #024d3a;
-        border-color: #73d537;
-      }
-
-      .whatsapp-status-indicator.disconnected {
-        background: #fee2e2;
-        color: #991b1b;
-        border-color: #ef4444;
-      }
-
-      .whatsapp-status-indicator.checking {
-        background: #fef3c7;
-        color: #92400e;
-        border-color: #f59e0b;
-      }
-
-      .status-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        display: inline-block;
-      }
-
-      .status-dot.connected {
-        background: #73d537;
-        box-shadow: 0 0 8px #73d537;
-      }
-
-      .status-dot.disconnected {
-        background: #ef4444;
-        animation: pulse 2s infinite;
-      }
-
-      .status-dot.checking {
-        background: #f59e0b;
       }
 
       .drawer-backdrop {
@@ -2264,29 +2354,36 @@
         }
 
         .topnav {
-          padding: 0 16px;
-          height: 56px;
+          padding: 0 12px;
+          height: 54px;
         }
 
-        .topnav-brand-tagline {
-          display: none;
+        .topnav-brand {
+          margin-right: 12px;
         }
 
-        .topnav-username {
-          display: none;
+        .topnav-brand img {
+          width: 90px;
         }
 
         .topnav-actions {
           gap: 8px;
         }
 
-        .topnav-logout-btn {
-          padding: 5px 10px;
-          font-size: 12px;
+        /* Em mobile: ocultar label do status, manter só ponto + texto curto */
+        .whatsapp-status-label {
+          display: none;
         }
 
-        .whatsapp-status-indicator span:last-child {
-          display: none;
+        .whatsapp-status-indicator {
+          padding: 5px 8px;
+          gap: 5px;
+        }
+
+        /* Dropdown alinha à direita na borda da tela */
+        .topnav-profile-dropdown {
+          right: -8px;
+          min-width: 180px;
         }
 
         .exercise-fields-grid {
