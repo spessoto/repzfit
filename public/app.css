@@ -2202,6 +2202,102 @@
         margin-bottom: 16px;
       }
 
+      /* ── Avaliações Físicas ── */
+      .avaliacao-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .avaliacao-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 40px 20px;
+        color: #9ca3af;
+        text-align: center;
+      }
+
+      .avaliacao-empty p {
+        font-size: 14px;
+        font-weight: 600;
+        color: #6b7280;
+        margin: 0;
+      }
+
+      .avaliacao-empty span {
+        font-size: 12px;
+        color: #9ca3af;
+      }
+
+      .avaliacao-card {
+        border: 1px solid #ebedf2;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        background: #ffffff;
+        transition: box-shadow 0.15s ease;
+      }
+
+      .avaliacao-card:hover {
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+      }
+
+      .avaliacao-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .avaliacao-card-date {
+        font-size: 13px;
+        font-weight: 700;
+        color: #374151;
+      }
+
+      .avaliacao-card-metrics {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+
+      .avaliacao-metric {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 60px;
+      }
+
+      .avaliacao-metric span {
+        font-size: 11px;
+        color: #9ca3af;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .avaliacao-metric strong {
+        font-size: 15px;
+        font-weight: 700;
+        color: #0d1b26;
+      }
+
+      .avaliacao-card-obs {
+        font-size: 12px;
+        color: #6b7280;
+        margin: 0;
+        padding-top: 8px;
+        border-top: 1px solid #f1f5f9;
+        line-height: 1.4;
+      }
+
       .student-editor-view {
         /* Sempre display block quando visível */
       }

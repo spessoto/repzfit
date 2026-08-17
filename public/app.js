@@ -764,7 +764,7 @@
       function getAlunoEditorViewFromUrl() {
         const params = new URLSearchParams(window.location.search);
         const v = params.get("view");
-        return (v === "treinos" || v === "progresso") ? v : "dados";
+        return (v === "treinos" || v === "progresso" || v === "avaliacoes") ? v : "dados";
       }
 
       function navigatePersonalPage(page) {
@@ -833,10 +833,15 @@
        * Atualiza os botões de nav e mostra/oculta as seções.
        */
       function _ativarViewEditor(view) {
-        const views = ["dados", "treinos", "progresso"];
+        const views = ["dados", "treinos", "progresso", "avaliacoes"];
         const safeView = views.includes(view) ? view : "dados";
 
-        const labels = { dados: "Dados do Aluno", treinos: "Treinos", progresso: "Progresso" };
+        const labels = {
+          dados:      "Dados do Aluno",
+          treinos:    "Treinos",
+          progresso:  "Progresso",
+          avaliacoes: "Avaliações Físicas",
+        };
         const subtitleEl = document.getElementById("studentEditorViewLabel");
         if (subtitleEl) subtitleEl.textContent = labels[safeView] || "";
 
@@ -850,6 +855,11 @@
         document.querySelectorAll(".student-editor-nav-btn").forEach(btn => {
           btn.classList.toggle("active", btn.dataset.view === safeView);
         });
+
+        // Carregar avaliações ao abrir a view
+        if (safeView === "avaliacoes" && currentEditingStudentId) {
+          carregarAvaliacoes(currentEditingStudentId);
+        }
       }
 
       /**
@@ -1426,6 +1436,9 @@
                   <button class="student-action-btn" title="Progresso e relatório" onclick="openAlunoEditor('${safeId}', 'progresso')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                   </button>
+                  <button class="student-action-btn" title="Avaliações físicas" onclick="openAlunoEditor('${safeId}', 'avaliacoes')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  </button>
                   <button class="student-action-btn danger" title="Excluir aluno" onclick="excluirAluno('${safeId}', '${safeName.replace(/'/g, "\\'")}')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                   </button>
@@ -1535,6 +1548,141 @@
       function closeAlunoEditor(event) {
         currentEditingStudentId = null;
         window.location.href = buildPersonalPageUrl("alunos");
+      }
+
+      // ── Avaliações Físicas (armazenamento local por aluno) ──────────────────
+
+      function _avaliacaoStorageKey(studentId) {
+        return `ezp_avaliacoes_${studentId}`;
+      }
+
+      function _lerAvaliacoes(studentId) {
+        try {
+          const raw = localStorage.getItem(_avaliacaoStorageKey(studentId));
+          return raw ? JSON.parse(raw) : [];
+        } catch { return []; }
+      }
+
+      function _salvarAvaliacoes(studentId, avaliacoes) {
+        localStorage.setItem(_avaliacaoStorageKey(studentId), JSON.stringify(avaliacoes));
+      }
+
+      function carregarAvaliacoes(studentId) {
+        const list = document.getElementById("studentAvaliacoesList");
+        if (!list) return;
+        const avaliacoes = _lerAvaliacoes(studentId);
+
+        if (!avaliacoes.length) {
+          list.innerHTML = `
+            <div class="avaliacao-empty">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              <p>Nenhuma avaliação registrada ainda.</p>
+              <span>Clique em "+ Nova avaliação" para registrar a primeira.</span>
+            </div>`;
+          return;
+        }
+
+        // Ordenar da mais recente para mais antiga
+        const sorted = [...avaliacoes].sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+
+        list.innerHTML = sorted.map((av, idx) => {
+          const imc = av.peso && av.altura
+            ? (av.peso / Math.pow(av.altura / 100, 2)).toFixed(1)
+            : av.imc || "—";
+          return `
+            <div class="avaliacao-card">
+              <div class="avaliacao-card-header">
+                <span class="avaliacao-card-date">${av.data ? _formatFinanceDueDate(av.data) : "—"}</span>
+                <button class="student-action-btn danger" style="width:28px;height:28px;" title="Excluir avaliação"
+                  onclick="excluirAvaliacao('${escapeHtml(studentId)}', '${escapeHtml(av.id)}')">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                </button>
+              </div>
+              <div class="avaliacao-card-metrics">
+                ${av.peso     ? `<div class="avaliacao-metric"><span>Peso</span><strong>${av.peso} kg</strong></div>` : ""}
+                ${av.altura   ? `<div class="avaliacao-metric"><span>Altura</span><strong>${av.altura} cm</strong></div>` : ""}
+                ${imc !== "—" ? `<div class="avaliacao-metric"><span>IMC</span><strong>${imc}</strong></div>` : ""}
+                ${av.gordura  ? `<div class="avaliacao-metric"><span>% Gordura</span><strong>${av.gordura}%</strong></div>` : ""}
+                ${av.massa    ? `<div class="avaliacao-metric"><span>% Massa</span><strong>${av.massa}%</strong></div>` : ""}
+              </div>
+              ${av.obs ? `<p class="avaliacao-card-obs">${escapeHtml(av.obs)}</p>` : ""}
+            </div>`;
+        }).join("");
+      }
+
+      function abrirNovaAvaliacao() {
+        const form = document.getElementById("studentAvaliacaoForm");
+        if (!form) return;
+        form.classList.remove("hidden");
+        // Preencher data com hoje
+        const today = new Date().toISOString().slice(0, 10);
+        const dataEl = document.getElementById("avaliacaoData");
+        if (dataEl && !dataEl.value) dataEl.value = today;
+        // Auto-cálculo do IMC
+        const pesoEl   = document.getElementById("avaliacaoPeso");
+        const alturaEl = document.getElementById("avaliacaoAltura");
+        const imcEl    = document.getElementById("avaliacaoImc");
+        const calcImc = () => {
+          const p = parseFloat(pesoEl?.value);
+          const a = parseFloat(alturaEl?.value);
+          if (p > 0 && a > 0 && imcEl) {
+            imcEl.value = (p / Math.pow(a / 100, 2)).toFixed(1);
+          } else if (imcEl) { imcEl.value = ""; }
+        };
+        pesoEl?.addEventListener("input", calcImc);
+        alturaEl?.addEventListener("input", calcImc);
+        form.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function cancelarAvaliacao() {
+        const form = document.getElementById("studentAvaliacaoForm");
+        if (form) {
+          form.classList.add("hidden");
+          // Limpar campos
+          ["avaliacaoData","avaliacaoPeso","avaliacaoAltura","avaliacaoGordura","avaliacaoMassa","avaliacaoImc","avaliacaoObservacoes"]
+            .forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+        }
+      }
+
+      function salvarAvaliacao() {
+        if (!currentEditingStudentId) return;
+        const data    = document.getElementById("avaliacaoData")?.value;
+        const peso    = document.getElementById("avaliacaoPeso")?.value;
+        const altura  = document.getElementById("avaliacaoAltura")?.value;
+        const gordura = document.getElementById("avaliacaoGordura")?.value;
+        const massa   = document.getElementById("avaliacaoMassa")?.value;
+        const imc     = document.getElementById("avaliacaoImc")?.value;
+        const obs     = document.getElementById("avaliacaoObservacoes")?.value?.trim();
+
+        if (!data) { showToast("Informe a data da avaliação.", "warn"); return; }
+        if (!peso && !gordura && !massa) { showToast("Informe pelo menos um dado da avaliação.", "warn"); return; }
+
+        const avaliacao = {
+          id:      Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          data,
+          peso:    peso    ? parseFloat(peso)    : null,
+          altura:  altura  ? parseFloat(altura)  : null,
+          gordura: gordura ? parseFloat(gordura) : null,
+          massa:   massa   ? parseFloat(massa)   : null,
+          imc:     imc     ? parseFloat(imc)     : null,
+          obs:     obs || null,
+          criadoEm: new Date().toISOString(),
+        };
+
+        const avaliacoes = _lerAvaliacoes(currentEditingStudentId);
+        avaliacoes.push(avaliacao);
+        _salvarAvaliacoes(currentEditingStudentId, avaliacoes);
+
+        showToast("Avaliação salva com sucesso!", "success");
+        cancelarAvaliacao();
+        carregarAvaliacoes(currentEditingStudentId);
+      }
+
+      function excluirAvaliacao(studentId, avaliacaoId) {
+        const avaliacoes = _lerAvaliacoes(studentId).filter(a => a.id !== avaliacaoId);
+        _salvarAvaliacoes(studentId, avaliacoes);
+        carregarAvaliacoes(studentId);
+        showToast("Avaliação excluída.", "info");
       }
 
       async function carregarDetalhesAlunoEditor(studentId) {
@@ -2218,99 +2366,97 @@
 
         root.innerHTML = `
           <div class="workout-search-shell">
-            <div class="form-group" style="margin-bottom: 8px;">
-              <label>Buscar treino para atribuir</label>
-              <input
-                type="text"
-                id="studentWorkoutSearchInput"
-                placeholder="Digite pelo menos 2 letras do nome do treino"
-                autocomplete="off"
-                oninput="buscarTreinosParaAluno(this.value)"
-              />
+            <div class="form-group" style="margin-bottom: 0;">
+              <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block;">Buscar treino para atribuir</label>
+              <div style="position:relative;">
+                <input
+                  type="text"
+                  id="studentWorkoutSearchInput"
+                  placeholder="Buscar pelo nome do treino..."
+                  autocomplete="off"
+                  oninput="buscarTreinosParaAluno(this.value)"
+                  onfocus="mostrarTodosTreinosParaAluno()"
+                  style="width:100%;padding:9px 36px 9px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;"
+                />
+                <svg style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#9ca3af;pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </div>
             </div>
-            <div id="studentWorkoutSearchResults">
-              <p style="color:#6b7280;font-size:12px;">Digite ao menos 2 caracteres para buscar.</p>
-            </div>
+            <div id="studentWorkoutSearchResults"></div>
             <div id="selectedWorkoutForStudent"></div>
           </div>
         `;
+
+        // Pré-carregar lista de treinos ao abrir (sem filtro)
+        _carregarListaTreinosDisponiveis("", false);
+      }
+
+      function mostrarTodosTreinosParaAluno() {
+        const input = document.getElementById("studentWorkoutSearchInput");
+        const query = (input?.value || "").trim();
+        _carregarListaTreinosDisponiveis(query, true);
       }
 
       async function buscarTreinosParaAluno(termo) {
-        const resultsRoot = document.getElementById(
-          "studentWorkoutSearchResults",
-        );
+        if (workoutSearchTimeout) clearTimeout(workoutSearchTimeout);
+        workoutSearchTimeout = setTimeout(() => {
+          _carregarListaTreinosDisponiveis((termo || "").trim(), true);
+        }, 200);
+      }
+
+      async function _carregarListaTreinosDisponiveis(query, showEmpty) {
+        const resultsRoot = document.getElementById("studentWorkoutSearchResults");
         if (!resultsRoot) return;
 
-        const query = (termo || "").trim();
+        try {
+          const response = await fetch(`${getApiBaseUrl()}/api/workouts`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
 
-        if (workoutSearchTimeout) {
-          clearTimeout(workoutSearchTimeout);
-        }
+          if (response.status === 401 || response.status === 403) { handleUnauthorized(); return; }
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-        if (query.length < 2) {
-          resultsRoot.innerHTML =
-            '<p style="color:#6b7280;font-size:12px;">Digite ao menos 2 caracteres para buscar.</p>';
-          return;
-        }
+          const workouts = await response.json();
+          const available = (workouts || []).filter(
+            (w) => !currentStudentAssignedWorkoutIds.includes(w.id),
+          );
+          currentStudentAvailableWorkouts = available;
 
-        workoutSearchTimeout = setTimeout(async () => {
-          try {
-            const response = await fetch(`${getApiBaseUrl()}/api/workouts`, {
-              headers: { Authorization: `Bearer ${authToken}` },
-            });
+          const filtered = query
+            ? available.filter((w) => String(w.name || "").toLowerCase().includes(query.toLowerCase()))
+            : available;
 
-            if (response.status === 401 || response.status === 403) {
-              handleUnauthorized();
-              return;
-            }
-
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}`);
-            }
-
-            const workouts = await response.json();
-            const availableByAssignment = (workouts || []).filter(
-              (w) => !currentStudentAssignedWorkoutIds.includes(w.id),
-            );
-
-            const filtered = availableByAssignment.filter((w) =>
-              String(w.name || "")
-                .toLowerCase()
-                .includes(query.toLowerCase()),
-            );
-
-            currentStudentAvailableWorkouts = availableByAssignment;
-
-            if (filtered.length === 0) {
-              resultsRoot.innerHTML =
-                '<p style="color:#6b7280;font-size:12px;">Nenhum treino encontrado.</p>';
-              return;
-            }
-
-            resultsRoot.innerHTML = `
-              <div class="workout-search-results">
-                ${filtered
-                  .map(
-                    (w) => `
-                      <div class="workout-search-item">
-                        <div>
-                          <strong>${escapeHtml(w.name || "Treino")}</strong>
-                          <div class="workout-search-meta">Início: ${escapeHtml(w.start_date || "-")}</div>
-                        </div>
-                        <button class="btn btn-secondary" onclick="selecionarTreinoParaAluno('${w.id}')">Selecionar</button>
-                      </div>
-                    `,
-                  )
-                  .join("")}
-              </div>
-            `;
-          } catch (error) {
-            console.error("Erro ao buscar treinos para aluno:", error);
-            resultsRoot.innerHTML =
-              '<p style="color:#ef4444;font-size:12px;">Erro ao buscar treinos.</p>';
+          if (filtered.length === 0) {
+            resultsRoot.innerHTML = query
+              ? `<p style="color:#6b7280;font-size:12px;padding:8px 0;">Nenhum treino encontrado para "${escapeHtml(query)}".</p>`
+              : (showEmpty ? `<p style="color:#6b7280;font-size:12px;padding:8px 0;">Nenhum treino disponível para atribuir.</p>` : "");
+            return;
           }
-        }, 300);
+
+          resultsRoot.innerHTML = `
+            <div class="workout-search-results">
+              ${filtered.map((w) => {
+                const exerciseCount = Array.isArray(w.exercises) ? w.exercises.length : 0;
+                const meta = [
+                  w.start_date ? `Início: ${w.start_date}` : null,
+                  exerciseCount > 0 ? `${exerciseCount} exercício${exerciseCount !== 1 ? "s" : ""}` : null,
+                ].filter(Boolean).join(" · ");
+                return `
+                  <div class="workout-search-item" onclick="selecionarTreinoParaAluno('${escapeHtml(w.id)}')" style="cursor:pointer;">
+                    <div>
+                      <strong style="font-size:13px;color:#0d1b26;">${escapeHtml(w.name || "Treino")}</strong>
+                      ${meta ? `<div class="workout-search-meta">${escapeHtml(meta)}</div>` : ""}
+                    </div>
+                    <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px;flex-shrink:0;"
+                      onclick="event.stopPropagation();selecionarTreinoParaAluno('${escapeHtml(w.id)}')">
+                      Selecionar
+                    </button>
+                  </div>`;
+              }).join("")}
+            </div>`;
+        } catch (error) {
+          console.error("Erro ao buscar treinos para aluno:", error);
+          resultsRoot.innerHTML = `<p style="color:#ef4444;font-size:12px;padding:8px 0;">Erro ao buscar treinos.</p>`;
+        }
       }
 
       function selecionarTreinoParaAluno(workoutId) {

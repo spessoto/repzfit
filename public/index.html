@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/app.css?v=202608170010" />
+    <link rel="stylesheet" href="/app.css?v=202608170011" />
   </head>
   <body>
     <!-- Login Screen -->
@@ -436,10 +436,69 @@
                   <div>
                     <h2 class="student-editor-name" id="studentEditorTitleName">-</h2>
                     <p class="student-editor-subtitle" id="studentEditorViewLabel">Dados do Aluno</p>
+              </div>
+            </div>
+
+            <!-- ── View: Avaliações Físicas ── -->
+            <div id="studentViewAvaliacoes" class="student-editor-view hidden">
+              <div class="card">
+                <div class="avaliacao-header">
+                  <h3 class="student-section-heading" style="margin-bottom:0;">Avaliações Físicas</h3>
+                  <button class="btn btn-primary" style="padding:8px 18px;font-size:13px;" onclick="abrirNovaAvaliacao()">
+                    + Nova avaliação
+                  </button>
+                </div>
+
+                <div id="studentAvaliacoesList">
+                  <div class="avaliacao-empty">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    <p>Nenhuma avaliação registrada ainda.</p>
+                    <span>Clique em "+ Nova avaliação" para registrar a primeira.</span>
                   </div>
                 </div>
               </div>
 
+              <!-- Formulário de nova avaliação -->
+              <div class="card hidden" id="studentAvaliacaoForm">
+                <h3 class="student-section-heading">Nova Avaliação</h3>
+                <div class="editor-grid">
+                  <div class="form-group">
+                    <label>Data da avaliação</label>
+                    <input type="date" id="avaliacaoData" />
+                  </div>
+                  <div class="form-group">
+                    <label>Peso (kg)</label>
+                    <input type="number" id="avaliacaoPeso" min="0" step="0.1" placeholder="Ex: 75.5" />
+                  </div>
+                  <div class="form-group">
+                    <label>Altura (cm)</label>
+                    <input type="number" id="avaliacaoAltura" min="0" step="0.1" placeholder="Ex: 175" />
+                  </div>
+                  <div class="form-group">
+                    <label>% Gordura</label>
+                    <input type="number" id="avaliacaoGordura" min="0" max="100" step="0.1" placeholder="Ex: 18.5" />
+                  </div>
+                  <div class="form-group">
+                    <label>% Massa Muscular</label>
+                    <input type="number" id="avaliacaoMassa" min="0" max="100" step="0.1" placeholder="Ex: 42.0" />
+                  </div>
+                  <div class="form-group">
+                    <label>IMC</label>
+                    <input type="number" id="avaliacaoImc" min="0" step="0.01" placeholder="Calculado automaticamente" readonly style="background:#f9fafb;" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Observações</label>
+                  <textarea id="avaliacaoObservacoes" rows="3" placeholder="Anotações sobre a avaliação, postura, recomendações..." style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
+                </div>
+                <div style="display:flex;gap:10px;margin-top:8px;">
+                  <button class="btn btn-primary" onclick="salvarAvaliacao()">Salvar avaliação</button>
+                  <button class="btn btn-secondary" onclick="cancelarAvaliacao()">Cancelar</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
               <!-- Nav de sub-views -->
               <nav class="student-editor-nav" aria-label="Seções do aluno">
                 <button class="student-editor-nav-btn active" data-view="dados" onclick="openAlunoEditorView('dados', this)">
@@ -453,6 +512,10 @@
                 <button class="student-editor-nav-btn" data-view="progresso" onclick="openAlunoEditorView('progresso', this)">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                   Progresso
+                </button>
+                <button class="student-editor-nav-btn" data-view="avaliacoes" onclick="openAlunoEditorView('avaliacoes', this)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  Avaliações
                 </button>
               </nav>
             </div>
@@ -1624,7 +1687,7 @@
       </div>
     </div>
 
-    <script defer src="/app.js?v=202608170010"></script>
+    <script defer src="/app.js?v=202608170011"></script>
     <script>
       window.si =
         window.si ||
