@@ -1305,7 +1305,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
   /**
    * GET /students/list — listagem leve com paginação (apenas campos visíveis na tabela).
    * Substitui GET /students para a tela de listagem de alunos.
-   * Retorna: id, name, whatsapp_number, is_active + metadados de paginação.
+   * Retorna: id, name, whatsapp_number, is_active, payment_day, last_session_date, payment_status + metadados de paginação.
    */
   app.get("/students/list", async (request) => {
     const { token } = await getAuthenticatedPersonal(app, request);
@@ -1317,8 +1317,8 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const from  = (page - 1) * limit;
     const to    = from + limit - 1;
 
-    // Select mínimo: apenas os 4 campos usados na tabela de listagem
-    const STUDENTS_SELECT_LIST = "id,name,whatsapp_number,is_active,created_at";
+    // Select com campos para a tabela de listagem enriquecida
+    const STUDENTS_SELECT_LIST = "id,name,whatsapp_number,is_active,payment_day,created_at";
 
     let result: any = await client
       .from("students")
@@ -1337,12 +1337,75 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const { data, error, count } = result;
     if (error) throw app.httpErrors.badRequest(error.message);
 
-    const students = (data ?? []).map((row: any) => ({
-      id:               row.id,
-      name:             decrypt(row.name) ?? row.name ?? null,
-      whatsapp_number:  decrypt(row.whatsapp_number) ?? row.whatsapp_number ?? null,
-      is_active:        row.is_active,
-    }));
+    const studentIds = (data ?? []).map((r: any) => r.id).filter(Boolean);
+
+    // Buscar última sessão completada de cada aluno (uma query única)
+    let lastSessionsMap: Map<string, { date: string; created_at: string }> = new Map();
+    if (studentIds.length > 0) {
+      try {
+        const { data: sessions } = await client
+          .from("daily_sessions")
+          .select("student_id,date,created_at")
+          .in("student_id", studentIds)
+          .eq("status", "completed")
+          .order("date", { ascending: false });
+        // Pega apenas a mais recente por aluno
+        for (const s of sessions ?? []) {
+          if (s.student_id && !lastSessionsMap.has(s.student_id)) {
+            lastSessionsMap.set(s.student_id, { date: s.date, created_at: s.created_at });
+          }
+        }
+      } catch (_) { /* ignora se tabela não existe */ }
+    }
+
+    // Buscar registros de pagamento do mês atual
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const currentMonthDate = `${currentMonth}-01`;
+    let paymentRecordsMap: Map<string, boolean> = new Map();
+    if (studentIds.length > 0) {
+      try {
+        const { data: payRecs } = await client
+          .from("student_payment_records")
+          .select("student_id,received")
+          .in("student_id", studentIds)
+          .eq("reference_month", currentMonthDate);
+        for (const pr of payRecs ?? []) {
+          if (pr.student_id) paymentRecordsMap.set(pr.student_id, Boolean(pr.received));
+        }
+      } catch (_) { /* ignora se tabela não existe */ }
+    }
+
+    const students = (data ?? []).map((row: any) => {
+      const paymentDay = decryptNumber(row.payment_day) != null ? Math.round(decryptNumber(row.payment_day)!) : null;
+      const lastSession = lastSessionsMap.get(row.id) ?? null;
+
+      // Calcular payment_status com base no payment_day e no registro do mês atual
+      let paymentStatus: "pago" | "pendente" | "atrasado" = "pendente";
+      const received = paymentRecordsMap.get(row.id);
+      if (received === true) {
+        paymentStatus = "pago";
+      } else if (paymentDay != null) {
+        const dueDay = paymentDay;
+        const today = now.getDate();
+        if (today > dueDay) {
+          paymentStatus = "atrasado";
+        } else {
+          paymentStatus = "pendente";
+        }
+      }
+
+      return {
+        id:               row.id,
+        name:             decrypt(row.name) ?? row.name ?? null,
+        whatsapp_number:  decrypt(row.whatsapp_number) ?? row.whatsapp_number ?? null,
+        is_active:        row.is_active,
+        payment_day:      paymentDay,
+        last_session_date: lastSession?.date ?? null,
+        last_session_created_at: lastSession?.created_at ?? null,
+        payment_status:   paymentStatus,
+      };
+    });
 
     return {
       data: students,

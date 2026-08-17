@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/app.css?v=202607281441" />
+    <link rel="stylesheet" href="/app.css?v=202608170001" />
   </head>
   <body>
     <!-- Login Screen -->
@@ -169,150 +169,172 @@
     <!-- Main App -->
     <div id="appScreen" class="container hidden">
       <div class="app-shell">
-        <aside class="sidebar">
-          <div class="sidebar-brand">
-            <img src="/img/Logo-fundo-escuro.webp" alt="EZ Personal" width="200" height="38" loading="lazy" />
+
+        <!-- Top Navigation Bar -->
+        <header class="topnav">
+          <div class="topnav-brand">
+            <img src="/img/Logo-fundo-escuro.webp" alt="EZ Personal" width="160" height="30" loading="lazy" />
+            <div class="topnav-brand-tagline">Seu assistente de consultoria online</div>
           </div>
 
-          <div class="tabs">
+          <nav class="topnav-tabs" role="navigation" aria-label="Menu principal">
             <button
               id="alunosTabButton"
-              class="tab active"
+              class="topnav-tab active"
               onclick="navigatePersonalPage('alunos')"
-            >
-              <span class="tab-icon" aria-hidden="true">&#128101;</span>
-              <span class="tab-label">Alunos</span>
-            </button>
+            >Alunos</button>
             <button
               id="financeiroTabButton"
-              class="tab"
+              class="topnav-tab"
               onclick="navigatePersonalPage('financeiro')"
-            >
-              <span class="tab-icon" aria-hidden="true">$</span>
-              <span class="tab-label">Financeiro</span>
-            </button>
+            >Financeiro</button>
             <button
               id="exerciciosTabButton"
-              class="tab"
+              class="topnav-tab"
               onclick="navigatePersonalPage('exercicios')"
-            >
-              <span class="tab-icon" aria-hidden="true">&#127947;</span>
-              <span class="tab-label">Exercícios</span>
-            </button>
+            >Exercícios</button>
             <button
               id="treinosTabButton"
-              class="tab"
+              class="topnav-tab"
               onclick="navigatePersonalPage('treinos')"
-            >
-              <span class="tab-icon" aria-hidden="true">&#128170;</span>
-              <span class="tab-label">Treinos</span>
-            </button>
+            >Treinos</button>
             <button
               id="configuracoesTabButton"
-              class="tab"
+              class="topnav-tab"
               onclick="navigatePersonalPage('configuracoes')"
-            >
-              <span class="tab-icon" aria-hidden="true">&#9881;</span>
-              <span class="tab-label">Configurações</span>
-            </button>
+            >Avaliações</button>
+            <!-- Admin tabs (hidden by default) -->
             <button
               id="adminTabButton"
-              class="tab hidden"
+              class="topnav-tab hidden"
               onclick="switchTab('admin')"
-            >
-              <span class="tab-icon" aria-hidden="true">&#128100;</span>
-              <span class="tab-label">Usuários</span>
-            </button>
+            >Usuários</button>
             <button
               id="adminSettingsTabButton"
-              class="tab hidden"
+              class="topnav-tab hidden"
               onclick="switchTab('adminSettings')"
-            >
-              <span class="tab-icon" aria-hidden="true">&#9881;</span>
-              <span class="tab-label">Configurações</span>
-            </button>
+            >Configurações</button>
             <button
               id="adminLogsTabButton"
-              class="tab hidden"
+              class="topnav-tab hidden"
               onclick="switchTab('adminLogs')"
-            >
-              <span class="tab-icon" aria-hidden="true">&#128221;</span>
-              <span class="tab-label">Logs do Sistema</span>
-            </button>
-          </div>
+            >Logs</button>
+          </nav>
 
-          <div class="sidebar-user">
-            <div class="sidebar-user-top">
-              <span id="userName"></span>
-              <button
-                id="editPersonalBtn"
-                class="btn-icon-ghost"
-                type="button"
-                title="Editar perfil"
-                onclick="openPersonalProfileModal()"
-              >
-                &#9998;
-              </button>
+          <div class="topnav-actions">
+            <div
+              id="headerWhatsAppStatus"
+              class="whatsapp-status-indicator checking"
+            >
+              <span class="status-dot checking"></span>
+              <span>Conectar bot</span>
             </div>
-            <button class="btn btn-secondary" onclick="logout()">Sair</button>
+            <button
+              id="editPersonalBtn"
+              class="topnav-icon-btn"
+              type="button"
+              title="Perfil"
+              onclick="openPersonalProfileModal()"
+              aria-label="Editar perfil"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </button>
+            <button
+              class="topnav-icon-btn"
+              type="button"
+              title="Configurações"
+              onclick="navigatePersonalPage('configuracoes')"
+              aria-label="Configurações"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            </button>
+            <span id="userName" class="topnav-username"></span>
+            <button class="topnav-logout-btn" onclick="logout()">Sair</button>
           </div>
-        </aside>
+        </header>
 
         <main class="content-area">
-          <div class="header">
-            <h1>Painel do Personal</h1>
-            <div class="user-info">
-              <div
-                id="headerWhatsAppStatus"
-                class="whatsapp-status-indicator checking"
-              >
-                <span class="status-dot checking"></span>
-                <span>WhatsApp: Verificando...</span>
-              </div>
-            </div>
-          </div>
 
           <!-- Alunos Tab -->
           <div id="alunosTab" class="tab-content active">
-            <div class="card">
-              <h2>Novo Aluno</h2>
-              <div class="form-group">
-                <label>Nome</label>
-                <input type="text" id="alunoNome" />
+
+            <!-- Page Header with Stats -->
+            <div class="page-header">
+              <div class="page-header-left">
+                <h1 class="page-title">Alunos</h1>
+                <p class="page-subtitle" id="alunosSubtitle">Carregando...</p>
               </div>
-              <div class="form-group">
-                <label>WhatsApp (com DDD)</label>
-                <input
-                  type="text"
-                  id="alunoWhatsapp"
-                  placeholder="5521999999999"
-                />
+              <div class="page-header-stats">
+                <div class="page-stat">
+                  <span class="page-stat-number" id="statConfirmaramHoje">—</span>
+                  <span class="page-stat-label">confirmaram hoje</span>
+                </div>
+                <div class="page-stat page-stat-alert">
+                  <span class="page-stat-number" id="statFantasma">—</span>
+                  <span class="page-stat-label">fantasma <span class="ghost-emoji">👻</span></span>
+                </div>
               </div>
-              <button class="btn btn-primary" onclick="criarAluno()">
-                Adicionar Aluno
-              </button>
             </div>
 
+            <!-- Add Student Card -->
             <div class="card">
-              <h2>Meus Alunos</h2>
+              <h3 class="card-section-title">Novo aluno</h3>
               <div id="alunosAlert"></div>
-              <table id="alunosTable">
-                <thead>
-                  <tr>
-                    <th>Nome</th>
-                    <th>WhatsApp</th>
-                    <th>Status</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody id="alunosBody">
-                  <tr>
-                    <td colspan="4" style="text-align: center">
-                      Carregando...
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="aluno-add-grid">
+                <div class="form-group">
+                  <label class="form-label-upper">NOME COMPLETO</label>
+                  <input type="text" id="alunoNome" placeholder="Ex: Marcos Ribeiro" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label-upper">WHATSAPP</label>
+                  <input type="text" id="alunoWhatsapp" placeholder="(11) 99999-9999" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label-upper">VENCIMENTO</label>
+                  <input type="number" id="alunoVencimento" placeholder="10" min="1" max="31" />
+                </div>
+                <div class="aluno-add-btn-wrap">
+                  <button class="btn btn-primary btn-add-aluno" onclick="criarAluno()">
+                    Adicionar aluno
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Students List Card -->
+            <div class="card">
+              <div class="alunos-list-header">
+                <span class="card-section-title">Alunos cadastrados</span>
+                <div class="alunos-search-wrap">
+                  <svg class="alunos-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input type="text" id="alunosBusca" class="alunos-search-input" placeholder="Buscar aluno por nome..." oninput="filtrarAlunosLocal(this.value)" />
+                </div>
+                <div class="alunos-filter-tabs">
+                  <button class="alunos-filter-btn active" data-filter="todos" onclick="setAlunosFilter('todos', this)">Todos</button>
+                  <button class="alunos-filter-btn" data-filter="ativos" onclick="setAlunosFilter('ativos', this)">Ativos</button>
+                  <button class="alunos-filter-btn" data-filter="pendentes" onclick="setAlunosFilter('pendentes', this)">Pendentes</button>
+                  <button class="alunos-filter-btn" data-filter="atrasados" onclick="setAlunosFilter('atrasados', this)">Atrasados</button>
+                </div>
+              </div>
+
+              <div class="alunos-table-wrap">
+                <table class="alunos-table" id="alunosTable">
+                  <thead>
+                    <tr>
+                      <th>ALUNO</th>
+                      <th>WHATSAPP</th>
+                      <th>VENCIMENTO</th>
+                      <th>STATUS</th>
+                      <th style="text-align:right;">AÇÕES RÁPIDAS</th>
+                    </tr>
+                  </thead>
+                  <tbody id="alunosBody">
+                    <tr>
+                      <td colspan="5" style="text-align:center; color:#6b7280; padding: 32px;">Carregando...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
               <div id="alunosPagination"></div>
             </div>
           </div>
@@ -1378,7 +1400,7 @@
       </div>
     </div>
 
-    <script defer src="/app.js?v=202607281441"></script>
+    <script defer src="/app.js?v=202608170001"></script>
     <script>
       window.si =
         window.si ||

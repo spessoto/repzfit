@@ -11,6 +11,9 @@
       // Paginação da listagem de alunos
       let alunosPage = 1;
       const ALUNOS_PAGE_SIZE = 50;
+      // Filtro e busca local na lista de alunos
+      let alunosFilterAtivo = "todos";
+      let alunosTodosCache = []; // cache da última página carregada
       // Paginação do histórico de sessões do aluno
       let studentSessionsPage = 1;
       const STUDENT_SESSIONS_API_PAGE_SIZE = 20;
@@ -155,7 +158,7 @@
 
         personalTabs.forEach((id) => {
           const el = document.getElementById(id);
-          if (el) el.style.display = enabled ? "none" : "inline-block";
+          if (el) el.style.display = enabled ? "none" : "inline-flex";
         });
 
         personalPanels.forEach((id) => {
@@ -166,7 +169,7 @@
         const adminButton = document.getElementById("adminTabButton");
         if (adminButton) {
           adminButton.classList.toggle("hidden", !enabled);
-          adminButton.style.display = enabled ? "inline-block" : "none";
+          adminButton.style.display = enabled ? "inline-flex" : "none";
         }
 
         const adminSettingsButton = document.getElementById(
@@ -174,13 +177,13 @@
         );
         if (adminSettingsButton) {
           adminSettingsButton.classList.toggle("hidden", !enabled);
-          adminSettingsButton.style.display = enabled ? "inline-block" : "none";
+          adminSettingsButton.style.display = enabled ? "inline-flex" : "none";
         }
 
         const adminLogsButton = document.getElementById("adminLogsTabButton");
         if (adminLogsButton) {
           adminLogsButton.classList.toggle("hidden", !enabled);
-          adminLogsButton.style.display = enabled ? "inline-block" : "none";
+          adminLogsButton.style.display = enabled ? "inline-flex" : "none";
         }
 
         const whatsappStatus = document.getElementById("headerWhatsAppStatus");
@@ -708,7 +711,7 @@
         const panelId = alunoEditorId ? "alunoEditorTab" : `${safePage}Tab`;
 
         document
-          .querySelectorAll(".tab")
+          .querySelectorAll(".topnav-tab")
           .forEach((t) => t.classList.remove("active"));
         document
           .querySelectorAll(".tab-content")
@@ -756,14 +759,14 @@
 
       function switchTab(tab) {
         document
-          .querySelectorAll(".tab")
+          .querySelectorAll(".topnav-tab")
           .forEach((t) => t.classList.remove("active"));
         document
           .querySelectorAll(".tab-content")
           .forEach((t) => t.classList.remove("active"));
 
         // Adiciona active na tab clicada
-        const clickedTab = Array.from(document.querySelectorAll(".tab")).find(
+        const clickedTab = Array.from(document.querySelectorAll(".topnav-tab")).find(
           (t) =>
             t.textContent.toLowerCase().includes(tab.toLowerCase()) ||
             t.getAttribute("onclick")?.includes(tab),
@@ -963,11 +966,22 @@
       async function criarAluno() {
         const nome = document.getElementById("alunoNome").value;
         const whatsapp = document.getElementById("alunoWhatsapp").value;
+        const vencimentoRaw = document.getElementById("alunoVencimento") ? document.getElementById("alunoVencimento").value : "";
+        const paymentDay = vencimentoRaw ? parseInt(vencimentoRaw, 10) : null;
 
         const apiUrl =
           window.location.hostname === "localhost"
             ? "http://localhost:3333"
             : window.location.origin;
+
+        const body = {
+          name: nome,
+          whatsapp_number: whatsapp,
+          is_active: true,
+        };
+        if (paymentDay && paymentDay >= 1 && paymentDay <= 31) {
+          body.payment_day = paymentDay;
+        }
 
         const response = await fetch(`${apiUrl}/api/students`, {
           method: "POST",
@@ -975,17 +989,14 @@
             "Content-Type": "application/json",
             Authorization: `Bearer ${authToken}`,
           },
-          body: JSON.stringify({
-            name: nome,
-            whatsapp_number: whatsapp,
-            is_active: true,
-          }),
+          body: JSON.stringify(body),
         });
 
         if (response.ok) {
           showAlert("alunosAlert", "Aluno criado com sucesso!", "success");
           document.getElementById("alunoNome").value = "";
           document.getElementById("alunoWhatsapp").value = "";
+          if (document.getElementById("alunoVencimento")) document.getElementById("alunoVencimento").value = "";
           carregarAlunos();
           carregarAlunosSelect();
           return;
@@ -1024,28 +1035,14 @@
           const alunos = result.data ?? [];
           const pagination = result.pagination ?? {};
 
-          const tbody = document.getElementById("alunosBody");
+          // Cache para filtro/busca local
+          alunosTodosCache = alunos;
 
-          if (!alunos.length) {
-            tbody.innerHTML =
-              '<tr><td colspan="4" style="text-align: center; color: #6b7280;">Nenhum aluno cadastrado</td></tr>';
-          } else {
-            tbody.innerHTML = alunos
-              .map(
-                (a) => `
-                    <tr>
-                        <td>${escapeHtml(a.name)}</td>
-                        <td>${escapeHtml(a.whatsapp_number)}</td>
-                        <td><span class="status-badge ${a.is_active ? "status-connected" : "status-disconnected"}">${a.is_active ? "Ativo" : "Inativo"}</span></td>
-                        <td style="display:flex; gap:8px;">
-                          <button class="btn btn-secondary" onclick="openAlunoEditor('${a.id}')">Editar</button>
-                          <button class="btn btn-danger" onclick="excluirAluno('${a.id}', '${escapeHtml(a.name).replace(/'/g, "\\'")}')">Excluir</button>
-                        </td>
-                    </tr>
-                `,
-              )
-              .join("");
-          }
+          // Atualizar stats do cabeçalho
+          _atualizarAlunosStats(alunos);
+
+          // Renderizar tabela
+          _renderizarTabelaAlunos(alunos, alunosFilterAtivo);
 
           // Renderizar controles de paginação
           const paginationEl = document.getElementById("alunosPagination");
@@ -1056,7 +1053,7 @@
               paginationEl.innerHTML = "";
             } else {
               paginationEl.innerHTML = `
-                <div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
+                <div style="display:flex;gap:8px;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid #f1f5f9;">
                   <button class="btn btn-secondary" onclick="carregarAlunos(${alunosPage - 1})" ${alunosPage <= 1 ? "disabled" : ""}>← Anterior</button>
                   <span style="color:#6b7280;font-size:13px;">Página ${alunosPage} de ${totalPages} (${total} alunos)</span>
                   <button class="btn btn-secondary" onclick="carregarAlunos(${alunosPage + 1})" ${alunosPage >= totalPages ? "disabled" : ""}>Próxima →</button>
@@ -1066,9 +1063,201 @@
         } catch (error) {
           console.error("Erro ao carregar alunos:", error);
           const tbody = document.getElementById("alunosBody");
-          tbody.innerHTML =
-            '<tr><td colspan="4" style="text-align: center; color: #ef4444;">Erro ao carregar alunos</td></tr>';
+          if (tbody) tbody.innerHTML =
+            '<tr><td colspan="5" style="text-align:center;color:#ef4444;padding:32px;">Erro ao carregar alunos</td></tr>';
         }
+      }
+
+      function _alunoGetInitials(name) {
+        if (!name) return "?";
+        const parts = name.trim().split(/\s+/);
+        if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+
+      const AVATAR_COLORS = [
+        "#024d3a","#0d6e55","#1a7a60","#0f4c31","#2d8c63",
+        "#064e3b","#065f46","#047857","#166534","#14532d",
+      ];
+
+      function _alunoAvatarColor(name) {
+        if (!name) return AVATAR_COLORS[0];
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+      }
+
+      function _alunoCheckinLabel(lastSessionDate, lastSessionCreatedAt) {
+        if (!lastSessionDate) return null;
+        const today = new Date();
+        const todayStr = today.toISOString().slice(0, 10);
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+        let timeLabel = "";
+        if (lastSessionCreatedAt) {
+          try {
+            const d = new Date(lastSessionCreatedAt);
+            const h = String(d.getHours()).padStart(2, "0");
+            const m = String(d.getMinutes()).padStart(2, "0");
+            timeLabel = ` · ${h}:${m}`;
+          } catch (_) {}
+        }
+
+        if (lastSessionDate === todayStr) return { text: `Confirmou hoje${timeLabel}`, ghost: false };
+        if (lastSessionDate === yesterdayStr) return { text: "Confirmou ontem", ghost: false };
+
+        // Calcular dias atrás
+        const sessionDate = new Date(lastSessionDate + "T12:00:00");
+        const diffDays = Math.round((today - sessionDate) / (1000 * 60 * 60 * 24));
+        if (diffDays > 4) return { text: `👻 sem confirmação há ${diffDays} dias`, ghost: true };
+        return { text: `Confirmou há ${diffDays} dias`, ghost: false };
+      }
+
+      function _formatWhatsapp(number) {
+        if (!number) return "—";
+        // Formata 5511999999999 → (11) 99999-9999
+        const digits = number.replace(/\D/g, "");
+        if (digits.length === 13 && digits.startsWith("55")) {
+          const ddd = digits.slice(2, 4);
+          const num = digits.slice(4);
+          if (num.length === 9) return `(${ddd}) ${num.slice(0, 5)}-${num.slice(5)}`;
+          if (num.length === 8) return `(${ddd}) ${num.slice(0, 4)}-${num.slice(4)}`;
+        }
+        return number;
+      }
+
+      function _alunosMatchesFilter(aluno, filter) {
+        if (filter === "todos") return true;
+        if (filter === "ativos") return aluno.is_active !== false;
+        if (filter === "pendentes") return aluno.payment_status === "pendente";
+        if (filter === "atrasados") return aluno.payment_status === "atrasado";
+        return true;
+      }
+
+      function _renderizarTabelaAlunos(alunos, filter) {
+        const tbody = document.getElementById("alunosBody");
+        if (!tbody) return;
+
+        const searchInput = document.getElementById("alunosBusca");
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
+        const filtered = alunos.filter(a => {
+          if (searchTerm && !escapeHtml(a.name || "").toLowerCase().includes(searchTerm)) return false;
+          return _alunosMatchesFilter(a, filter);
+        });
+
+        if (!filtered.length) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:32px;">Nenhum aluno encontrado</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = filtered.map(a => {
+          const initials = _alunoGetInitials(a.name);
+          const avatarColor = _alunoAvatarColor(a.name);
+          const checkin = _alunoCheckinLabel(a.last_session_date, a.last_session_created_at);
+          const whatsappFormatted = _formatWhatsapp(a.whatsapp_number);
+          const dueDay = a.payment_day ? `Dia ${a.payment_day}` : "—";
+          const safeId = escapeHtml(a.id);
+          const safeName = escapeHtml(a.name || "");
+          const safePhone = escapeHtml(a.whatsapp_number || "");
+
+          let statusBadge = "";
+          if (a.payment_status === "pago") {
+            statusBadge = `<span class="badge-pago">Pago</span>`;
+          } else if (a.payment_status === "atrasado") {
+            statusBadge = `<span class="badge-atrasado">Atrasado</span>`;
+          } else {
+            statusBadge = `<span class="badge-pendente">Pendente</span>`;
+          }
+
+          const checkinHtml = checkin
+            ? `<span class="student-checkin-label">${checkin.text}</span>`
+            : `<span class="student-checkin-label" style="color:#d1d5db;">Nunca treinou</span>`;
+
+          return `
+            <tr class="${checkin && checkin.ghost ? 'student-ghost' : ''}">
+              <td>
+                <div class="student-avatar-wrap">
+                  <div class="student-avatar" style="background:${avatarColor};">${initials}</div>
+                  <div class="student-name-wrap">
+                    <span class="student-name">${safeName}</span>
+                    ${checkinHtml}
+                  </div>
+                </div>
+              </td>
+              <td>
+                <a href="https://wa.me/${safePhone}" target="_blank" rel="noopener" class="student-whatsapp-link">${escapeHtml(whatsappFormatted)}</a>
+              </td>
+              <td><span class="student-due-day">${dueDay}</span></td>
+              <td>${statusBadge}</td>
+              <td>
+                <div class="student-actions">
+                  <button class="student-action-btn" title="Editar" onclick="openAlunoEditor('${safeId}')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button class="student-action-btn" title="Treinos" onclick="openAlunoEditor('${safeId}')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+                  </button>
+                  <button class="student-action-btn" title="Progresso" onclick="openAlunoEditor('${safeId}')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  </button>
+                  <button class="student-action-btn" title="Ver detalhes" onclick="openAlunoEditor('${safeId}')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                  </button>
+                  <button class="student-action-btn danger" title="Excluir" onclick="excluirAluno('${safeId}', '${safeName.replace(/'/g, "\\'")}')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      function _atualizarAlunosStats(alunos) {
+        const today = new Date().toISOString().slice(0, 10);
+        const confirmaramHoje = alunos.filter(a => a.last_session_date === today).length;
+
+        // "Fantasma": sem confirmação há mais de 4 dias (e está ativo)
+        const fantasmas = alunos.filter(a => {
+          if (a.is_active === false) return false;
+          if (!a.last_session_date) return false;
+          const diff = Math.round((new Date() - new Date(a.last_session_date + "T12:00:00")) / (1000 * 60 * 60 * 24));
+          return diff > 4;
+        }).length;
+
+        const activeCount = alunos.filter(a => a.is_active !== false).length;
+        const pendingCount = alunos.filter(a => a.payment_status === "pendente").length;
+        const overdueCount = alunos.filter(a => a.payment_status === "atrasado").length;
+
+        const subtitleEl = document.getElementById("alunosSubtitle");
+        if (subtitleEl) {
+          const parts = [];
+          parts.push(`${activeCount} aluno${activeCount !== 1 ? "s" : ""} ativo${activeCount !== 1 ? "s" : ""}`);
+          if (pendingCount > 0) parts.push(`${pendingCount} mensalidade${pendingCount !== 1 ? "s" : ""} pendente${pendingCount !== 1 ? "s" : ""}`);
+          if (overdueCount > 0) parts.push(`${overdueCount} em atraso`);
+          subtitleEl.textContent = parts.join(" · ");
+        }
+
+        const statHoje = document.getElementById("statConfirmaramHoje");
+        if (statHoje) statHoje.textContent = confirmaramHoje;
+
+        const statFantasma = document.getElementById("statFantasma");
+        if (statFantasma) statFantasma.textContent = fantasmas;
+      }
+
+      function filtrarAlunosLocal(searchValue) {
+        _renderizarTabelaAlunos(alunosTodosCache, alunosFilterAtivo);
+      }
+
+      function setAlunosFilter(filter, btnEl) {
+        alunosFilterAtivo = filter;
+        // Atualizar classes dos botões
+        document.querySelectorAll(".alunos-filter-btn").forEach(b => b.classList.remove("active"));
+        if (btnEl) btnEl.classList.add("active");
+        _renderizarTabelaAlunos(alunosTodosCache, filter);
       }
 
       async function openAlunoEditor(studentId) {
@@ -5429,11 +5618,38 @@
         }
       });
 
-      function removerExercicioDoTreino(index) {
+      function removerExercicioDoTreino(domIndex) {
+        // Encontrar a posição correta no array pelo índice DOM original (não pela posição atual no array)
+        const arrayPos = exerciciosDoTreino.findIndex((ex) => ex.index === domIndex);
+        if (arrayPos === -1) return;
+
+        // Remover o elemento do DOM usando o atributo de identificação
+        // items[] usa posição visual, que pode não coincidir com domIndex após remoções anteriores
+        exerciciosDoTreino.splice(arrayPos, 1);
+
+        // Limpar estado in-memory associado a esse índice DOM
+        delete exGroupState[domIndex];
+        delete exVarState[domIndex];
+        delete exEquipState[domIndex];
+        delete exGripState[domIndex];
+        delete exMethodState[domIndex];
+        delete bsMgState[domIndex];
+        if (grupoMuscularBuscaTimeout[domIndex]) { clearTimeout(grupoMuscularBuscaTimeout[domIndex]); delete grupoMuscularBuscaTimeout[domIndex]; }
+        if (catalogoBuscaTimeout[domIndex]) { clearTimeout(catalogoBuscaTimeout[domIndex]); delete catalogoBuscaTimeout[domIndex]; }
+        if (variacaoBuscaTimeout[domIndex]) { clearTimeout(variacaoBuscaTimeout[domIndex]); delete variacaoBuscaTimeout[domIndex]; }
+        if (equipamentoBuscaTimeout[domIndex]) { clearTimeout(equipamentoBuscaTimeout[domIndex]); delete equipamentoBuscaTimeout[domIndex]; }
+        if (gripBuscaTimeout[domIndex]) { clearTimeout(gripBuscaTimeout[domIndex]); delete gripBuscaTimeout[domIndex]; }
+        if (methodBuscaTimeout[domIndex]) { clearTimeout(methodBuscaTimeout[domIndex]); delete methodBuscaTimeout[domIndex]; }
+
+        // Remover o nó do DOM: buscar pelo exercicio-item que contém os inputs com esse domIndex
         const container = document.getElementById("exerciciosContainer");
-        const items = container.getElementsByClassName("exercicio-item");
-        items[index].remove();
-        exerciciosDoTreino.splice(index, 1);
+        const items = container.querySelectorAll(".exercicio-item");
+        for (const item of items) {
+          if (item.querySelector(`#excat_id_${domIndex}`) || item.querySelector(`#series_${domIndex}`)) {
+            item.remove();
+            break;
+          }
+        }
       }
 
       function limparFormularioTreino() {
@@ -5441,7 +5657,24 @@
         document.getElementById("treinoDataInicio").value = "";
         document.getElementById("exerciciosContainer").innerHTML = "";
         exerciciosDoTreino = [];
+
+        // Limpar todos os estados in-memory por índice para evitar dados stale
         Object.keys(exGroupState).forEach((key) => delete exGroupState[key]);
+        Object.keys(exVarState).forEach((key) => delete exVarState[key]);
+        Object.keys(exEquipState).forEach((key) => delete exEquipState[key]);
+        Object.keys(exGripState).forEach((key) => delete exGripState[key]);
+        Object.keys(exMethodState).forEach((key) => delete exMethodState[key]);
+        Object.keys(bsMgState).forEach((key) => delete bsMgState[key]);
+
+        // Cancelar todos os timeouts de debounce pendentes para evitar callbacks stale
+        Object.keys(grupoMuscularBuscaTimeout).forEach((key) => { clearTimeout(grupoMuscularBuscaTimeout[key]); delete grupoMuscularBuscaTimeout[key]; });
+        Object.keys(catalogoBuscaTimeout).forEach((key) => { clearTimeout(catalogoBuscaTimeout[key]); delete catalogoBuscaTimeout[key]; });
+        Object.keys(variacaoBuscaTimeout).forEach((key) => { clearTimeout(variacaoBuscaTimeout[key]); delete variacaoBuscaTimeout[key]; });
+        Object.keys(equipamentoBuscaTimeout).forEach((key) => { clearTimeout(equipamentoBuscaTimeout[key]); delete equipamentoBuscaTimeout[key]; });
+        Object.keys(gripBuscaTimeout).forEach((key) => { clearTimeout(gripBuscaTimeout[key]); delete gripBuscaTimeout[key]; });
+        Object.keys(methodBuscaTimeout).forEach((key) => { clearTimeout(methodBuscaTimeout[key]); delete methodBuscaTimeout[key]; });
+        Object.keys(bsBuscaTimeout).forEach((key) => { clearTimeout(bsBuscaTimeout[key]); delete bsBuscaTimeout[key]; });
+
         document.getElementById("treinosAlert").innerHTML = "";
       }
 
@@ -5458,27 +5691,30 @@
         const exercises = [];
         let orderCounter = 0;
         for (let i = 0; i < exerciciosDoTreino.length; i++) {
-          const variationIds = (document.getElementById(`exvarids_${i}`)?.value || "").split(",").filter(Boolean);
-          const catalogId = document.getElementById(`excat_id_${i}`)?.value;
-          const equipIds = (document.getElementById(`exequip_ids_${i}`)?.value || "").split(",").filter(Boolean);
-          const gripIds = (document.getElementById(`exgrip_ids_${i}`)?.value || "").split(",").filter(Boolean);
-          const methodIds = (document.getElementById(`exmethod_ids_${i}`)?.value || "").split(",").filter(Boolean);
-          const series = Number(document.getElementById(`series_${i}`)?.value);
-          const reps = Number(document.getElementById(`reps_${i}`)?.value);
-          const peso = document.getElementById(`peso_${i}`)?.value;
-          const descanso = document.getElementById(`descanso_${i}`)?.value;
-          const customDesc = document.getElementById(`exdesc_${i}`)?.value?.trim();
+          // Usar o índice real do DOM (exerciciosDoTreino[i].index) e não 'i',
+          // pois após remoções os índices HTML podem ser não-contíguos (ex: 0, 2, 3).
+          const domIdx = exerciciosDoTreino[i].index;
+          const variationIds = (document.getElementById(`exvarids_${domIdx}`)?.value || "").split(",").filter(Boolean);
+          const catalogId = document.getElementById(`excat_id_${domIdx}`)?.value;
+          const equipIds = (document.getElementById(`exequip_ids_${domIdx}`)?.value || "").split(",").filter(Boolean);
+          const gripIds = (document.getElementById(`exgrip_ids_${domIdx}`)?.value || "").split(",").filter(Boolean);
+          const methodIds = (document.getElementById(`exmethod_ids_${domIdx}`)?.value || "").split(",").filter(Boolean);
+          const series = Number(document.getElementById(`series_${domIdx}`)?.value);
+          const reps = Number(document.getElementById(`reps_${domIdx}`)?.value);
+          const peso = document.getElementById(`peso_${domIdx}`)?.value;
+          const descanso = document.getElementById(`descanso_${domIdx}`)?.value;
+          const customDesc = document.getElementById(`exdesc_${domIdx}`)?.value?.trim();
 
           // ── Bi-set: coletar dados do 2º exercício ──
-          const isBiset = document.getElementById(`biset_check_${i}`)?.checked;
-          const bsCatalogId  = document.getElementById(`bs_excat_id_${i}`)?.value;
-          const bsVariacaoId = document.getElementById(`bs_exvarid_${i}`)?.value;
-          const bsEquipId    = document.getElementById(`bs_exequip_id_${i}`)?.value;
-          const bsGripId     = document.getElementById(`bs_exgrip_id_${i}`)?.value;
-          const bsMethodId   = document.getElementById(`bs_exmethod_id_${i}`)?.value;
-          const bsReps       = document.getElementById(`bs_reps_${i}`)?.value;
-          const bsPeso       = document.getElementById(`bs_peso_${i}`)?.value;
-          const bsDescanso   = document.getElementById(`bs_descanso_${i}`)?.value;
+          const isBiset = document.getElementById(`biset_check_${domIdx}`)?.checked;
+          const bsCatalogId  = document.getElementById(`bs_excat_id_${domIdx}`)?.value;
+          const bsVariacaoId = document.getElementById(`bs_exvarid_${domIdx}`)?.value;
+          const bsEquipId    = document.getElementById(`bs_exequip_id_${domIdx}`)?.value;
+          const bsGripId     = document.getElementById(`bs_exgrip_id_${domIdx}`)?.value;
+          const bsMethodId   = document.getElementById(`bs_exmethod_id_${domIdx}`)?.value;
+          const bsReps       = document.getElementById(`bs_reps_${domIdx}`)?.value;
+          const bsPeso       = document.getElementById(`bs_peso_${domIdx}`)?.value;
+          const bsDescanso   = document.getElementById(`bs_descanso_${domIdx}`)?.value;
 
           if (!catalogId) {
             showAlert(
@@ -5548,28 +5784,30 @@
                     ...(bisetGroupId ? { biset_group_id: bisetGroupId } : {}),
                   });
                   orderCounter += 1;
-
-                  // 2º exercício do bi-set (mesmas séries, reps/peso próprios)
-                  if (isBiset && bsCatalogId) {
-                    exercises.push({
-                      ...(bsVariacaoId ? { exercise_variation_id: bsVariacaoId } : {}),
-                      exercise_catalog_id: bsCatalogId,
-                      ...(bsEquipId ? { equipment_id: bsEquipId } : {}),
-                      ...(bsGripId ? { grip_footing_id: bsGripId } : {}),
-                      ...(bsMethodId ? { method_id: bsMethodId } : {}),
-                      target_sets: series,
-                      target_reps: Number(bsReps),
-                      ...(bsPeso !== "" && bsPeso != null ? { target_weight: parseFloat(bsPeso) } : {}),
-                      order_index: orderCounter,
-                      ...(bsDescanso ? { rest_seconds: parseInt(bsDescanso) } : {}),
-                      custom_description: null,
-                      biset_group_id: bisetGroupId,
-                    });
-                    orderCounter += 1;
-                  }
                 }
               }
             }
+          }
+
+          // 2º exercício do bi-set: adicionado UMA ÚNICA VEZ fora do loop cartesiano,
+          // pois o bi-set usa seleção simples (não multi-select) e compartilha o mesmo
+          // bisetGroupId com TODOS os exercícios do 1º slot.
+          if (isBiset && bsCatalogId) {
+            exercises.push({
+              ...(bsVariacaoId ? { exercise_variation_id: bsVariacaoId } : {}),
+              exercise_catalog_id: bsCatalogId,
+              ...(bsEquipId ? { equipment_id: bsEquipId } : {}),
+              ...(bsGripId ? { grip_footing_id: bsGripId } : {}),
+              ...(bsMethodId ? { method_id: bsMethodId } : {}),
+              target_sets: series,
+              target_reps: Number(bsReps),
+              ...(bsPeso !== "" && bsPeso != null ? { target_weight: parseFloat(bsPeso) } : {}),
+              order_index: orderCounter,
+              ...(bsDescanso ? { rest_seconds: parseInt(bsDescanso) } : {}),
+              custom_description: null,
+              biset_group_id: bisetGroupId,
+            });
+            orderCounter += 1;
           }
         }
 

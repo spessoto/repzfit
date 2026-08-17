@@ -4,6 +4,43 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-08-17] – Redesign visual: topnav + página de Alunos (v1.5.0)
+
+### Visual / UX
+
+#### Navegação: sidebar removida → topnav horizontal
+- A barra lateral (`<aside class="sidebar">`) foi **completamente substituída** por um header fixo horizontal (`<header class="topnav">`), alinhado ao novo projeto visual da plataforma EZ Personal.
+- O topnav contém: logo + tagline à esquerda, abas de navegação centrais, e bloco de ações à direita (indicador do bot, ícone de perfil, ícone de configurações, nome do usuário, botão Sair).
+- A aba ativa recebe um **pill verde** (`rgba(115,213,55,0.9)`) com texto escuro, idêntico ao design de referência.
+- Totalmente responsivo: em telas pequenas o topnav compacta e oculta tagline e nome do usuário para preservar espaço.
+
+#### Página de Alunos redesenhada
+- **Cabeçalho de página** com título bold ("Alunos"), subtítulo dinâmico (ex: "6 alunos ativos · 2 mensalidades pendentes · 1 em atraso") e dois contadores à direita:
+  - **Confirmaram hoje** — alunos com sessão completada no dia.
+  - **Fantasma** (👻) — alunos ativos sem check-in há mais de 4 dias.
+- **Formulário "Novo aluno"** reestruturado em grid horizontal de 4 colunas: Nome Completo, WhatsApp, Vencimento (dia do mês) e botão "Adicionar aluno". Campo `payment_day` agora é enviado na criação do aluno.
+- **Lista de alunos** com:
+  - Barra de busca por nome (filtro local, sem nova requisição).
+  - Filtros rápidos por pill: Todos / Ativos / Pendentes / Atrasados.
+  - Tabela com 5 colunas: **ALUNO** (avatar com iniciais colorido + nome + label de último check-in), **WHATSAPP** (link `wa.me/` clicável), **VENCIMENTO** ("Dia 10"), **STATUS** (badge Pago / Pendente / Atrasado), **AÇÕES RÁPIDAS** (5 ícones: editar, treinos, progresso, expandir, excluir).
+  - Labels contextuais de check-in: "Confirmou hoje · 07:12", "Confirmou ontem", "Confirmou há N dias", "👻 sem confirmação há N dias".
+
+### Backend — `GET /students/list` enriquecido
+- O endpoint de listagem (`/api/students/list`) agora retorna campos adicionais por aluno **sem migration** (apenas SELECTs em tabelas existentes):
+  - `payment_day` — dia do vencimento da mensalidade (descriptografado).
+  - `last_session_date` + `last_session_created_at` — data e hora ISO da última sessão completada em `daily_sessions`.
+  - `payment_status` — `"pago"` / `"pendente"` / `"atrasado"` calculado no servidor com base no registro de `student_payment_records` do mês corrente e no `payment_day`.
+- As queries extras (`daily_sessions` e `student_payment_records`) são feitas em lote único por página de alunos, sem N+1.
+
+### JavaScript
+- `criarAluno()` inclui `payment_day` do novo campo de vencimento no POST.
+- `carregarAlunos()` reescrito: renderiza avatares com iniciais, labels de check-in, badges de status e ações rápidas; atualiza contadores e subtítulo do cabeçalho.
+- Novas funções de suporte: `filtrarAlunosLocal`, `setAlunosFilter`, `_renderizarTabelaAlunos`, `_atualizarAlunosStats`, `_alunoGetInitials`, `_alunoAvatarColor`, `_alunoCheckinLabel`, `_formatWhatsapp`, `_alunosMatchesFilter`.
+- `querySelectorAll(".tab")` substituído por `querySelectorAll(".topnav-tab")` em `openPersonalPage` e `switchTab`.
+- `setAdminModeUI` atualizado para usar `display: inline-flex` (compatível com `.topnav-tab`).
+
+---
+
 ## [2026-08-04] – Bi-set, busca tolerante a acentos e correções de treino (v1.4.0)
 
 ### Adicionado

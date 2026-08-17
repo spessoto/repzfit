@@ -25,62 +25,180 @@
       }
 
       .app-shell {
-        display: grid;
-        grid-template-columns: 280px minmax(0, 1fr);
+        display: flex;
+        flex-direction: column;
         min-height: 100vh;
       }
 
-      .sidebar {
+      /* ── Top Navigation Bar ── */
+      .topnav {
         background: #0d1b26;
         color: #ffffff;
-        padding: 24px 16px;
         display: flex;
-        flex-direction: column;
-        gap: 12px;
-        box-shadow: 4px 0 20px rgba(36, 20, 53, 0.18);
+        align-items: center;
+        gap: 0;
+        padding: 0 24px;
+        height: 64px;
         position: sticky;
         top: 0;
-        height: 100vh;
-        overflow: hidden;
-        border-right: 1px solid rgba(255, 255, 255, 0.12);
-        isolation: isolate;
+        z-index: 100;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+        flex-shrink: 0;
       }
 
-      .sidebar::before {
+      .topnav-brand {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 1px;
+        margin-right: 28px;
+        flex-shrink: 0;
+      }
+
+      .topnav-brand img {
+        width: 130px;
+        display: block;
+      }
+
+      .topnav-brand-tagline {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.5);
+        white-space: nowrap;
+        line-height: 1.2;
+      }
+
+      .topnav-tabs {
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+        flex: 1;
+        height: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+      }
+
+      .topnav-tabs::-webkit-scrollbar {
+        display: none;
+      }
+
+      .topnav-tab {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        padding: 0 18px;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: color 0.2s ease, background 0.2s ease;
+        height: 100%;
+      }
+
+      .topnav-tab::after {
         content: "";
         position: absolute;
-        inset: 0;
-        background:
-          radial-gradient(
-            circle at 14% 10%,
-            rgba(255, 255, 255, 0.18),
-            transparent 34%
-          ),
-          radial-gradient(
-            circle at 88% 86%,
-            rgba(255, 255, 255, 0.1),
-            transparent 38%
-          );
-        pointer-events: none;
-        z-index: 0;
+        bottom: 0;
+        left: 8px;
+        right: 8px;
+        height: 3px;
+        border-radius: 3px 3px 0 0;
+        background: #73d537;
+        opacity: 0;
+        transform: scaleX(0.5);
+        transform-origin: center;
+        transition: opacity 0.2s ease, transform 0.2s ease;
       }
 
-      .sidebar > * {
-        position: relative;
-        z-index: 1;
+      .topnav-tab.active {
+        color: #024d3a;
+        background: rgba(115, 213, 55, 0.9);
+        border-radius: 8px;
+        margin: 12px 4px;
+        height: auto;
+        padding: 7px 18px;
+        align-self: center;
       }
 
-      .sidebar-brand {
+      .topnav-tab.active::after {
+        display: none;
+      }
+
+      .topnav-tab:hover:not(.active) {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .topnav-tab:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.6);
+        outline-offset: -2px;
+      }
+
+      .topnav-actions {
         display: flex;
-        justify-content: center;
         align-items: center;
-        padding: 4px 0 10px;
+        gap: 10px;
+        margin-left: 16px;
+        flex-shrink: 0;
       }
 
-      .sidebar-brand img {
-        width: 170px;
-        max-width: 100%;
-        display: block;
+      .topnav-icon-btn {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.85);
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease;
+      }
+
+      .topnav-icon-btn:hover {
+        background: rgba(255, 255, 255, 0.18);
+        color: #ffffff;
+      }
+
+      .topnav-username {
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.8);
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .topnav-logout-btn {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: rgba(255, 255, 255, 0.8);
+        padding: 6px 14px;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease;
+        white-space: nowrap;
+      }
+
+      .topnav-logout-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+      }
+
+      /* WhatsApp status in topnav — compact variant */
+      .topnav .whatsapp-status-indicator {
+        padding: 5px 12px;
+        font-size: 12px;
+        border-radius: 14px;
+        border-width: 1.5px;
       }
 
       .login-brand {
@@ -93,83 +211,20 @@
         max-width: 100%;
       }
 
-      .sidebar-user {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.28);
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.11);
-        backdrop-filter: blur(4px);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
-        margin-top: auto;
-      }
-
-      .sidebar-user-top {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-      }
-
-      .btn-icon-ghost {
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        background: rgba(255, 255, 255, 0.12);
-        color: #ffffff;
-        width: 30px;
-        height: 30px;
-        border-radius: 8px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        transition:
-          transform 0.2s ease,
-          background 0.2s ease;
-      }
-
-      .btn-icon-ghost:hover {
-        background: rgba(255, 255, 255, 0.22);
-        transform: translateY(-1px);
-      }
-
-      .sidebar-user span {
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.9);
-        font-weight: 600;
-      }
+      /* Legacy sidebar-user kept for admin fallback (hidden in new layout) */
+      .sidebar-user { display: none; }
+      .sidebar-user-top { display: none; }
+      .btn-icon-ghost { display: none; }
 
       .content-area {
-        padding: 24px;
+        padding: 28px 32px;
         overflow-x: hidden;
         min-width: 0;
+        flex: 1;
       }
 
-      .header {
-        background: #ffffff;
-        padding: 18px 22px;
-        border-radius: 14px;
-        margin-bottom: 18px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border: 1px solid #ebedf2;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-      }
-
-      .header h1 {
-        color: #024d3a;
-        font-size: 22px;
-      }
-
-      .header .user-info {
-        display: flex;
-        gap: 15px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
+      /* Legacy header hidden — now using page-header per-page */
+      .header { display: none; }
 
       .btn {
         padding: 10px 20px;
@@ -318,105 +373,11 @@
         pointer-events: none;
       }
 
-      .tabs {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        margin-top: 10px;
-        overflow-y: auto;
-        overflow-x: hidden;
-        flex: 1;
-        padding-right: 3px;
-      }
-
-      .tabs::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-      }
-
-      .tabs::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.28);
-        border-radius: 999px;
-      }
-
-      .tabs::-webkit-scrollbar-track {
-        background: transparent;
-      }
-
-      .tab {
-        width: calc(100% + 32px);
-        margin-left: -16px;
-        position: relative;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        text-align: left;
-        padding: 13px 18px;
-        background: transparent;
-        border: none;
-        border-radius: 0;
-        cursor: pointer;
-        font-weight: 700;
-        letter-spacing: 0.2px;
-        color: rgba(255, 255, 255, 0.95);
-        transition: all 0.25s ease;
-      }
-
-      .tab-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 16px;
-        font-size: 12px;
-        line-height: 1;
-        color: currentColor;
-        opacity: 0.95;
-      }
-
-      .tab-label {
-        line-height: 1.1;
-      }
-
-      .tab::after {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 9px;
-        bottom: 9px;
-        width: 3px;
-        border-radius: 999px;
-        background: #ffffff;
-        opacity: 0;
-        transform: scaleY(0.45);
-        transform-origin: center;
-        transition:
-          opacity 0.2s ease,
-          transform 0.2s ease;
-      }
-
-      .tab.active {
-        background: rgba(255, 255, 255, 0.24);
-        color: #ffffff;
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
-      }
-
-      .tab.active::after {
-        opacity: 0.95;
-        transform: scaleY(1);
-      }
-
-      .tab:hover {
-        background: rgba(255, 255, 255, 0.16);
-      }
-
-      .tab.active:hover {
-        background: rgba(255, 255, 255, 0.24);
-      }
-
-      .tab:focus-visible {
-        outline: 2px solid rgba(255, 255, 255, 0.75);
-        outline-offset: -2px;
-      }
+      /* Legacy sidebar tab styles — superseded by .topnav-tab */
+      .tabs { display: none; }
+      .tab { display: none; }
+      .tab-icon { display: none; }
+      .tab-label { display: none; }
 
       .tab-content {
         display: none;
@@ -424,6 +385,375 @@
 
       .tab-content.active {
         display: block;
+      }
+
+      /* ── Alunos Page Layout ── */
+
+      .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+      }
+
+      .page-header-left {
+        flex: 1;
+      }
+
+      .page-title {
+        font-size: 28px;
+        font-weight: 800;
+        color: #0d1b26;
+        line-height: 1.1;
+        margin-bottom: 6px;
+      }
+
+      .page-subtitle {
+        font-size: 13px;
+        color: #6b7280;
+        font-weight: 400;
+      }
+
+      .page-header-stats {
+        display: flex;
+        gap: 32px;
+        align-items: flex-start;
+        flex-shrink: 0;
+      }
+
+      .page-stat {
+        text-align: left;
+      }
+
+      .page-stat-number {
+        display: block;
+        font-size: 26px;
+        font-weight: 800;
+        color: #0d1b26;
+        line-height: 1;
+      }
+
+      .page-stat-label {
+        display: block;
+        font-size: 11px;
+        color: #6b7280;
+        margin-top: 3px;
+        font-weight: 500;
+      }
+
+      .page-stat-alert .page-stat-number {
+        color: #dc2626;
+      }
+
+      .ghost-emoji {
+        font-size: 12px;
+      }
+
+      .card-section-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #0d1b26;
+        margin-bottom: 20px;
+        display: block;
+      }
+
+      /* Aluno add form grid */
+      .aluno-add-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto;
+        gap: 16px;
+        align-items: flex-end;
+      }
+
+      .aluno-add-btn-wrap {
+        display: flex;
+        align-items: flex-end;
+        padding-bottom: 0;
+      }
+
+      .btn-add-aluno {
+        white-space: nowrap;
+        padding: 11px 24px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 700;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .form-label-upper {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        color: #9ca3af;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+
+      /* Aluno add form — override global form-group styles for the add row */
+      .aluno-add-grid .form-group input {
+        height: 42px;
+        padding: 0 12px;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+        background: #ffffff;
+        color: #1f2937;
+        width: 100%;
+        transition: border-color 0.15s ease;
+      }
+
+      .aluno-add-grid .form-group input:focus {
+        outline: none;
+        border-color: #73d537;
+      }
+
+      /* Alunos list header */
+      .alunos-list-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .alunos-search-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .alunos-search-icon {
+        position: absolute;
+        left: 10px;
+        color: #9ca3af;
+        pointer-events: none;
+      }
+
+      .alunos-search-input {
+        padding: 8px 12px 8px 34px !important;
+        height: 36px !important;
+        border: 1.5px solid #e5e7eb !important;
+        border-radius: 8px !important;
+        font-size: 13px !important;
+        width: 220px;
+        background: #ffffff !important;
+        color: #1f2937 !important;
+      }
+
+      .alunos-search-input:focus {
+        outline: none;
+        border-color: #73d537 !important;
+      }
+
+      .alunos-filter-tabs {
+        display: flex;
+        gap: 6px;
+        margin-left: auto;
+      }
+
+      .alunos-filter-btn {
+        padding: 7px 16px;
+        border-radius: 20px;
+        border: 1.5px solid #e5e7eb;
+        background: #ffffff;
+        color: #374151;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+      }
+
+      .alunos-filter-btn:hover {
+        border-color: #024d3a;
+        color: #024d3a;
+      }
+
+      .alunos-filter-btn.active {
+        background: #024d3a;
+        border-color: #024d3a;
+        color: #ffffff;
+      }
+
+      /* Alunos table */
+      .alunos-table-wrap {
+        overflow-x: auto;
+      }
+
+      .alunos-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 700px;
+      }
+
+      .alunos-table thead tr {
+        border-bottom: 1px solid #f1f5f9;
+      }
+
+      .alunos-table th {
+        font-size: 11px;
+        font-weight: 700;
+        color: #9ca3af;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0 16px 12px;
+        background: transparent;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .alunos-table td {
+        padding: 0 16px;
+        height: 68px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+        font-size: 14px;
+        color: #1f2937;
+      }
+
+      .alunos-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      .alunos-table tbody tr:hover td {
+        background: #f9fafb;
+      }
+
+      /* Student avatar */
+      .student-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 800;
+        color: #ffffff;
+        flex-shrink: 0;
+        background: #024d3a;
+      }
+
+      .student-avatar-wrap {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .student-name-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .student-name {
+        font-weight: 700;
+        color: #0d1b26;
+        font-size: 14px;
+      }
+
+      .student-checkin-label {
+        font-size: 12px;
+        color: #9ca3af;
+      }
+
+      .student-ghost .student-checkin-label {
+        color: #dc2626;
+      }
+
+      /* WhatsApp link in table */
+      .student-whatsapp-link {
+        color: #024d3a;
+        font-weight: 500;
+        text-decoration: none;
+        font-size: 14px;
+      }
+
+      .student-whatsapp-link:hover {
+        text-decoration: underline;
+      }
+
+      /* Payment day cell */
+      .student-due-day {
+        color: #374151;
+        font-weight: 500;
+      }
+
+      /* Payment status badges */
+      .badge-pago {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        background: rgba(34, 197, 94, 0.12);
+        color: #15803d;
+        border: 1px solid rgba(34, 197, 94, 0.25);
+      }
+
+      .badge-pendente {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        background: rgba(251, 191, 36, 0.12);
+        color: #92400e;
+        border: 1px solid rgba(251, 191, 36, 0.3);
+      }
+
+      .badge-atrasado {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        background: rgba(239, 68, 68, 0.1);
+        color: #b91c1c;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+      }
+
+      /* Quick actions column */
+      .student-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        justify-content: flex-end;
+      }
+
+      .student-action-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        background: #ffffff;
+        color: #6b7280;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        transition: all 0.15s ease;
+      }
+
+      .student-action-btn:hover {
+        border-color: #024d3a;
+        color: #024d3a;
+        background: rgba(2, 77, 58, 0.05);
+      }
+
+      .student-action-btn.danger:hover {
+        border-color: #dc2626;
+        color: #dc2626;
+        background: rgba(220, 38, 38, 0.05);
       }
 
       table {
@@ -1234,81 +1564,16 @@
       }
 
       @media (max-width: 1024px) {
-        .app-shell {
-          grid-template-columns: 1fr;
-          min-height: auto;
-        }
-
-        .sidebar {
-          position: relative;
-          top: auto;
-          height: auto;
-          overflow: visible;
-          padding: 16px;
-          gap: 12px;
-          box-shadow: none;
-          border-right: none;
-        }
-
-        .tabs {
-          flex: 0 0 auto;
-          flex-direction: row;
-          gap: 8px;
-          margin-top: 0;
-          padding-bottom: 4px;
-          overflow-x: auto;
-          overflow-y: hidden;
-        }
-
-        .tab {
-          width: auto;
-          min-width: max-content;
-          margin-left: 0;
-          padding: 10px 14px;
-          border-radius: 10px;
-        }
-
-        .tab::after {
-          left: 10px;
-          right: 10px;
-          top: auto;
-          bottom: 4px;
-          width: auto;
-          height: 2px;
-          transform: scaleX(0.5);
-          transform-origin: center;
-        }
-
-        .tab.active::after {
-          transform: scaleX(1);
-        }
-
-        .sidebar-user {
-          margin-top: 10px;
-        }
-
         .content-area {
-          padding: 16px;
+          padding: 16px 20px;
         }
 
-        .header {
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 10px;
+        .aluno-add-grid {
+          grid-template-columns: 1fr 1fr;
         }
 
-        .header .user-info {
-          width: 100%;
-          justify-content: flex-start;
-        }
-
-        .card {
-          padding: 18px;
-          overflow-x: auto;
-        }
-
-        .card table {
-          min-width: 720px;
+        .aluno-add-btn-wrap {
+          grid-column: span 2;
         }
 
         .editor-grid {
@@ -1352,6 +1617,11 @@
           width: 100%;
           padding: 16px;
         }
+
+        .card {
+          padding: 18px;
+          overflow-x: auto;
+        }
       }
 
       @media (max-width: 768px) {
@@ -1379,13 +1649,30 @@
           display: none;
         }
 
-        .header h1 {
-          font-size: 20px;
+        .topnav {
+          padding: 0 16px;
+          height: 56px;
         }
 
-        .whatsapp-status-indicator {
-          width: 100%;
-          justify-content: center;
+        .topnav-brand-tagline {
+          display: none;
+        }
+
+        .topnav-username {
+          display: none;
+        }
+
+        .topnav-actions {
+          gap: 8px;
+        }
+
+        .topnav-logout-btn {
+          padding: 5px 10px;
+          font-size: 12px;
+        }
+
+        .whatsapp-status-indicator span:last-child {
+          display: none;
         }
 
         .exercise-fields-grid {
@@ -1396,16 +1683,44 @@
           grid-template-columns: 1fr;
         }
 
-        .card table {
-          min-width: 640px;
-        }
-
         .finance-metrics {
           grid-template-columns: 1fr;
         }
 
         .payment-history-row {
           grid-template-columns: 1fr;
+        }
+
+        .aluno-add-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .aluno-add-btn-wrap {
+          grid-column: 1;
+        }
+
+        .page-header {
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .page-header-stats {
+          gap: 24px;
+        }
+
+        .alunos-list-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+        }
+
+        .alunos-filter-tabs {
+          margin-left: 0;
+          flex-wrap: wrap;
+        }
+
+        .alunos-search-input {
+          width: 100% !important;
         }
       }
 
