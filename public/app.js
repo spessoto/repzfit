@@ -2366,27 +2366,25 @@
 
         root.innerHTML = `
           <div class="workout-search-shell">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block;">Buscar treino para atribuir</label>
-              <div style="position:relative;">
-                <input
-                  type="text"
-                  id="studentWorkoutSearchInput"
-                  placeholder="Buscar pelo nome do treino..."
-                  autocomplete="off"
-                  oninput="buscarTreinosParaAluno(this.value)"
-                  onfocus="mostrarTodosTreinosParaAluno()"
-                  style="width:100%;padding:9px 36px 9px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;"
-                />
-                <svg style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#9ca3af;pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              </div>
+            <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block;">Buscar treino para atribuir</label>
+            <div style="position:relative;">
+              <input
+                type="text"
+                id="studentWorkoutSearchInput"
+                placeholder="Clique ou digite para buscar um treino..."
+                autocomplete="off"
+                oninput="buscarTreinosParaAluno(this.value)"
+                onfocus="mostrarTodosTreinosParaAluno()"
+                style="width:100%;padding:9px 36px 9px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;"
+              />
+              <svg style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#9ca3af;pointer-events:none;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <div id="studentWorkoutDropdown" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
-            <div id="studentWorkoutSearchResults"></div>
             <div id="selectedWorkoutForStudent"></div>
           </div>
         `;
 
-        // Pré-carregar lista de treinos ao abrir (sem filtro)
+        // Pré-carregar lista ao abrir para ficar pronta quando o usuário clicar
         _carregarListaTreinosDisponiveis("", false);
       }
 
@@ -2403,9 +2401,9 @@
         }, 200);
       }
 
-      async function _carregarListaTreinosDisponiveis(query, showEmpty) {
-        const resultsRoot = document.getElementById("studentWorkoutSearchResults");
-        if (!resultsRoot) return;
+      async function _carregarListaTreinosDisponiveis(query, showDropdown) {
+        const dropdown = document.getElementById("studentWorkoutDropdown");
+        if (!dropdown) return;
 
         try {
           const response = await fetch(`${getApiBaseUrl()}/api/workouts`, {
@@ -2425,37 +2423,43 @@
             ? available.filter((w) => String(w.name || "").toLowerCase().includes(query.toLowerCase()))
             : available;
 
-          if (filtered.length === 0) {
-            resultsRoot.innerHTML = query
-              ? `<p style="color:#6b7280;font-size:12px;padding:8px 0;">Nenhum treino encontrado para "${escapeHtml(query)}".</p>`
-              : (showEmpty ? `<p style="color:#6b7280;font-size:12px;padding:8px 0;">Nenhum treino disponível para atribuir.</p>` : "");
+          if (!showDropdown && !query) {
+            dropdown.style.display = "none";
             return;
           }
 
-          resultsRoot.innerHTML = `
-            <div class="workout-search-results">
-              ${filtered.map((w) => {
-                const exerciseCount = Array.isArray(w.exercises) ? w.exercises.length : 0;
-                const meta = [
-                  w.start_date ? `Início: ${w.start_date}` : null,
-                  exerciseCount > 0 ? `${exerciseCount} exercício${exerciseCount !== 1 ? "s" : ""}` : null,
-                ].filter(Boolean).join(" · ");
-                return `
-                  <div class="workout-search-item" onclick="selecionarTreinoParaAluno('${escapeHtml(w.id)}')" style="cursor:pointer;">
-                    <div>
-                      <strong style="font-size:13px;color:#0d1b26;">${escapeHtml(w.name || "Treino")}</strong>
-                      ${meta ? `<div class="workout-search-meta">${escapeHtml(meta)}</div>` : ""}
-                    </div>
-                    <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px;flex-shrink:0;"
-                      onclick="event.stopPropagation();selecionarTreinoParaAluno('${escapeHtml(w.id)}')">
-                      Selecionar
-                    </button>
-                  </div>`;
-              }).join("")}
+          if (filtered.length === 0) {
+            dropdown.innerHTML = `<div style="padding:10px;color:#6b7280;font-size:13px;">
+              ${query ? `Nenhum treino encontrado para "${escapeHtml(query)}".` : "Nenhum treino disponível para atribuir."}
             </div>`;
+            dropdown.style.display = "block";
+            return;
+          }
+
+          dropdown.innerHTML = filtered.map((w) => {
+            const exerciseCount = Array.isArray(w.exercises) ? w.exercises.length : 0;
+            const meta = [
+              w.day_of_week ? w.day_of_week : null,
+              exerciseCount > 0 ? `${exerciseCount} exercício${exerciseCount !== 1 ? "s" : ""}` : null,
+            ].filter(Boolean).join(" · ");
+            return `
+              <div class="autocomplete-item"
+                   onclick="selecionarTreinoParaAluno('${escapeHtml(w.id)}')"
+                   onmouseover="this.style.background='#f3f4f6'"
+                   onmouseout="this.style.background='white'">
+                <strong>${escapeHtml(w.name || "Treino")}</strong>
+                ${meta ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(meta)}</div>` : ""}
+              </div>`;
+          }).join("");
+          dropdown.style.display = "block";
+
         } catch (error) {
           console.error("Erro ao buscar treinos para aluno:", error);
-          resultsRoot.innerHTML = `<p style="color:#ef4444;font-size:12px;padding:8px 0;">Erro ao buscar treinos.</p>`;
+          const dropdown2 = document.getElementById("studentWorkoutDropdown");
+          if (dropdown2) {
+            dropdown2.innerHTML = `<div style="padding:10px;color:#ef4444;font-size:13px;">Erro ao buscar treinos.</div>`;
+            dropdown2.style.display = "block";
+          }
         }
       }
 
@@ -2467,22 +2471,53 @@
 
         selectedWorkoutForStudent = workout;
 
-        const selectedRoot = document.getElementById(
-          "selectedWorkoutForStudent",
-        );
+        // Fechar o dropdown
+        const dropdown = document.getElementById("studentWorkoutDropdown");
+        if (dropdown) dropdown.style.display = "none";
+
+        // Preencher o input com o nome do treino selecionado
+        const input = document.getElementById("studentWorkoutSearchInput");
+        if (input) input.value = workout.name || "";
+
+        // Renderizar bloco de confirmação
+        const selectedRoot = document.getElementById("selectedWorkoutForStudent");
         if (!selectedRoot) return;
 
+        const exerciseCount = Array.isArray(workout.exercises) ? workout.exercises.length : 0;
+        const meta = [
+          workout.day_of_week ? workout.day_of_week : null,
+          exerciseCount > 0 ? `${exerciseCount} exercício${exerciseCount !== 1 ? "s" : ""}` : null,
+        ].filter(Boolean).join(" · ");
+
         selectedRoot.innerHTML = `
-          <div class="selected-workout-box">
-            <p><strong>Treino selecionado:</strong> ${escapeHtml(workout.name || "Treino")}</p>
-            <p class="workout-search-meta">Início: ${escapeHtml(workout.start_date || "-")}</p>
-            <div class="form-group" style="margin-top: 8px;">
-              <label>Validade para este aluno</label>
-              <input type="date" id="selectedWorkoutValidUntil" />
+          <div class="selected-workout-box" style="margin-top:10px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+              <div>
+                <strong style="font-size:13px;color:#0d1b26;">${escapeHtml(workout.name || "Treino")}</strong>
+                ${meta ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(meta)}</div>` : ""}
+              </div>
+              <button type="button" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:18px;line-height:1;padding:2px 4px;"
+                onclick="limparSelecaoTreino()" title="Limpar seleção">&times;</button>
             </div>
-            <button class="btn btn-primary" onclick="atribuirTreinoAoAlunoAtual()">Atribuir</button>
+            <div class="form-group" style="margin-bottom:10px;">
+              <label style="font-size:12px;font-weight:600;color:#6b7280;">Validade para este aluno (opcional)</label>
+              <input type="date" id="selectedWorkoutValidUntil" style="height:36px;" />
+            </div>
+            <button class="btn btn-primary" style="width:100%;font-size:13px;height:38px;" onclick="atribuirTreinoAoAlunoAtual()">
+              Atribuir treino ao aluno
+            </button>
           </div>
         `;
+      }
+
+      function limparSelecaoTreino() {
+        selectedWorkoutForStudent = null;
+        const input = document.getElementById("studentWorkoutSearchInput");
+        if (input) { input.value = ""; input.focus(); }
+        const selectedRoot = document.getElementById("selectedWorkoutForStudent");
+        if (selectedRoot) selectedRoot.innerHTML = "";
+        // Mostrar todos os treinos novamente
+        mostrarTodosTreinosParaAluno();
       }
 
       async function salvarTreinoAluno(workoutId) {
@@ -6368,9 +6403,16 @@
         }
       }
 
-      // Fechar dropdown ao clicar fora
+      // Fechar dropdown ao clicar fora — inclui o campo de busca de treinos do aluno
       document.addEventListener("click", function (e) {
-        if (!e.target.matches('[id^="exmg_search_"], [id^="excat_search_"], [id^="tab_mg_search_"], [id^="tab_cat_search_"], [id^="exvar_search_"], [id^="exequip_search_"], [id^="exgrip_search_"], [id^="exmethod_search_"], [id^="tab_var_search_"], [id^="tab_equip_search_"], [id^="tab_grip_search_"], [id^="tab_method_search_"]')) {
+        const isSearchInput = e.target.matches(
+          '[id^="exmg_search_"], [id^="excat_search_"], [id^="tab_mg_search_"], ' +
+          '[id^="tab_cat_search_"], [id^="exvar_search_"], [id^="exequip_search_"], ' +
+          '[id^="exgrip_search_"], [id^="exmethod_search_"], [id^="tab_var_search_"], ' +
+          '[id^="tab_equip_search_"], [id^="tab_grip_search_"], [id^="tab_method_search_"], ' +
+          '#studentWorkoutSearchInput'
+        );
+        if (!isSearchInput) {
           document
             .querySelectorAll(".autocomplete-dropdown")
             .forEach((dropdown) => {
