@@ -694,11 +694,23 @@
         return `/personal/${safePage}${query ? `?${query}` : ""}`;
       }
 
-      function buildAlunoEditorUrl(studentId) {
+      function buildAlunoEditorUrl(studentId, view) {
         const params = new URLSearchParams(window.location.search);
         params.delete("page");
+        if (view) {
+          params.set("view", view);
+        } else {
+          params.delete("view");
+        }
         const query = params.toString();
         return `/personal/alunos/${encodeURIComponent(studentId)}${query ? `?${query}` : ""}`;
+      }
+
+      /** Lê o parâmetro ?view= da URL (dados | treinos | progresso) */
+      function getAlunoEditorViewFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const v = params.get("view");
+        return (v === "treinos" || v === "progresso") ? v : "dados";
       }
 
       function navigatePersonalPage(page) {
@@ -730,6 +742,9 @@
           if (alunoEditorId) {
             currentEditingStudentId = alunoEditorId;
             document.getElementById("studentEditorAlert").innerHTML = "";
+            // Ativa a view correta antes de carregar dados
+            const view = getAlunoEditorViewFromUrl();
+            _ativarViewEditor(view);
             await carregarDetalhesAlunoEditor(alunoEditorId);
           } else {
             currentEditingStudentId = null;
@@ -756,6 +771,49 @@
 
         if (safePage === "configuracoes") {
           await carregarConfiguracoes();
+        }
+      }
+
+      /**
+       * Ativa uma view do editor de aluno (dados | treinos | progresso).
+       * Atualiza os botões de nav e mostra/oculta as seções.
+       */
+      function _ativarViewEditor(view) {
+        const views = ["dados", "treinos", "progresso"];
+        const safeView = views.includes(view) ? view : "dados";
+
+        const labels = { dados: "Dados do Aluno", treinos: "Treinos", progresso: "Progresso" };
+        const subtitleEl = document.getElementById("studentEditorViewLabel");
+        if (subtitleEl) subtitleEl.textContent = labels[safeView] || "";
+
+        // Mostrar/ocultar sections
+        views.forEach(v => {
+          const el = document.getElementById(`studentView${v.charAt(0).toUpperCase() + v.slice(1)}`);
+          if (el) el.classList.toggle("hidden", v !== safeView);
+        });
+
+        // Atualizar botões de nav
+        document.querySelectorAll(".student-editor-nav-btn").forEach(btn => {
+          btn.classList.toggle("active", btn.dataset.view === safeView);
+        });
+      }
+
+      /**
+       * Handler dos botões de nav do editor — muda a view SEM recarregar a página.
+       */
+      function openAlunoEditorView(view, btnEl) {
+        _ativarViewEditor(view);
+        // Atualiza URL com ?view= para preservar estado em reloads
+        if (currentEditingStudentId) {
+          const newUrl = buildAlunoEditorUrl(currentEditingStudentId, view);
+          history.replaceState(null, "", newUrl);
+        }
+        // Se mudou para progresso e ainda não carregou sessões, carrega agora
+        if (view === "progresso" && currentEditingStudentId && studentInsightsActiveTab === "history") {
+          const sessionsEl = document.getElementById("studentEditorSessions");
+          if (sessionsEl && !sessionsEl.hasChildNodes()) {
+            carregarSessoesAluno(currentEditingStudentId, 1);
+          }
         }
       }
 
@@ -1305,19 +1363,16 @@
               <td>${statusBadge}</td>
               <td>
                 <div class="student-actions">
-                  <button class="student-action-btn" title="Editar" onclick="openAlunoEditor('${safeId}')">
+                  <button class="student-action-btn" title="Editar dados" onclick="openAlunoEditor('${safeId}', 'dados')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
-                  <button class="student-action-btn" title="Treinos" onclick="openAlunoEditor('${safeId}')">
+                  <button class="student-action-btn" title="Treinos" onclick="openAlunoEditor('${safeId}', 'treinos')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
                   </button>
-                  <button class="student-action-btn" title="Progresso" onclick="openAlunoEditor('${safeId}')">
+                  <button class="student-action-btn" title="Progresso e relatório" onclick="openAlunoEditor('${safeId}', 'progresso')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                   </button>
-                  <button class="student-action-btn" title="Ver detalhes" onclick="openAlunoEditor('${safeId}')">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                  </button>
-                  <button class="student-action-btn danger" title="Excluir" onclick="excluirAluno('${safeId}', '${safeName.replace(/'/g, "\\'")}')">
+                  <button class="student-action-btn danger" title="Excluir aluno" onclick="excluirAluno('${safeId}', '${safeName.replace(/'/g, "\\'")}')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                   </button>
                 </div>
@@ -1371,9 +1426,9 @@
         _renderizarTabelaAlunos(alunosTodosCache, filter);
       }
 
-      async function openAlunoEditor(studentId) {
+      async function openAlunoEditor(studentId, view) {
         if (!studentId) return;
-        window.location.href = buildAlunoEditorUrl(studentId);
+        window.location.href = buildAlunoEditorUrl(studentId, view || null);
       }
 
       async function excluirAluno(studentId, studentName) {
@@ -1475,8 +1530,11 @@
             student.payment_day,
           );
 
-          // Carregar sessões da primeira página separadamente (não bloqueia o render inicial)
-          carregarSessoesAluno(studentId, 1);
+          // Carregar sessões apenas se a view de progresso estiver ativa
+          const currentView = getAlunoEditorViewFromUrl();
+          if (currentView === "progresso") {
+            carregarSessoesAluno(studentId, 1);
+          }
         } catch (error) {
           console.error("Erro ao carregar detalhes do aluno:", error);
           showAlert("studentEditorAlert", "Erro ao carregar dados do aluno", "error");

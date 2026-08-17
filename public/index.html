@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/app.css?v=202608170002" />
+    <link rel="stylesheet" href="/app.css?v=202608170003" />
   </head>
   <body>
     <!-- Login Screen -->
@@ -290,8 +290,8 @@
                   <input type="text" id="alunoWhatsapp" placeholder="(11) 99999-9999" />
                 </div>
                 <div class="form-group">
-                  <label class="form-label-upper">VENCIMENTO</label>
-                  <input type="number" id="alunoVencimento" placeholder="10" min="1" max="31" />
+                  <label class="form-label-upper">VENCIMENTO DA MENSALIDADE</label>
+                  <input type="number" id="alunoVencimento" placeholder="Dia (1-31)" min="1" max="31" />
                 </div>
                 <div class="aluno-add-btn-wrap">
                   <button class="btn btn-primary btn-add-aluno" onclick="criarAluno()">
@@ -381,140 +381,140 @@
           </div>
 
           <div id="alunoEditorTab" class="tab-content">
-            <div class="card" style="margin-bottom: 16px">
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  gap: 10px;
-                  flex-wrap: wrap;
-                "
-              >
-                <h2 style="margin: 0; color: #1f2937">
-                  Editar Aluno: <span id="studentEditorTitleName">-</span>
-                </h2>
-                <button class="btn btn-secondary" onclick="closeAlunoEditor()">
-                  &#8592; Voltar para Alunos
-                </button>
+
+            <!-- Cabeçalho do editor: nome + nav de views + voltar -->
+            <div class="student-editor-header">
+              <div class="student-editor-header-top">
+                <div class="student-editor-title-wrap">
+                  <button class="student-editor-back-btn" onclick="closeAlunoEditor()" title="Voltar para lista de alunos">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                  </button>
+                  <div>
+                    <h2 class="student-editor-name" id="studentEditorTitleName">-</h2>
+                    <p class="student-editor-subtitle" id="studentEditorViewLabel">Dados do Aluno</p>
+                  </div>
+                </div>
               </div>
-              <p style="color: #6b7280; margin-top: 8px">
-                Página dedicada para visualizar e editar dados, treinos e sessões do aluno.
-              </p>
+
+              <!-- Nav de sub-views -->
+              <nav class="student-editor-nav" aria-label="Seções do aluno">
+                <button class="student-editor-nav-btn active" data-view="dados" onclick="openAlunoEditorView('dados', this)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  Dados
+                </button>
+                <button class="student-editor-nav-btn" data-view="treinos" onclick="openAlunoEditorView('treinos', this)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+                  Treinos
+                </button>
+                <button class="student-editor-nav-btn" data-view="progresso" onclick="openAlunoEditorView('progresso', this)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  Progresso
+                </button>
+              </nav>
             </div>
 
             <div id="studentEditorAlert"></div>
 
-            <div class="card" style="margin-bottom: 16px">
-              <h3 style="margin-bottom: 14px; color: #374151">Dados do Aluno</h3>
-              <div class="editor-grid">
-                <div class="form-group">
-                  <label>Nome</label>
-                  <input type="text" id="editAlunoNome" />
+            <!-- ── View: Dados do Aluno ── -->
+            <div id="studentViewDados" class="student-editor-view">
+              <div class="card" style="margin-bottom: 16px">
+                <h3 class="student-section-heading">Dados do Aluno</h3>
+                <div class="editor-grid">
+                  <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="editAlunoNome" />
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="editAlunoEmail" />
+                  </div>
+                  <div class="form-group">
+                    <label>WhatsApp</label>
+                    <input type="text" id="editAlunoWhatsapp" />
+                  </div>
+                  <div class="form-group">
+                    <label>Tipo Sanguíneo</label>
+                    <input type="text" id="editAlunoTipoSanguineo" placeholder="Ex: O+" />
+                  </div>
+                  <div class="form-group">
+                    <label>Peso (kg)</label>
+                    <input type="number" id="editAlunoPeso" min="0" step="0.1" />
+                  </div>
+                  <div class="form-group">
+                    <label>Altura (cm)</label>
+                    <input type="number" id="editAlunoAltura" min="0" step="0.1" />
+                  </div>
+                  <div class="form-group">
+                    <label>Valor mensalidade (R$)</label>
+                    <input type="number" id="editAlunoMensalidade" min="0" step="0.01" placeholder="Ex: 250" />
+                  </div>
+                  <div class="form-group">
+                    <label>Vencimento da mensalidade</label>
+                    <input type="number" id="editAlunoDiaPagamento" min="1" max="31" step="1" placeholder="Dia (1-31)" />
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Email</label>
-                  <input type="email" id="editAlunoEmail" />
-                </div>
-                <div class="form-group">
-                  <label>WhatsApp</label>
-                  <input type="text" id="editAlunoWhatsapp" />
-                </div>
-                <div class="form-group">
-                  <label>Tipo Sanguineo</label>
-                  <input
-                    type="text"
-                    id="editAlunoTipoSanguineo"
-                    placeholder="Ex: O+"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>Peso (kg)</label>
-                  <input type="number" id="editAlunoPeso" min="0" step="0.1" />
-                </div>
-                <div class="form-group">
-                  <label>Altura (cm)</label>
-                  <input type="number" id="editAlunoAltura" min="0" step="0.1" />
-                </div>
-                <div class="form-group">
-                  <label>Valor mensalidade (R$)</label>
-                  <input
-                    type="number"
-                    id="editAlunoMensalidade"
-                    min="0"
-                    step="0.01"
-                    placeholder="Ex: 250"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>Dia de pagamento</label>
-                  <input
-                    type="number"
-                    id="editAlunoDiaPagamento"
-                    min="1"
-                    max="31"
-                    step="1"
-                    placeholder="Ex: 10"
-                  />
+                <div style="margin-top: 16px">
+                  <button class="btn btn-primary" onclick="salvarAlunoEdicao()">Salvar dados do aluno</button>
                 </div>
               </div>
-              <div style="margin-top: 12px">
-                <button class="btn btn-primary" onclick="salvarAlunoEdicao()">
-                  Salvar dados do aluno
-                </button>
+
+              <div class="card">
+                <h3 class="student-section-heading">Pagamentos</h3>
+                <div id="studentEditorPaymentsHistory">
+                  <p style="color:#6b7280;">Carregando histórico de pagamentos...</p>
+                </div>
               </div>
             </div>
 
-            <div class="card" style="margin-bottom: 16px">
-              <div class="student-editor-two-columns">
-                <div class="student-editor-column-card">
-                  <h4 style="margin-bottom:10px; color:#374151;">Controle de pagamentos (mês/ano)</h4>
-                  <div id="studentEditorPaymentsHistory">
-                    <p style="color:#6b7280;">Carregando histórico de pagamentos...</p>
-                  </div>
-                </div>
+            <!-- ── View: Treinos ── -->
+            <div id="studentViewTreinos" class="student-editor-view hidden">
+              <div class="card">
+                <h3 class="student-section-heading">Treinos do Aluno</h3>
 
-                <div class="student-editor-column-card">
-                  <h4 style="margin-bottom: 10px; color: #374151">
+                <div class="student-editor-column-card" style="margin-bottom: 20px;">
+                  <h4 style="margin-bottom: 10px; color: #374151; font-size: 14px; font-weight: 700;">
                     Atribuir treino modelo
                   </h4>
                   <div id="studentEditorAvailableWorkouts"></div>
                 </div>
-              </div>
 
-              <h3 style="margin-bottom: 10px; color: #374151">Treinos do Aluno</h3>
-              <div id="studentEditorWorkouts"></div>
+                <div id="studentEditorWorkouts"></div>
+              </div>
             </div>
 
-            <div class="card">
-              <div class="student-insights-tabs">
-                <button
-                  id="studentHistoryTabButton"
-                  class="student-insights-tab active"
-                  onclick="openStudentInsightsTab('history')"
-                >
-                  Treinos Realizados
-                </button>
-                <button
-                  id="studentReportTabButton"
-                  class="student-insights-tab"
-                  onclick="openStudentInsightsTab('report')"
-                >
-                  Relatório do Aluno
-                </button>
-              </div>
+            <!-- ── View: Progresso ── -->
+            <div id="studentViewProgresso" class="student-editor-view hidden">
+              <div class="card">
+                <div class="student-insights-tabs">
+                  <button
+                    id="studentHistoryTabButton"
+                    class="student-insights-tab active"
+                    onclick="openStudentInsightsTab('history')"
+                  >
+                    Treinos Realizados
+                  </button>
+                  <button
+                    id="studentReportTabButton"
+                    class="student-insights-tab"
+                    onclick="openStudentInsightsTab('report')"
+                  >
+                    Relatório do Aluno
+                  </button>
+                </div>
 
-              <div id="studentInsightsHistoryPanel" class="student-insights-panel active">
-                <div id="studentEditorSessions"></div>
-                <div id="studentSessionsPagination"></div>
-              </div>
+                <div id="studentInsightsHistoryPanel" class="student-insights-panel active">
+                  <div id="studentEditorSessions"></div>
+                  <div id="studentSessionsPagination"></div>
+                </div>
 
-              <div id="studentInsightsReportPanel" class="student-insights-panel">
-                <div id="studentEditorReport">
-                  <p style="color:#6b7280;">Selecione a aba de relatório para carregar os dados.</p>
+                <div id="studentInsightsReportPanel" class="student-insights-panel">
+                  <div id="studentEditorReport">
+                    <p style="color:#6b7280;">Selecione a aba de relatório para carregar os dados.</p>
+                  </div>
                 </div>
               </div>
             </div>
+
           </div>
 
           <!-- Exercícios Tab -->
@@ -1458,7 +1458,7 @@
       </div>
     </div>
 
-    <script defer src="/app.js?v=202608170002"></script>
+    <script defer src="/app.js?v=202608170003"></script>
     <script>
       window.si =
         window.si ||
