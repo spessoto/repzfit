@@ -1,8 +1,8 @@
 /**
  * claude-service.ts
  *
- * Substituto drop-in do gemini-service.ts usando Claude claude-haiku-4-5
- * via Anthropic Messages API (fetch puro — sem SDK).
+ * Substituto drop-in do gemini-service.ts usando Claude Haiku 4.5
+ * via Amazon Bedrock Converse API (Bearer token — sem SDK, sem AWS Sig V4).
  *
  * Exporta exatamente as mesmas funções e constantes que gemini-service.ts
  * para que bot-engine.ts e personal.ts não precisem mudar além do import.
@@ -10,11 +10,12 @@
 
 import { env } from "../config/env.js";
 
-const ANTHROPIC_API_BASE = "https://api.anthropic.com/v1";
-const CLAUDE_MODEL        = "claude-haiku-4-5";
-const ANTHROPIC_VERSION   = "2023-06-01";
+// Endpoint da Bedrock Converse API para Claude Haiku 4.5
+// Model ID: us.anthropic.claude-haiku-4-5-20251001-v1:0
+const BEDROCK_REGION      = "us-east-1";
+const BEDROCK_MODEL_ID    = "us.anthropic.claude-haiku-4-5-20251001-v1:0";
+const BEDROCK_ENDPOINT    = `https://bedrock-runtime.${BEDROCK_REGION}.amazonaws.com/model/${BEDROCK_MODEL_ID}/converse`;
 
-// Reutilizado por generateExerciseDescription
 const MAX_EXERCISE_DESCRIPTION_CHARS = 150;
 
 // ── Retry com backoff exponencial ────────────────────────────────────────────
@@ -27,10 +28,10 @@ async function fetchWithRetry(
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const response = await fetch(url, options);
-    // Anthropic usa 529 (overloaded) além de 503
-    if (response.status !== 503 && response.status !== 529) return response;
+    // Bedrock usa 503 e 429 (throttling) como erros transitórios
+    if (response.status !== 503 && response.status !== 429) return response;
     lastError = new Error(
-      `Anthropic API unavailable (${response.status}) after ${attempt + 1} attempt(s)`,
+      `Bedrock API unavailable (${response.status}) after ${attempt + 1} attempt(s)`,
     );
     if (attempt < maxRetries - 1) {
       await new Promise((resolve) =>
@@ -41,7 +42,7 @@ async function fetchWithRetry(
   throw lastError!;
 }
 
-// ── Helper interno: chama a Messages API ─────────────────────────────────────
+// ── Helper interno: chama a Bedrock Converse API ──────────────────────────────
 
 async function callClaude(
   systemPrompt: string,
@@ -49,45 +50,48 @@ async function callClaude(
   maxTokens = 300,
   temperature = 0.7,
 ): Promise<string> {
-  if (!env.ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY não configurada");
+  if (!env.BEDROCK_API_KEY) {
+    throw new Error("BEDROCK_API_KEY não configurada");
   }
 
-  const response = await fetchWithRetry(`${ANTHROPIC_API_BASE}/messages`, {
+  const response = await fetchWithRetry(BEDROCK_ENDPOINT, {
     method: "POST",
     headers: {
-      "Content-Type":         "application/json",
-      "x-api-key":            env.ANTHROPIC_API_KEY,
-      "anthropic-version":    ANTHROPIC_VERSION,
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${env.BEDROCK_API_KEY}`,
     },
     body: JSON.stringify({
-      model:      CLAUDE_MODEL,
-      max_tokens: maxTokens,
-      temperature,
-      system:     systemPrompt,
+      system: [{ text: systemPrompt }],
       messages: [
-        { role: "user", content: userMessage },
+        { role: "user", content: [{ text: userMessage }] },
       ],
+      inferenceConfig: {
+        maxTokens,
+        temperature,
+      },
     }),
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Anthropic API error ${response.status}: ${error}`);
+    throw new Error(`Bedrock API error ${response.status}: ${error}`);
   }
 
   const data = (await response.json()) as {
-    content?: Array<{ type: string; text?: string }>;
+    output?: {
+      message?: {
+        content?: Array<{ text?: string }>;
+      };
+    };
   };
 
-  const text = data.content
-    ?.filter((b) => b.type === "text")
-    .map((b) => b.text ?? "")
+  const text = data.output?.message?.content
+    ?.map((b) => b.text ?? "")
     .join("")
     .trim();
 
   if (!text) {
-    throw new Error("Claude retornou resposta vazia");
+    throw new Error("Bedrock retornou resposta vazia");
   }
 
   return text;
@@ -97,7 +101,6 @@ async function callClaude(
 
 /**
  * Normaliza a descrição gerada pela IA (trunca, remove pontuação final).
- * Idêntica à versão do gemini-service.
  */
 export function normalizeExerciseAIDescription(
   text: string,
@@ -109,9 +112,9 @@ export function normalizeExerciseAIDescription(
 
   if (compact.length <= maxChars) return compact;
 
-  const sliced  = compact.slice(0, maxChars);
+  const sliced    = compact.slice(0, maxChars);
   const lastSpace = sliced.lastIndexOf(" ");
-  const safeCut = lastSpace >= Math.floor(maxChars * 0.6) ? lastSpace : maxChars;
+  const safeCut   = lastSpace >= Math.floor(maxChars * 0.6) ? lastSpace : maxChars;
 
   return sliced
     .slice(0, safeCut)
@@ -121,7 +124,6 @@ export function normalizeExerciseAIDescription(
 
 /**
  * Prompt padrão para o coach de treino (persona REPZ).
- * Idêntico ao do gemini-service para manter o comportamento do bot.
  */
 export const COACH_SYSTEM_PROMPT = `Você é o REPZ, um coach de treino virtual via WhatsApp. Sua personalidade é:
 
@@ -139,9 +141,7 @@ export const COACH_SYSTEM_PROMPT = `Você é o REPZ, um coach de treino virtual 
 6. Não invente dados - sempre peça confirmação quando necessário`;
 
 /**
- * Gera uma resposta personalizada usando Claude claude-haiku-4-5
- * com personalidade de coach motivador e empático.
- *
+ * Gera uma resposta personalizada usando Claude Haiku via Bedrock.
  * API idêntica a generateBotResponse do gemini-service.
  */
 export async function generateBotResponse(context: {
@@ -153,7 +153,7 @@ export async function generateBotResponse(context: {
 }
 
 /**
- * Gera descrição técnica e grupo muscular para uma variação de exercício via IA.
+ * Gera descrição técnica e grupo muscular para um exercício via IA.
  * API idêntica a generateExerciseDescription do gemini-service.
  */
 export async function generateExerciseDescription(params: {
@@ -217,7 +217,7 @@ ${muscleGroupList}`;
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
   } catch {
-    throw new Error(`Claude retornou resposta inválida: ${text}`);
+    throw new Error(`Bedrock retornou resposta inválida: ${text}`);
   }
 
   const mgName  = (parsed.muscleGroup ?? "").trim();

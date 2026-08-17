@@ -23,9 +23,9 @@ const EnvSchema = z.object({
   CRON_SECRET: z.string().min(16).optional(),
   REST_TIMER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
 
-  OPENAI_API_KEY: z.string().min(1).optional(),
-  GEMINI_API_KEY: z.string().min(1).optional(),
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_KEY:    z.string().min(1).optional(),
+  GEMINI_API_KEY:    z.string().min(1).optional(),
+  BEDROCK_API_KEY:   z.string().min(1).optional(),
 
   // Field-level encryption (LGPD compliance)
   // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
