@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/app.css?v=202608170003" />
+    <link rel="stylesheet" href="/app.css?v=202608170005" />
   </head>
   <body>
     <!-- Login Screen -->
@@ -1458,7 +1458,27 @@
       </div>
     </div>
 
-    <script defer src="/app.js?v=202608170003"></script>
+    <!-- ── Sistema de notificações centralizado ── -->
+
+    <!-- Toast container: empilha toasts no topo-centro -->
+    <div id="toastContainer" aria-live="polite" aria-atomic="false"></div>
+
+    <!-- Modal de confirmação centralizado (substitui confirm() nativo) -->
+    <div id="confirmModal" class="confirm-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+      <div class="confirm-modal-panel">
+        <div class="confirm-modal-icon-wrap" id="confirmModalIconWrap">
+          <!-- ícone injetado via JS -->
+        </div>
+        <h3 class="confirm-modal-title" id="confirmModalTitle">Confirmar ação</h3>
+        <p class="confirm-modal-message" id="confirmModalMessage"></p>
+        <div class="confirm-modal-actions">
+          <button class="confirm-modal-btn confirm-modal-btn-cancel" id="confirmModalCancel">Cancelar</button>
+          <button class="confirm-modal-btn confirm-modal-btn-confirm" id="confirmModalConfirm">Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+    <script defer src="/app.js?v=202608170005"></script>
     <script>
       window.si =
         window.si ||

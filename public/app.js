@@ -514,8 +514,8 @@
 
       function handleUnauthorized() {
         console.warn("Token expirado ou inválido, fazendo logout...");
-        alert("Sua sessão expirou. Por favor, faça login novamente.");
-        logout();
+        showToast("Sua sessão expirou. Faça login novamente.", "warn", 5000);
+        setTimeout(logout, 1500);
       }
 
       async function loadApp() {
@@ -1433,9 +1433,13 @@
 
       async function excluirAluno(studentId, studentName) {
         const nome = studentName || "este aluno";
-        if (!confirm(`Deseja realmente excluir ${nome}?`)) {
-          return;
-        }
+        const ok = await showConfirm(`Deseja realmente excluir ${nome}? Esta ação não pode ser desfeita.`, {
+          title: "Excluir aluno",
+          confirmLabel: "Excluir",
+          cancelLabel: "Cancelar",
+          variant: "danger",
+        });
+        if (!ok) return;
 
         try {
           const response = await fetch(
@@ -2200,9 +2204,12 @@
       }
 
       async function desvincularTreinoDoAluno(workoutId) {
-        if (!confirm("Deseja remover este treino do aluno?")) {
-          return;
-        }
+        const ok = await showConfirm("Deseja remover este treino do aluno?", {
+          title: "Remover treino",
+          confirmLabel: "Remover",
+          variant: "danger",
+        });
+        if (!ok) return;
 
         try {
           if (!currentEditingStudentId) return;
@@ -2422,9 +2429,12 @@
       }
 
       async function excluirExercicioTreino(workoutId, workoutExerciseId) {
-        if (!confirm("Deseja excluir este exercício do treino?")) {
-          return;
-        }
+        const ok = await showConfirm("Deseja excluir este exercício do treino?", {
+          title: "Excluir exercício",
+          confirmLabel: "Excluir",
+          variant: "danger",
+        });
+        if (!ok) return;
 
         try {
           const response = await fetch(
@@ -3146,8 +3156,9 @@
       async function excluirPersonalAdmin(personalId, personalName) {
         if (!adminToken) return;
 
-        const confirmado = confirm(
-          `Tem certeza que deseja excluir o personal "${personalName}"?\nEssa ação não pode ser desfeita.`,
+        const confirmado = await showConfirm(
+          `Deseja realmente excluir o personal "${personalName}"? Esta ação não pode ser desfeita.`,
+          { title: "Excluir personal", confirmLabel: "Excluir", variant: "danger" }
         );
         if (!confirmado) return;
 
@@ -3488,8 +3499,9 @@
       async function deletarAlunoAdmin(alunoId, alunoName) {
         if (!adminToken) return;
 
-        const confirmado = confirm(
-          `Tem certeza que deseja deletar o aluno "${alunoName}"?\nEssa ação não pode ser desfeita.`,
+        const confirmado = await showConfirm(
+          `Deseja realmente excluir o aluno "${alunoName}"? Esta ação não pode ser desfeita.`,
+          { title: "Excluir aluno", confirmLabel: "Excluir", variant: "danger" }
         );
         if (!confirmado) return;
 
@@ -3768,11 +3780,12 @@
       async function desconectarWhatsAppAdmin() {
         if (!isAdminSession || !adminToken) return;
 
-        if (
-          !confirm("Tem certeza que deseja desconectar o WhatsApp unificado?")
-        ) {
-          return;
-        }
+        const ok = await showConfirm("Deseja desconectar o WhatsApp unificado? O bot ficará offline até uma nova conexão.", {
+          title: "Desconectar WhatsApp",
+          confirmLabel: "Desconectar",
+          variant: "danger",
+        });
+        if (!ok) return;
 
         try {
           const response = await fetch(
@@ -3802,10 +3815,10 @@
             container.innerHTML = "";
           }
 
-          alert("WhatsApp desconectado com sucesso.");
+          showToast("WhatsApp desconectado com sucesso.", "success");
           verificarStatusWhatsAppAdmin();
         } catch (error) {
-          alert(error.message || "Erro ao desconectar WhatsApp.");
+          showToast(error.message || "Erro ao desconectar WhatsApp.", "error");
         }
       }
 
@@ -4021,9 +4034,12 @@
       }
 
       async function resetarBaseExercicios() {
-        if (!confirm("Deseja realmente zerar sua base de exercícios e execuções? Esta ação não pode ser desfeita.")) {
-          return;
-        }
+        const ok = await showConfirm("Deseja realmente zerar toda a base de exercícios e execuções? Esta ação não pode ser desfeita.", {
+          title: "Zerar base de exercícios",
+          confirmLabel: "Zerar tudo",
+          variant: "danger",
+        });
+        if (!ok) return;
 
         try {
           const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog/reset-base`, {
@@ -4282,7 +4298,7 @@
       }
 
       async function excluirGrupoMuscular(id, nome) {
-        if (!confirm(`Deseja excluir o grupo muscular "${nome}"?`)) return;
+        if (!await showConfirm(`Deseja excluir o grupo muscular "${nome}"?`, { title: "Excluir grupo muscular", confirmLabel: "Excluir", variant: "danger" })) return;
         try {
           const response = await fetch(`${getApiBaseUrl()}/api/muscle-groups/${id}`, {
             method: "DELETE",
@@ -4547,7 +4563,7 @@
       }
 
       async function excluirCatalogoExercicio(id, nome) {
-        if (!confirm(`Deseja excluir o exercício "${nome}"?`)) return;
+        if (!await showConfirm(`Deseja excluir o exercício "${nome}"?`, { title: "Excluir exercício", confirmLabel: "Excluir", variant: "danger" })) return;
         const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${authToken}` },
@@ -4562,7 +4578,7 @@
       }
 
       async function excluirVariacaoExercicio(id, nome) {
-        if (!confirm(`Deseja excluir a execução "${nome}"?`)) return;
+        if (!await showConfirm(`Deseja excluir a execução "${nome}"?`, { title: "Excluir execução", confirmLabel: "Excluir", variant: "danger" })) return;
         const response = await fetch(`${getApiBaseUrl()}/api/exercise-variations/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${authToken}` },
@@ -4577,7 +4593,7 @@
       }
 
       async function excluirPegadaPisadaExercicio(id, nome) {
-        if (!confirm(`Deseja excluir a pegada/pisada "${nome}"?`)) return;
+        if (!await showConfirm(`Deseja excluir a pegada/pisada "${nome}"?`, { title: "Excluir pegada/pisada", confirmLabel: "Excluir", variant: "danger" })) return;
         const response = await fetch(`${getApiBaseUrl()}/api/grip-footing-catalog/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${authToken}` },
@@ -4592,7 +4608,7 @@
       }
 
       async function excluirMetodoExercicio(id, nome) {
-        if (!confirm(`Deseja excluir o método "${nome}"?`)) return;
+        if (!await showConfirm(`Deseja excluir o método "${nome}"?`, { title: "Excluir método", confirmLabel: "Excluir", variant: "danger" })) return;
         const response = await fetch(`${getApiBaseUrl()}/api/method-catalog/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${authToken}` },
@@ -4607,7 +4623,7 @@
       }
 
       async function excluirEquipamentoExercicio(id, nome) {
-        if (!confirm(`Deseja excluir o equipamento "${nome}"?`)) return;
+        if (!await showConfirm(`Deseja excluir o equipamento "${nome}"?`, { title: "Excluir equipamento", confirmLabel: "Excluir", variant: "danger" })) return;
         const response = await fetch(`${getApiBaseUrl()}/api/equipment-catalog/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${authToken}` },
@@ -5093,7 +5109,7 @@
         const catSearch = document.getElementById(`bs_excat_search_${index}`)?.value;
         const catId     = document.getElementById(`bs_excat_id_${index}`)?.value;
         if (!catId) {
-          alert("Selecione o 2º exercício do Bi-set antes de confirmar.");
+          showToast("Selecione o 2º exercício do Bi-set antes de confirmar.", "warn");
           return;
         }
         const block = document.getElementById(`biset_block_${index}`);
@@ -6431,9 +6447,12 @@
       }
 
       async function excluirTreinoNaAba(workoutId) {
-        if (!confirm("Deseja realmente excluir este treino?")) {
-          return;
-        }
+        const ok = await showConfirm("Deseja realmente excluir este treino?", {
+          title: "Excluir treino",
+          confirmLabel: "Excluir",
+          variant: "danger",
+        });
+        if (!ok) return;
 
         try {
           const response = await fetch(
@@ -6528,9 +6547,12 @@
       }
 
       async function excluirExercicioTreinoNaAba(workoutId, workoutExerciseId) {
-        if (!confirm("Deseja excluir este exercício do treino?")) {
-          return;
-        }
+        const ok = await showConfirm("Deseja excluir este exercício do treino?", {
+          title: "Excluir exercício",
+          confirmLabel: "Excluir",
+          variant: "danger",
+        });
+        if (!ok) return;
 
         try {
           const response = await fetch(
@@ -6567,7 +6589,11 @@
 
       // Desagrupa um par de bi-set: remove biset_group_id de ambos, mantendo os exercícios
       async function desagruparBiset(workoutId, weIdA, weIdB) {
-        if (!confirm("Desagrupar o Bi-set? Os dois exercícios serão mantidos como exercícios individuais.")) return;
+        if (!await showConfirm("Desagrupar o Bi-set? Os dois exercícios serão mantidos como exercícios individuais.", {
+          title: "Desagrupar Bi-set",
+          confirmLabel: "Desagrupar",
+          variant: "safe",
+        })) return;
         try {
           const patchBisetNull = async (weId) => {
             const res = await fetch(
@@ -7812,9 +7838,12 @@
       }
 
       async function desconectarWhatsApp() {
-        if (!confirm("Tem certeza que deseja desconectar o WhatsApp?")) {
-          return;
-        }
+        const ok = await showConfirm("Deseja desconectar o WhatsApp? O bot ficará offline até uma nova conexão.", {
+          title: "Desconectar WhatsApp",
+          confirmLabel: "Desconectar",
+          variant: "danger",
+        });
+        if (!ok) return;
 
         try {
           const apiUrl =
@@ -7831,28 +7860,166 @@
           );
 
           if (response.ok) {
-            alert("WhatsApp desconectado com sucesso!");
+            showToast("WhatsApp desconectado com sucesso!", "success");
             verificarStatusWhatsApp();
           } else {
-            alert("Erro ao desconectar. Tente novamente.");
+            showToast("Erro ao desconectar. Tente novamente.", "error");
           }
         } catch (error) {
-          alert("Erro ao desconectar WhatsApp.");
+          showToast("Erro ao desconectar WhatsApp.", "error");
         }
       }
 
+      // ═══════════════════════════════════════════════════════════════════
+      // SISTEMA DE NOTIFICAÇÕES CENTRALIZADO
+      // ═══════════════════════════════════════════════════════════════════
+
+      const TOAST_ICONS = {
+        success: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+        error:   `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+        info:    `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+        warn:    `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+      };
+
+      /**
+       * Exibe um toast centralizado no topo da tela.
+       * @param {string} message - Texto da mensagem
+       * @param {"success"|"error"|"info"|"warn"} type - Tipo da notificação
+       * @param {number} [duration=4000] - Tempo em ms antes de fechar (0 = não fecha)
+       */
+      function showToast(message, type, duration) {
+        const safeType = ["success", "error", "info", "warn"].includes(type) ? type : "info";
+        const ms = duration !== undefined ? duration : (safeType === "error" ? 5000 : 4000);
+
+        const container = document.getElementById("toastContainer");
+        if (!container) return;
+
+        const toast = document.createElement("div");
+        toast.className = `toast toast-${safeType}`;
+        toast.style.setProperty("--toast-duration", `${ms}ms`);
+        toast.setAttribute("role", "status");
+        toast.innerHTML = `
+          <span class="toast-icon">${TOAST_ICONS[safeType]}</span>
+          <span class="toast-text">${escapeHtml(message)}</span>
+          <button class="toast-close" aria-label="Fechar" onclick="this.parentElement._closeToast()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>`;
+
+        let timer = null;
+        toast._closeToast = function () {
+          if (timer) clearTimeout(timer);
+          toast.classList.add("toast-out");
+          toast.addEventListener("animationend", () => toast.remove(), { once: true });
+        };
+
+        container.appendChild(toast);
+
+        if (ms > 0) {
+          timer = setTimeout(() => toast._closeToast(), ms);
+        }
+      }
+
+      /**
+       * Compatibilidade retroativa: redireciona showAlert para showToast.
+       * O elementId é ignorado — o toast é sempre centralizado.
+       */
       function showAlert(elementId, message, type) {
-        const alert = document.getElementById(elementId);
-        alert.className = `alert alert-${type}`;
-        alert.textContent = message;
-        alert.classList.remove("hidden");
-        setTimeout(() => alert.classList.add("hidden"), 3000);
+        const toastType = type === "success" ? "success" : type === "error" ? "error" : "info";
+        showToast(message, toastType);
+      }
+
+      // ── Modal de confirmação (substitui confirm() nativo) ──────────────────
+
+      let _confirmResolve = null;
+
+      /**
+       * Exibe um modal de confirmação centralizado.
+       * @param {string} message - Mensagem de confirmação
+       * @param {object} [options]
+       * @param {string} [options.title] - Título do modal
+       * @param {string} [options.confirmLabel] - Label do botão de confirmar
+       * @param {string} [options.cancelLabel] - Label do botão de cancelar
+       * @param {"danger"|"safe"} [options.variant] - Estilo do botão confirmar
+       * @returns {Promise<boolean>} true se confirmado, false se cancelado
+       */
+      function showConfirm(message, options) {
+        const opts = options || {};
+        const title        = opts.title        || "Confirmar ação";
+        const confirmLabel = opts.confirmLabel || "Confirmar";
+        const cancelLabel  = opts.cancelLabel  || "Cancelar";
+        const variant      = opts.variant === "safe" ? "safe" : "danger";
+
+        return new Promise(function(resolve) {
+          // Cancela qualquer confirm anterior pendente
+          if (_confirmResolve) _confirmResolve(false);
+          _confirmResolve = resolve;
+
+          const modal    = document.getElementById("confirmModal");
+          const titleEl  = document.getElementById("confirmModalTitle");
+          const msgEl    = document.getElementById("confirmModalMessage");
+          const iconWrap = document.getElementById("confirmModalIconWrap");
+          const confirmBtn = document.getElementById("confirmModalConfirm");
+          const cancelBtn  = document.getElementById("confirmModalCancel");
+
+          if (!modal) { resolve(false); return; }
+
+          titleEl.textContent  = title;
+          msgEl.textContent    = message;
+          confirmBtn.textContent = confirmLabel;
+          cancelBtn.textContent  = cancelLabel;
+
+          // Ícone
+          if (variant === "danger") {
+            iconWrap.className = "confirm-modal-icon-wrap confirm-modal-icon-danger";
+            iconWrap.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+            confirmBtn.className = "confirm-modal-btn confirm-modal-btn-confirm";
+          } else {
+            iconWrap.className = "confirm-modal-icon-wrap confirm-modal-icon-warn";
+            iconWrap.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+            confirmBtn.className = "confirm-modal-btn confirm-modal-btn-confirm safe";
+          }
+
+          function handleConfirm() {
+            close(true);
+          }
+          function handleCancel() {
+            close(false);
+          }
+          function handleBackdrop(e) {
+            if (e.target === modal) close(false);
+          }
+          function handleKey(e) {
+            if (e.key === "Escape") close(false);
+            if (e.key === "Enter")  close(true);
+          }
+
+          function close(result) {
+            modal.classList.remove("open");
+            confirmBtn.removeEventListener("click", handleConfirm);
+            cancelBtn.removeEventListener("click",  handleCancel);
+            modal.removeEventListener("click", handleBackdrop);
+            document.removeEventListener("keydown", handleKey);
+            _confirmResolve = null;
+            resolve(result);
+          }
+
+          confirmBtn.addEventListener("click", handleConfirm);
+          cancelBtn.addEventListener("click",  handleCancel);
+          modal.addEventListener("click", handleBackdrop);
+          document.addEventListener("keydown", handleKey);
+
+          modal.classList.add("open");
+          // Foco no botão de cancelar por segurança
+          setTimeout(() => cancelBtn.focus(), 50);
+        });
       }
 
       function showError(elementId, message) {
         const el = document.getElementById(elementId);
-        el.textContent = message;
-        el.classList.remove("hidden");
+        if (el) {
+          el.textContent = message;
+          el.classList.remove("hidden");
+        }
       }
 
       // ============================================
