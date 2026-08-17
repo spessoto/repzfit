@@ -562,8 +562,10 @@
 
         const name = personalData?.name || "Personal";
         document.getElementById("userName").textContent = name;
-        // Preencher avatar com iniciais
+        // Preencher avatar e nome no drawer mobile
         _setProfileAvatar(name);
+        const mobileTitle = document.getElementById("mobileMenuUserName");
+        if (mobileTitle) mobileTitle.textContent = name;
       }
 
       function openPersonalProfileModal() {
@@ -634,6 +636,64 @@
         if (e.key === "Escape") {
           closeProfileDropdown();
         }
+      });
+
+      // ── Menu mobile (hamburger drawer) ─────────────────────────────────────
+
+      function toggleMobileMenu() {
+        const drawer  = document.getElementById("mobileMenuDrawer");
+        const overlay = document.getElementById("mobileMenuOverlay");
+        const btn     = document.getElementById("topnavHamburger");
+        if (!drawer) return;
+
+        const isOpen = drawer.classList.contains("open");
+        if (isOpen) {
+          closeMobileMenu();
+        } else {
+          drawer.classList.add("open");
+          overlay?.classList.add("open");
+          btn?.setAttribute("aria-expanded", "true");
+          document.body.style.overflow = "hidden"; // previne scroll do fundo
+        }
+      }
+
+      function closeMobileMenu() {
+        const drawer  = document.getElementById("mobileMenuDrawer");
+        const overlay = document.getElementById("mobileMenuOverlay");
+        const btn     = document.getElementById("topnavHamburger");
+        drawer?.classList.remove("open");
+        overlay?.classList.remove("open");
+        btn?.setAttribute("aria-expanded", "false");
+        document.body.style.overflow = "";
+      }
+
+      /** Sincroniza a aba ativa no drawer com a página atual */
+      function _sincronizarMenuMobile(page) {
+        const map = {
+          alunos:      "mobileAlunosBtn",
+          financeiro:  "mobileFinanceiroBtn",
+          exercicios:  "mobileExerciciosBtn",
+          treinos:     "mobileTreinosBtn",
+        };
+        Object.entries(map).forEach(([p, id]) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.classList.toggle("mobile-menu-item-active", p === page);
+        });
+      }
+
+      /** Sincronizar status do bot no drawer com o indicador principal */
+      function _sincronizarStatusBotMobile() {
+        const main   = document.getElementById("headerWhatsAppStatus");
+        const mobile = document.getElementById("mobileWhatsAppStatus");
+        if (!main || !mobile) return;
+        mobile.className = main.className;
+        mobile.innerHTML  = main.innerHTML;
+      }
+
+      // Fechar drawer com Escape
+      document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") closeMobileMenu();
       });
 
       async function salvarPerfilPersonal() {
@@ -789,6 +849,9 @@
         const panel = document.getElementById(panelId);
         if (button) button.classList.add("active");
         if (panel) panel.classList.add("active");
+
+        // Sincronizar menu mobile
+        _sincronizarMenuMobile(safePage);
 
         if (!shouldLoadData) return;
 
@@ -8326,8 +8389,10 @@
           headerStatus.className = `whatsapp-status-indicator ${statusClass}`;
           headerStatus.innerHTML = `
             <span class="status-dot ${statusClass}"></span>
-            <span>Bot: ${statusText}</span>
+            <span class="whatsapp-status-label">Bot: ${statusText}</span>
           `;
+          // Sincronizar no drawer mobile
+          _sincronizarStatusBotMobile();
 
           // Show/hide buttons based on connection status
           const connectBtn = document.getElementById("connectBtn");
@@ -8348,8 +8413,9 @@
           headerStatus.className = "whatsapp-status-indicator disconnected";
           headerStatus.innerHTML = `
             <span class="status-dot disconnected"></span>
-            <span>Bot: indisponível</span>
+            <span class="whatsapp-status-label">Bot: indisponível</span>
           `;
+          _sincronizarStatusBotMobile();
         }
       }
 
