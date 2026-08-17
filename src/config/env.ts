@@ -23,9 +23,13 @@ const EnvSchema = z.object({
   CRON_SECRET: z.string().min(16).optional(),
   REST_TIMER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
 
-  OPENAI_API_KEY:    z.string().min(1).optional(),
-  GEMINI_API_KEY:    z.string().min(1).optional(),
-  BEDROCK_API_KEY:   z.string().min(1).optional(),
+  OPENAI_API_KEY:        z.string().min(1).optional(),
+  GEMINI_API_KEY:        z.string().min(1).optional(),
+  BEDROCK_API_KEY:       z.string().min(1).optional(),
+  // Credenciais IAM para Amazon Bedrock (AWS Signature V4)
+  AWS_ACCESS_KEY_ID:     z.string().min(16).optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  AWS_SESSION_TOKEN:     z.string().min(1).optional(), // apenas para credenciais temporárias
 
   // Field-level encryption (LGPD compliance)
   // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"

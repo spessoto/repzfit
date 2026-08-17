@@ -2,21 +2,105 @@
  * claude-service.ts
  *
  * Substituto drop-in do gemini-service.ts usando Claude Haiku 4.5
- * via Amazon Bedrock Converse API (Bearer token — sem SDK, sem AWS Sig V4).
+ * via Amazon Bedrock Converse API com AWS Signature V4 (fetch puro, sem SDK).
  *
  * Exporta exatamente as mesmas funções e constantes que gemini-service.ts
  * para que bot-engine.ts e personal.ts não precisem mudar além do import.
  */
 
+import crypto from "node:crypto";
 import { env } from "../config/env.js";
 
-// Endpoint da Bedrock Converse API para Claude Haiku 4.5
-// Model ID: us.anthropic.claude-haiku-4-5-20251001-v1:0
-const BEDROCK_REGION      = "us-east-1";
-const BEDROCK_MODEL_ID    = "us.anthropic.claude-haiku-4-5-20251001-v1:0";
-const BEDROCK_ENDPOINT    = `https://bedrock-runtime.${BEDROCK_REGION}.amazonaws.com/model/${BEDROCK_MODEL_ID}/converse`;
+const BEDROCK_REGION   = "us-east-1";
+const BEDROCK_SERVICE  = "bedrock";
+const BEDROCK_MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0";
+const BEDROCK_HOST     = `bedrock-runtime.${BEDROCK_REGION}.amazonaws.com`;
+const BEDROCK_ENDPOINT = `https://${BEDROCK_HOST}/model/${BEDROCK_MODEL_ID}/converse`;
 
 const MAX_EXERCISE_DESCRIPTION_CHARS = 150;
+
+// ── AWS Signature V4 (implementação mínima via Node.js crypto) ────────────────
+
+function hmacSha256(key: Buffer | string, data: string): Buffer {
+  return crypto.createHmac("sha256", key).update(data, "utf8").digest();
+}
+
+function sha256Hex(data: string): string {
+  return crypto.createHash("sha256").update(data, "utf8").digest("hex");
+}
+
+function toAmzDate(date: Date): { amzDate: string; dateStamp: string } {
+  const iso = date.toISOString().replace(/[:-]|\.\d{3}/g, "");
+  return { amzDate: iso, dateStamp: iso.slice(0, 8) };
+}
+
+function buildAuthHeaders(
+  method: string,
+  body: string,
+  accessKeyId: string,
+  secretAccessKey: string,
+  sessionToken?: string,
+): Record<string, string> {
+  const now = new Date();
+  const { amzDate, dateStamp } = toAmzDate(now);
+  const payloadHash = sha256Hex(body);
+
+  // Canonical request
+  const canonicalHeaders = [
+    `content-type:application/json`,
+    `host:${BEDROCK_HOST}`,
+    `x-amz-content-sha256:${payloadHash}`,
+    `x-amz-date:${amzDate}`,
+    ...(sessionToken ? [`x-amz-security-token:${sessionToken}`] : []),
+  ].join("\n") + "\n";
+
+  const signedHeaders = [
+    "content-type",
+    "host",
+    "x-amz-content-sha256",
+    "x-amz-date",
+    ...(sessionToken ? ["x-amz-security-token"] : []),
+  ].join(";");
+
+  const canonicalPath = `/model/${encodeURIComponent(BEDROCK_MODEL_ID)}/converse`;
+
+  const canonicalRequest = [
+    method,
+    canonicalPath,
+    "",                   // query string
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
+
+  // String to sign
+  const credentialScope = `${dateStamp}/${BEDROCK_REGION}/${BEDROCK_SERVICE}/aws4_request`;
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join("\n");
+
+  // Signing key
+  const kDate    = hmacSha256(`AWS4${secretAccessKey}`, dateStamp);
+  const kRegion  = hmacSha256(kDate, BEDROCK_REGION);
+  const kService = hmacSha256(kRegion, BEDROCK_SERVICE);
+  const kSigning = hmacSha256(kService, "aws4_request");
+  const signature = crypto.createHmac("sha256", kSigning).update(stringToSign).digest("hex");
+
+  const authorization =
+    `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, ` +
+    `SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  return {
+    "Content-Type":          "application/json",
+    "X-Amz-Date":            amzDate,
+    "X-Amz-Content-Sha256":  payloadHash,
+    "Authorization":         authorization,
+    ...(sessionToken ? { "X-Amz-Security-Token": sessionToken } : {}),
+  };
+}
 
 // ── Retry com backoff exponencial ────────────────────────────────────────────
 
@@ -28,7 +112,6 @@ async function fetchWithRetry(
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const response = await fetch(url, options);
-    // Bedrock usa 503 e 429 (throttling) como erros transitórios
     if (response.status !== 503 && response.status !== 429) return response;
     lastError = new Error(
       `Bedrock API unavailable (${response.status}) after ${attempt + 1} attempt(s)`,
@@ -50,26 +133,28 @@ async function callClaude(
   maxTokens = 300,
   temperature = 0.7,
 ): Promise<string> {
-  if (!env.BEDROCK_API_KEY) {
-    throw new Error("BEDROCK_API_KEY não configurada");
+  if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+    throw new Error("AWS_ACCESS_KEY_ID e AWS_SECRET_ACCESS_KEY não configurados");
   }
+
+  const body = JSON.stringify({
+    system:  [{ text: systemPrompt }],
+    messages: [{ role: "user", content: [{ text: userMessage }] }],
+    inferenceConfig: { maxTokens, temperature },
+  });
+
+  const headers = buildAuthHeaders(
+    "POST",
+    body,
+    env.AWS_ACCESS_KEY_ID,
+    env.AWS_SECRET_ACCESS_KEY,
+    env.AWS_SESSION_TOKEN,
+  );
 
   const response = await fetchWithRetry(BEDROCK_ENDPOINT, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${env.BEDROCK_API_KEY}`,
-    },
-    body: JSON.stringify({
-      system: [{ text: systemPrompt }],
-      messages: [
-        { role: "user", content: [{ text: userMessage }] },
-      ],
-      inferenceConfig: {
-        maxTokens,
-        temperature,
-      },
-    }),
+    headers,
+    body,
   });
 
   if (!response.ok) {
@@ -99,9 +184,6 @@ async function callClaude(
 
 // ── Exportações compatíveis com gemini-service.ts ────────────────────────────
 
-/**
- * Normaliza a descrição gerada pela IA (trunca, remove pontuação final).
- */
 export function normalizeExerciseAIDescription(
   text: string,
   maxChars = MAX_EXERCISE_DESCRIPTION_CHARS,
@@ -122,9 +204,6 @@ export function normalizeExerciseAIDescription(
     .replace(/[,:;\-\s]+$/, "");
 }
 
-/**
- * Prompt padrão para o coach de treino (persona REPZ).
- */
 export const COACH_SYSTEM_PROMPT = `Você é o REPZ, um coach de treino virtual via WhatsApp. Sua personalidade é:
 
 - **Motivador e energético**: Use linguagem animada, emojis de treino (💪, 🔥, 🏋️) com moderação
@@ -140,10 +219,6 @@ export const COACH_SYSTEM_PROMPT = `Você é o REPZ, um coach de treino virtual 
 5. Use linguagem simples e acessível
 6. Não invente dados - sempre peça confirmação quando necessário`;
 
-/**
- * Gera uma resposta personalizada usando Claude Haiku via Bedrock.
- * API idêntica a generateBotResponse do gemini-service.
- */
 export async function generateBotResponse(context: {
   systemPrompt: string;
   userMessage: string;
@@ -152,10 +227,6 @@ export async function generateBotResponse(context: {
   return callClaude(context.systemPrompt, context.userMessage, 300, 0.7);
 }
 
-/**
- * Gera descrição técnica e grupo muscular para um exercício via IA.
- * API idêntica a generateExerciseDescription do gemini-service.
- */
 export async function generateExerciseDescription(params: {
   exerciseName: string;
   variationName?: string | null;
@@ -169,12 +240,8 @@ export async function generateExerciseDescription(params: {
   muscleGroupName: string | null;
 }> {
   const {
-    exerciseName,
-    variationName,
-    equipmentName,
-    gripFootingName,
-    methodName,
-    muscleGroups,
+    exerciseName, variationName, equipmentName,
+    gripFootingName, methodName, muscleGroups,
   } = params;
 
   const muscleGroupList = muscleGroups.map((mg) => `- ${mg.name}`).join("\n");
@@ -185,9 +252,7 @@ export async function generateExerciseDescription(params: {
     equipmentName   ? `Equipamento: ${equipmentName}`     : null,
     gripFootingName ? `Pegada/Pisada: ${gripFootingName}` : null,
     methodName      ? `Método: ${methodName}`             : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  ].filter(Boolean).join("\n");
 
   const prompt = `Você é especialista em musculação. Escreva uma descrição técnica curta, clara e objetiva para o aluno executar este exercício com segurança, usando apenas as informações fornecidas abaixo (não invente detalhes que não foram informados).
 
@@ -207,9 +272,7 @@ ${muscleGroupList}`;
 
   const text = await callClaude(
     "Você é um especialista em musculação e biomecânica. Responda sempre em JSON válido, sem texto extra.",
-    prompt,
-    250,
-    0.2,
+    prompt, 250, 0.2,
   );
 
   let parsed: { description: string; muscleGroup: string };
@@ -232,10 +295,6 @@ ${muscleGroupList}`;
   };
 }
 
-/**
- * Gera resposta de fallback quando o aluno envia input inesperado.
- * API idêntica a generateFallbackReply do gemini-service.
- */
 export async function generateFallbackReply(context: {
   studentName?: string;
   currentState: string;
@@ -252,10 +311,7 @@ Responda de forma motivadora e gentil, pedindo para ele confirmar o dado solicit
 `.trim();
 
   try {
-    return await generateBotResponse({
-      systemPrompt: COACH_SYSTEM_PROMPT,
-      userMessage,
-    });
+    return await generateBotResponse({ systemPrompt: COACH_SYSTEM_PROMPT, userMessage });
   } catch {
     return `Entendi! Mas preciso que você me confirme ${context.expectedInput} para eu registrar direitinho. Pode me passar? 💪`;
   }
