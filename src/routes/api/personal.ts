@@ -23,7 +23,7 @@ import {
 import {
   generateExerciseDescription,
   normalizeExerciseAIDescription,
-} from "../../services/gemini-service.js";
+} from "../../services/claude-service.js";
 import {
   ensureEvolutionWebhook,
   ensureEvolutionInstance,

@@ -25,6 +25,7 @@ const EnvSchema = z.object({
 
   OPENAI_API_KEY: z.string().min(1).optional(),
   GEMINI_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
 
   // Field-level encryption (LGPD compliance)
   // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"

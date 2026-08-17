@@ -17,7 +17,7 @@ import {
   generateFallbackReply,
   generateBotResponse,
   COACH_SYSTEM_PROMPT,
-} from "./gemini-service.js";
+} from "./claude-service.js";
 import { transcribeAudioFromUrl } from "./openai-service.js";
 import { resolvePersonalWhatsAppNumber } from "./personal-contact.js";
 
