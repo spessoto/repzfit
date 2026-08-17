@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/app.css?v=202608170007" />
+    <link rel="stylesheet" href="/app.css?v=202608170008" />
   </head>
   <body>
     <!-- Login Screen -->
@@ -1178,6 +1178,81 @@
       </div>
     </div>
 
+    <!-- ── Modal: Editar Exercício ── -->
+    <div id="exercicioEditModal" class="modal-backdrop" onclick="fecharEditarExercicio(event)" role="dialog" aria-modal="true" aria-labelledby="exercicioEditNome">
+      <div class="exercicio-edit-panel" onclick="event.stopPropagation()">
+
+        <!-- Cabeçalho -->
+        <div class="exercicio-edit-header">
+          <div>
+            <p class="exercicio-edit-label">EXERCÍCIO</p>
+            <h2 class="exercicio-edit-nome" id="exercicioEditNome">—</h2>
+          </div>
+          <button class="exercicio-edit-close" onclick="fecharEditarExercicio()" aria-label="Fechar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <p class="exercicio-edit-subtitle">O nome não pode ser alterado. Edite os demais atributos abaixo.</p>
+
+        <div id="exercicioEditAlert"></div>
+
+        <!-- Campos editáveis -->
+        <div class="exercicio-edit-fields">
+
+          <div class="form-group">
+            <label class="form-label-upper">GRUPO MUSCULAR</label>
+            <select id="exercicioEditGrupo" class="exercicio-select">
+              <option value="">Sem grupo</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label-upper">EXECUÇÃO</label>
+            <select id="exercicioEditVariacao" class="exercicio-select">
+              <option value="">Sem execução</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label-upper">PEGADA / PISADA</label>
+            <select id="exercicioEditPegada" class="exercicio-select">
+              <option value="">Sem pegada</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label-upper">EQUIPAMENTO</label>
+            <select id="exercicioEditEquipamento" class="exercicio-select">
+              <option value="">Sem equipamento</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label-upper">MÉTODO</label>
+            <select id="exercicioEditMetodo" class="exercicio-select">
+              <option value="">Sem método</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label-upper">NOTAS / OBSERVAÇÕES</label>
+            <textarea id="exercicioEditNotas" rows="3" placeholder="Ex: Simultânea · pegada Supinada" style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;color:#1f2937;"></textarea>
+          </div>
+
+        </div>
+
+        <!-- Rodapé com ações -->
+        <div class="exercicio-edit-footer">
+          <button class="btn btn-secondary" onclick="fecharEditarExercicio()">Cancelar</button>
+          <button class="btn btn-primary exercicio-edit-save-btn" onclick="salvarEdicaoExercicio()">Salvar alterações</button>
+        </div>
+
+        <!-- ID oculto -->
+        <input type="hidden" id="exercicioEditId" value="" />
+      </div>
+    </div>
+
     <!-- ── Modal: Gerenciar Catálogo ── -->
     <div id="gerenciarCatalogoModal" class="modal-backdrop" onclick="fecharModalGerenciarCatalogo(event)">
       <div class="modal-panel" style="width:min(780px,100%);max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
@@ -1534,7 +1609,7 @@
       </div>
     </div>
 
-    <script defer src="/app.js?v=202608170007"></script>
+    <script defer src="/app.js?v=202608170008"></script>
     <script>
       window.si =
         window.si ||

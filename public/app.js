@@ -4378,28 +4378,30 @@
           };
 
           body.innerHTML = exercicios.map(e => {
-            const safeId   = escapeHtml(e.id);
-            const safeName = escapeHtml(e.name || "Exercício");
+            const safeId      = escapeHtml(e.id);
+            const safeName    = escapeHtml(e.name || "Exercício");
             const safeNameStr = String(e.name || "").replace(/'/g, "\\'");
-            const groupName = e.muscle_group_name || null;
-            const col = getGroupColor(groupName);
-            const groupBadge = groupName
+            const groupName   = e.muscle_group_name || null;
+            const col         = getGroupColor(groupName);
+            const groupBadge  = groupName
               ? `<span class="exercicio-card-tag" style="background:${col.bg};color:${col.color};">${escapeHtml(groupName)}</span>`
               : "";
             const metaText = e.notes ? escapeHtml(e.notes) : "";
             return `
-              <div class="exercicio-card">
+              <div class="exercicio-card" onclick="abrirEditarExercicio('${safeId}','${safeName.replace(/'/g, "\\'")}','${escapeHtml(groupName || "")}','${escapeHtml(e.muscle_group_id || "")}','${escapeHtml(e.notes || "")}')">
                 <div class="exercicio-card-header">
                   <span class="exercicio-card-name">${safeName}</span>
-                  <span class="exercicio-card-arrow">▶</span>
+                  <span class="exercicio-card-arrow">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </span>
                 </div>
                 <div class="exercicio-card-tags">${groupBadge}</div>
                 ${metaText ? `<span class="exercicio-card-meta">${metaText}</span>` : ""}
                 <div class="exercicio-card-actions">
                   <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px;"
-                    onclick="salvarGrupoMuscularRapido('${safeId}')">Editar grupo</button>
+                    onclick="event.stopPropagation();abrirEditarExercicio('${safeId}','${safeName.replace(/'/g, "\\'")}','${escapeHtml(groupName || "")}','${escapeHtml(e.muscle_group_id || "")}','${escapeHtml(e.notes || "")}')">Editar</button>
                   <button class="btn btn-danger" style="padding:5px 10px;font-size:12px;"
-                    onclick="excluirCatalogoExercicio('${safeId}','${safeNameStr}')">Excluir</button>
+                    onclick="event.stopPropagation();excluirCatalogoExercicio('${safeId}','${safeNameStr}')">Excluir</button>
                 </div>
               </div>`;
           }).join("");
@@ -4417,13 +4419,135 @@
       }
 
       async function salvarGrupoMuscularRapido(exercicioId) {
-        // Abre um prompt simples para escolher grupo — usa o select do formulário
-        const grupos = await obterGruposMuscularesParaSelect();
-        if (!grupos.length) { showToast("Nenhum grupo muscular cadastrado.", "warn"); return; }
-        // Renderiza um mini select via showConfirm não é viável; usamos a função existente
-        salvarGrupoMuscularCatalogoExercicio(exercicioId);
+        // Redireciona para o novo modal de edição completo
+        // (o exercício precisa ter seus dados buscados)
+        const body = document.getElementById("exerciseCatalogBody");
+        const card = body?.querySelector(`[onclick*="${exercicioId}"]`);
+        const nome = card?.querySelector(".exercicio-card-name")?.textContent || "";
+        abrirEditarExercicio(exercicioId, nome, "", "", "");
       }
 
+      // ── Modal de edição de exercício ────────────────────────────────────────────
+
+      /**
+       * Abre o popup de edição de exercício com os dados atuais pré-preenchidos.
+       * @param {string} id - UUID do exercício
+       * @param {string} nome - Nome (somente leitura)
+       * @param {string} groupName - Nome do grupo muscular atual (para exibição)
+       * @param {string} groupId - UUID do grupo muscular atual
+       * @param {string} notes - Notas atuais
+       */
+      async function abrirEditarExercicio(id, nome, groupName, groupId, notes) {
+        const modal = document.getElementById("exercicioEditModal");
+        if (!modal) return;
+
+        // Preencher campos de exibição
+        document.getElementById("exercicioEditNome").textContent = nome || "—";
+        document.getElementById("exercicioEditId").value = id;
+        document.getElementById("exercicioEditNotas").value = notes || "";
+
+        // Limpar alerta anterior
+        const alertEl = document.getElementById("exercicioEditAlert");
+        if (alertEl) alertEl.innerHTML = "";
+
+        // Popular selects em paralelo
+        const [grupos, variac, pegada, equip, metodo] = await Promise.all([
+          obterGruposMuscularesParaSelect(),
+          fetch(`${getApiBaseUrl()}/api/exercise-variations?limit=200`,  { headers: { Authorization: `Bearer ${authToken}` } }).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`${getApiBaseUrl()}/api/grip-footing-catalog?limit=200`, { headers: { Authorization: `Bearer ${authToken}` } }).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`${getApiBaseUrl()}/api/equipment-catalog?limit=200`,    { headers: { Authorization: `Bearer ${authToken}` } }).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`${getApiBaseUrl()}/api/method-catalog?limit=200`,       { headers: { Authorization: `Bearer ${authToken}` } }).then(r => r.ok ? r.json() : []).catch(() => []),
+        ]);
+
+        const fillSel = (selId, items, placeholder, selectedId) => {
+          const sel = document.getElementById(selId);
+          if (!sel) return;
+          sel.innerHTML = `<option value="">${placeholder}</option>` +
+            items.map(i => `<option value="${escapeHtml(i.id)}">${escapeHtml(i.name)}</option>`).join("");
+          if (selectedId) sel.value = selectedId;
+        };
+
+        fillSel("exercicioEditGrupo",      grupos, "Sem grupo",      groupId);
+        fillSel("exercicioEditVariacao",   variac, "Sem execução",   "");
+        fillSel("exercicioEditPegada",     pegada, "Sem pegada",     "");
+        fillSel("exercicioEditEquipamento",equip,  "Sem equipamento","");
+        fillSel("exercicioEditMetodo",     metodo, "Sem método",     "");
+
+        // Tentar inferir execução/pegada a partir das notas (best-effort)
+        if (notes) {
+          const parts = notes.split("·").map(s => s.trim());
+          if (parts[0]) {
+            const variacaoMatch = variac.find(v => v.name.toLowerCase() === parts[0].toLowerCase());
+            if (variacaoMatch) document.getElementById("exercicioEditVariacao").value = variacaoMatch.id;
+          }
+          if (parts[1]) {
+            const pegadaText = parts[1].replace(/^pegada\s*/i, "").trim();
+            const pegadaMatch = pegada.find(p => p.name.toLowerCase() === pegadaText.toLowerCase());
+            if (pegadaMatch) document.getElementById("exercicioEditPegada").value = pegadaMatch.id;
+          }
+        }
+
+        modal.classList.add("open");
+        // Foco no primeiro select
+        setTimeout(() => document.getElementById("exercicioEditGrupo")?.focus(), 60);
+      }
+
+      function fecharEditarExercicio(event) {
+        if (event && event.target !== document.getElementById("exercicioEditModal")) return;
+        document.getElementById("exercicioEditModal")?.classList.remove("open");
+      }
+
+      // Fechar com Escape
+      document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") {
+          const modal = document.getElementById("exercicioEditModal");
+          if (modal?.classList.contains("open")) {
+            modal.classList.remove("open");
+          }
+        }
+      });
+
+      async function salvarEdicaoExercicio() {
+        const id          = document.getElementById("exercicioEditId")?.value;
+        const groupId     = document.getElementById("exercicioEditGrupo")?.value || null;
+        const variacaoSel = document.getElementById("exercicioEditVariacao");
+        const pegadaSel   = document.getElementById("exercicioEditPegada");
+        const notas       = document.getElementById("exercicioEditNotas")?.value?.trim() || null;
+
+        if (!id) return;
+
+        // Montar campo notes a partir de execução + pegada (se selecionadas) ou notas livres
+        const variacaoNome = variacaoSel?.selectedOptions?.[0]?.value ? variacaoSel.selectedOptions[0].text : "";
+        const pegadaNome   = pegadaSel?.selectedOptions?.[0]?.value   ? pegadaSel.selectedOptions[0].text   : "";
+        let notesValue = notas;
+        if (variacaoNome || pegadaNome) {
+          const parts = [variacaoNome, pegadaNome ? `pegada ${pegadaNome}` : ""].filter(Boolean);
+          notesValue = parts.join(" · ") || notas;
+        }
+
+        const saveBtn = document.querySelector(".exercicio-edit-save-btn");
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Salvando..."; }
+
+        try {
+          const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog/${id}/notes`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+            body: JSON.stringify({ muscle_group_id: groupId, notes: notesValue }),
+          });
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.message || "Erro ao salvar exercício");
+
+          showToast("Exercício atualizado com sucesso.", "success");
+          document.getElementById("exercicioEditModal")?.classList.remove("open");
+          await carregarCatalogoExercicios();
+          await _renderizarPillsGrupoExercicio();
+        } catch (err) {
+          showToast(err?.message || "Erro ao salvar exercício.", "error");
+        } finally {
+          if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Salvar alterações"; }
+        }
+      }
 
       async function salvarGrupoMuscularCatalogoExercicio(exercicioId) {
         const select = document.getElementById(`cat_grupo_${exercicioId}`);

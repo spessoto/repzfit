@@ -2379,6 +2379,92 @@
         }
       }
 
+      /* ── Modal de edição de exercício ── */
+      .exercicio-edit-panel {
+        background: #ffffff;
+        border-radius: 20px;
+        width: min(520px, 100%);
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow:
+          0 24px 64px rgba(0, 0, 0, 0.18),
+          0 4px 12px rgba(0, 0, 0, 0.08);
+        animation: confirmPanelIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      }
+
+      .exercicio-edit-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 24px 24px 0;
+      }
+
+      .exercicio-edit-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #9ca3af;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin: 0 0 4px;
+      }
+
+      .exercicio-edit-nome {
+        font-size: 20px;
+        font-weight: 800;
+        color: #0d1b26;
+        margin: 0;
+        line-height: 1.2;
+      }
+
+      .exercicio-edit-close {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1.5px solid #e5e7eb;
+        background: #ffffff;
+        color: #6b7280;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.15s ease;
+      }
+
+      .exercicio-edit-close:hover {
+        border-color: #374151;
+        color: #374151;
+      }
+
+      .exercicio-edit-subtitle {
+        font-size: 13px;
+        color: #9ca3af;
+        margin: 8px 24px 0;
+        line-height: 1.4;
+      }
+
+      .exercicio-edit-fields {
+        padding: 20px 24px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .exercicio-edit-footer {
+        display: flex;
+        gap: 10px;
+        padding: 20px 24px 24px;
+        justify-content: flex-end;
+      }
+
+      .exercicio-edit-save-btn {
+        padding: 10px 24px;
+        font-size: 14px;
+        font-weight: 700;
+        border-radius: 10px;
+      }
+
       @keyframes pulse {
         0%,
         100% {
