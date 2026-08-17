@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/app.css?v=202608170001" />
+    <link rel="stylesheet" href="/app.css?v=202608170002" />
   </head>
   <body>
     <!-- Login Screen -->
@@ -1027,117 +1027,175 @@
               </table>
             </div>
           </div>
-
           <div id="adminLogsTab" class="tab-content">
             <div class="card">
               <h2>Logs do Sistema</h2>
-              <p style="color: #6b7280; margin-bottom: 12px">
-                Monitore eventos fora do padrão no BOT para investigação e
-                correção.
+              <p style="color: #6b7280; margin-bottom: 16px">
+                Acompanhe erros de ações da plataforma (treinos, alunos, exercícios) e eventos do bot de WhatsApp.
               </p>
 
-              <div id="adminLogsAlert"></div>
-
-              <div class="editor-grid" style="margin-bottom: 12px">
-                <div class="form-group">
-                  <label>Severidade</label>
-                  <select id="adminLogsSeverity">
-                    <option value="">Todas</option>
-                    <option value="info">Info</option>
-                    <option value="warn">Warn</option>
-                    <option value="error">Error</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Categoria</label>
-                  <input
-                    type="text"
-                    id="adminLogsCategory"
-                    placeholder="Ex: state, session, linkage"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>Código</label>
-                  <input
-                    type="text"
-                    id="adminLogsCode"
-                    placeholder="Ex: unexpected_fallback_in_non_idle_state"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>WhatsApp</label>
-                  <input
-                    type="text"
-                    id="adminLogsWhatsapp"
-                    placeholder="Ex: 5511999999999"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>Registros por página</label>
-                  <select id="adminLogsLimit">
-                    <option value="20">20</option>
-                    <option value="50" selected>50</option>
-                    <option value="100">100</option>
-                  </select>
-                </div>
-                <div class="form-group" style="display:flex;align-items:flex-end;">
-                  <label style="display:flex;align-items:center;gap:8px;margin:0;">
-                    <input type="checkbox" id="adminLogsOnlyOpen" />
-                    Mostrar apenas pendentes
-                  </label>
-                </div>
-              </div>
-
-              <div style="display:flex;gap:10px;margin-bottom:14px;">
-                <button class="btn btn-secondary" onclick="carregarLogsSistemaAdmin(1)">
-                  Aplicar filtros
+              <!-- Sub-abas de logs -->
+              <div class="student-insights-tabs" style="margin-bottom: 20px;">
+                <button id="sysLogsActionTabBtn" class="student-insights-tab active"
+                  onclick="openAdminLogsSubTab('action')">
+                  ⚠️ Erros de Plataforma
                 </button>
-                <button class="btn btn-primary" onclick="limparFiltrosLogsSistemaAdmin()">
-                  Limpar filtros
+                <button id="sysLogsBotTabBtn" class="student-insights-tab"
+                  onclick="openAdminLogsSubTab('bot')">
+                  🤖 Anomalias do Bot
                 </button>
               </div>
 
-              <p style="margin-bottom: 10px; color: #111827; font-weight: 600">
-                Total encontrado: <span id="adminLogsTotal">-</span>
-              </p>
+              <!-- ── Sub-aba: Erros de Plataforma ── -->
+              <div id="sysLogsActionPanel" class="student-insights-panel active">
+                <div id="adminSysLogsAlert"></div>
 
-              <table>
-                <thead>
-                  <tr>
-                    <th>Data/Hora</th>
-                    <th>Severidade</th>
-                    <th>Categoria</th>
-                    <th>Código</th>
-                    <th>Mensagem</th>
-                    <th>Estado</th>
-                    <th>WhatsApp</th>
-                  </tr>
-                </thead>
-                <tbody id="adminLogsBody">
-                  <tr>
-                    <td colspan="7" style="text-align: center">Carregando...</td>
-                  </tr>
-                </tbody>
-              </table>
+                <div class="editor-grid" style="margin-bottom: 12px">
+                  <div class="form-group">
+                    <label>Severidade</label>
+                    <select id="sysLogsSeverity">
+                      <option value="">Todas</option>
+                      <option value="info">Info</option>
+                      <option value="warn">Warn</option>
+                      <option value="error">Error</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Área</label>
+                    <select id="sysLogsArea">
+                      <option value="">Todas</option>
+                      <option value="workout">Treino</option>
+                      <option value="student">Aluno</option>
+                      <option value="exercise">Exercício</option>
+                      <option value="exercise_catalog">Catálogo</option>
+                      <option value="payment">Pagamento</option>
+                      <option value="connection">Conexão</option>
+                      <option value="auth">Autenticação</option>
+                      <option value="system">Sistema</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Registros por página</label>
+                    <select id="sysLogsLimit">
+                      <option value="20">20</option>
+                      <option value="50" selected>50</option>
+                      <option value="100">100</option>
+                    </select>
+                  </div>
+                </div>
 
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  margin-top: 14px;
-                "
-              >
-                <button class="btn btn-secondary" onclick="adminLogsPrevPage()" id="adminLogsPrevBtn" disabled>
-                  &#8592; Anterior
-                </button>
-                <span id="adminLogsPageInfo" style="color: #6b7280; font-weight: 500">
-                  Página 1 de 1
-                </span>
-                <button class="btn btn-secondary" onclick="adminLogsNextPage()" id="adminLogsNextBtn" disabled>
-                  Próxima &#8594;
-                </button>
+                <div style="display:flex;gap:10px;margin-bottom:14px;">
+                  <button class="btn btn-secondary" onclick="carregarSysLogs(1)">Aplicar filtros</button>
+                  <button class="btn btn-primary" onclick="limparFiltrosSysLogs()">Limpar filtros</button>
+                </div>
+
+                <p style="margin-bottom: 10px; color: #111827; font-weight: 600">
+                  Total encontrado: <span id="sysLogsTotal">-</span>
+                </p>
+
+                <div style="overflow-x:auto;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Data/Hora</th>
+                        <th>Severidade</th>
+                        <th>Área</th>
+                        <th>Ação</th>
+                        <th>Mensagem</th>
+                        <th>Recurso</th>
+                        <th>Cód. Erro</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sysLogsBody">
+                      <tr><td colspan="7" style="text-align:center">Carregando...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+                  <button class="btn btn-secondary" onclick="sysLogsPrevPage()" id="sysLogsPrevBtn" disabled>← Anterior</button>
+                  <span id="sysLogsPageInfo" style="color:#6b7280;font-weight:500">Página 1 de 1</span>
+                  <button class="btn btn-secondary" onclick="sysLogsNextPage()" id="sysLogsNextBtn" disabled>Próxima →</button>
+                </div>
               </div>
+
+              <!-- ── Sub-aba: Anomalias do Bot ── -->
+              <div id="sysLogsBotPanel" class="student-insights-panel">
+                <div id="adminLogsAlert"></div>
+
+                <div class="editor-grid" style="margin-bottom: 12px">
+                  <div class="form-group">
+                    <label>Severidade</label>
+                    <select id="adminLogsSeverity">
+                      <option value="">Todas</option>
+                      <option value="info">Info</option>
+                      <option value="warn">Warn</option>
+                      <option value="error">Error</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Categoria</label>
+                    <input type="text" id="adminLogsCategory" placeholder="Ex: state, session, linkage" />
+                  </div>
+                  <div class="form-group">
+                    <label>Código</label>
+                    <input type="text" id="adminLogsCode" placeholder="Ex: unexpected_fallback_in_non_idle_state" />
+                  </div>
+                  <div class="form-group">
+                    <label>WhatsApp</label>
+                    <input type="text" id="adminLogsWhatsapp" placeholder="Ex: 5511999999999" />
+                  </div>
+                  <div class="form-group">
+                    <label>Registros por página</label>
+                    <select id="adminLogsLimit">
+                      <option value="20">20</option>
+                      <option value="50" selected>50</option>
+                      <option value="100">100</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="display:flex;align-items:flex-end;">
+                    <label style="display:flex;align-items:center;gap:8px;margin:0;">
+                      <input type="checkbox" id="adminLogsOnlyOpen" />
+                      Mostrar apenas pendentes
+                    </label>
+                  </div>
+                </div>
+
+                <div style="display:flex;gap:10px;margin-bottom:14px;">
+                  <button class="btn btn-secondary" onclick="carregarLogsSistemaAdmin(1)">Aplicar filtros</button>
+                  <button class="btn btn-primary" onclick="limparFiltrosLogsSistemaAdmin()">Limpar filtros</button>
+                </div>
+
+                <p style="margin-bottom:10px;color:#111827;font-weight:600">
+                  Total encontrado: <span id="adminLogsTotal">-</span>
+                </p>
+
+                <div style="overflow-x:auto;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Data/Hora</th>
+                        <th>Severidade</th>
+                        <th>Categoria</th>
+                        <th>Código</th>
+                        <th>Mensagem</th>
+                        <th>Estado</th>
+                        <th>WhatsApp</th>
+                      </tr>
+                    </thead>
+                    <tbody id="adminLogsBody">
+                      <tr><td colspan="7" style="text-align:center">Carregando...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+                  <button class="btn btn-secondary" onclick="adminLogsPrevPage()" id="adminLogsPrevBtn" disabled>← Anterior</button>
+                  <span id="adminLogsPageInfo" style="color:#6b7280;font-weight:500">Página 1 de 1</span>
+                  <button class="btn btn-secondary" onclick="adminLogsNextPage()" id="adminLogsNextBtn" disabled>Próxima →</button>
+                </div>
+              </div>
+
             </div>
           </div>
         </main>
@@ -1400,7 +1458,7 @@
       </div>
     </div>
 
-    <script defer src="/app.js?v=202608170001"></script>
+    <script defer src="/app.js?v=202608170002"></script>
     <script>
       window.si =
         window.si ||

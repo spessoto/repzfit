@@ -5,11 +5,17 @@ import { env } from "../../config/env.js";
 import { supabaseAdmin } from "../../config/supabase.js";
 import { getUnifiedEvolutionInstanceName } from "../../services/evolution-service.js";
 import { processIncomingMessage } from "../../services/bot-engine.js";
+import { sendAlertEmail, getAlertRecipients } from "../../services/email-service.js";
+import { logAction } from "../../utils/system-logger.js";
 
 // Emergency circuit breaker — set to true to pause bot instantly in production.
 const EMERGENCY_BOT_PAUSE = false;
 const RECENT_MESSAGE_TTL_MS = 2 * 60 * 1000;
 const recentMessageFingerprints = new Map<string, number>();
+
+// Anti-spam para e-mail de desconexão via webhook
+// (o cron já tem o próprio estado; este é independente para reação imediata)
+let webhookDisconnectEmailSent = false;
 
 const EvolutionWebhookSchema = z.object({
   // Evolution API can send the event as "messages.upsert" or "MESSAGES_UPSERT"
@@ -142,6 +148,106 @@ function extractInput(payload: EvolutionWebhook): {
   return { text, buttonId, audioUrl };
 }
 
+/**
+ * Trata eventos de mudança de estado de conexão enviados pela Evolution API.
+ * Dispara e-mail imediato se a conexão cair (complementa o cron de polling).
+ */
+async function handleConnectionUpdateWebhook(
+  app: FastifyInstance,
+  payload: any,
+): Promise<void> {
+  // A Evolution envia o estado em payload.data.state (ou payload.data.status)
+  const data = payload?.data ?? {};
+  const state = String(data.state || data.status || "unknown").toLowerCase();
+  const instanceName = payload.instance ?? getUnifiedEvolutionInstanceName();
+
+  app.log.info({ state, instanceName }, "[webhook] connection.update recebido");
+
+  const isDisconnected = state === "close" || state === "closed" || state === "logout";
+  const isConnected    = state === "open";
+
+  if (isDisconnected && !webhookDisconnectEmailSent) {
+    webhookDisconnectEmailSent = true;
+
+    await logAction(app, {
+      severity: "error",
+      area: "connection",
+      action: "whatsapp_disconnected_webhook",
+      message: `WhatsApp desconectado via webhook — estado: ${state}`,
+      context: { instanceName, state, source: "webhook" },
+    });
+
+    const now = new Date().toLocaleString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+
+    void sendAlertEmail({
+      to: getAlertRecipients(),
+      subject: `⚠️ WhatsApp Desconectado — EZ Personal (${instanceName})`,
+      html: `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"></head>
+<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #f9fafb;">
+  <div style="background: #fff; border-radius: 12px; padding: 32px; border: 1px solid #e5e7eb;">
+    <span style="background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700;">⚠️ ALERTA DE DESCONEXÃO</span>
+    <h1 style="font-size: 22px; color: #111827; margin: 16px 0 8px;">WhatsApp Desconectado</h1>
+    <p style="color: #6b7280; margin: 0 0 24px;">O bot do EZ Personal foi desconectado do WhatsApp e pode estar fora do ar.</p>
+    <table style="width: 100%; border-collapse: collapse; background: #f9fafb; border-radius: 8px;">
+      <tr><td style="padding: 12px 16px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Instância</td><td style="padding: 12px 16px; color: #1f2937; border-bottom: 1px solid #e5e7eb;">${instanceName}</td></tr>
+      <tr><td style="padding: 12px 16px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Estado</td><td style="padding: 12px 16px; color: #dc2626; font-weight: 700; border-bottom: 1px solid #e5e7eb;">${state}</td></tr>
+      <tr><td style="padding: 12px 16px; font-weight: 600; color: #374151;">Horário (BRT)</td><td style="padding: 12px 16px; color: #1f2937;">${now}</td></tr>
+    </table>
+    <div style="margin-top: 24px; padding: 16px; background: #fffbeb; border-radius: 8px; border: 1px solid #fde68a;">
+      <p style="margin: 0; color: #92400e; font-size: 14px;"><strong>Ação necessária:</strong> Acesse <a href="https://app.ezpersonal.com.br" style="color: #d97706;">app.ezpersonal.com.br</a> e reconecte escaneando o QR code.</p>
+    </div>
+  </div>
+</body>
+</html>`,
+      text: `WhatsApp desconectado (${state}) às ${now}. Acesse app.ezpersonal.com.br para reconectar.`,
+    });
+  }
+
+  if (isConnected && webhookDisconnectEmailSent) {
+    webhookDisconnectEmailSent = false;
+
+    await logAction(app, {
+      severity: "info",
+      area: "connection",
+      action: "whatsapp_reconnected_webhook",
+      message: "WhatsApp reconectado via webhook",
+      context: { instanceName, state, source: "webhook" },
+    });
+
+    const now = new Date().toLocaleString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+
+    void sendAlertEmail({
+      to: getAlertRecipients(),
+      subject: `✅ WhatsApp Reconectado — EZ Personal (${instanceName})`,
+      html: `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"></head>
+<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #f9fafb;">
+  <div style="background: #fff; border-radius: 12px; padding: 32px; border: 1px solid #e5e7eb;">
+    <span style="background: #dcfce7; color: #15803d; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700;">✅ RECONECTADO</span>
+    <h1 style="font-size: 22px; color: #111827; margin: 16px 0 8px;">WhatsApp Reconectado</h1>
+    <p style="color: #6b7280; margin: 0 0 16px;">O bot do EZ Personal voltou a ficar online às ${now}.</p>
+    <p style="color: #374151; font-size: 14px;">Instância: <strong>${instanceName}</strong></p>
+  </div>
+</body>
+</html>`,
+      text: `WhatsApp reconectado (${state}) às ${now}.`,
+    });
+  }
+}
+
 export async function registerEvolutionWebhookRoute(app: FastifyInstance) {
   app.post("/evolution", async (request, reply) => {
     if (EMERGENCY_BOT_PAUSE) {
@@ -180,6 +286,13 @@ export async function registerEvolutionWebhookRoute(app: FastifyInstance) {
 
     // Accept both "messages.upsert" and "MESSAGES_UPSERT" formats
     const eventNorm = payload.event.toLowerCase().replace(/_/g, ".");
+
+    // ── Handler: connection.update ───────────────────────────────────────────
+    if (eventNorm === "connection.update") {
+      await handleConnectionUpdateWebhook(app, payload);
+      return reply.code(200).send({ ok: true });
+    }
+
     if (eventNorm !== "messages.upsert") {
       app.log.info({ event: payload.event }, "Webhook event ignored");
       return reply.code(200).send({ ignored: true });

@@ -175,7 +175,7 @@ export async function ensureEvolutionWebhook(
 ) {
   const normalize = (value: string) => value.trim().replace(/\/+$/, "");
   const desiredUrl = normalize(webhookUrl);
-  const desiredEvents = ["MESSAGES_UPSERT"];
+  const desiredEvents = ["MESSAGES_UPSERT", "CONNECTION_UPDATE"];
   const desiredSecret = env.EVOLUTION_WEBHOOK_SECRET;
 
   let current: EvolutionWebhookConfig | null = null;

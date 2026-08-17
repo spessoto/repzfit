@@ -18,6 +18,7 @@ import {
   scheduleSessionCleanup,
 } from "./cron/session-cleanup.js";
 import { scheduleRestTimerPoll } from "./cron/rest-timer.js";
+import { scheduleConnectionMonitor } from "./cron/connection-monitor.js";
 
 type BuildAppOptions = {
   enableCleanupScheduler?: boolean;
@@ -152,6 +153,11 @@ export async function buildApp(options: BuildAppOptions = {}) {
       scheduleRestTimerPoll(app);
     });
   }
+
+  // Monitor de conexão WhatsApp — polling a cada 5 min + alerta por e-mail
+  app.addHook("onReady", async () => {
+    scheduleConnectionMonitor(app);
+  });
 
   return app;
 }

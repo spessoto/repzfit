@@ -28,7 +28,9 @@
       let exerciciosFiltroTimeout = null;
       let exerciciosSimilaresCache = [];
       let adminLogsCurrentPage = 1;
-      let adminLogsTotalPages = 1;
+      let adminLogsTotalPages  = 1;
+      let sysLogsCurrentPage   = 1;
+      let sysLogsTotalPages    = 1;
 
       // --- Cache de aba: controla quais abas já foram carregadas nesta sessão ---
       // Ao trocar de aba, não recarrega se os dados já foram buscados.
@@ -786,7 +788,8 @@
           verificarStatusWhatsAppAdmin();
         }
         if (tab === "adminLogs") {
-          carregarLogsSistemaAdmin(1);
+          // Carrega a sub-aba padrão: erros de plataforma
+          carregarSysLogs(1);
         }
       }
 
@@ -950,6 +953,114 @@
         if (limit) limit.value = "50";
 
         carregarLogsSistemaAdmin(1);
+      }
+
+      // ── Sub-aba: Erros de Plataforma (system_action_logs) ────────────────────
+
+      function openAdminLogsSubTab(tab) {
+        document.querySelectorAll("#adminLogsTab .student-insights-tab").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll("#adminLogsTab .student-insights-panel").forEach(p => p.classList.remove("active"));
+        const btn   = document.getElementById(`sysLogs${tab.charAt(0).toUpperCase() + tab.slice(1)}TabBtn`);
+        const panel = document.getElementById(`sysLogs${tab.charAt(0).toUpperCase() + tab.slice(1)}Panel`);
+        if (btn)   btn.classList.add("active");
+        if (panel) panel.classList.add("active");
+
+        // Carrega dados da sub-aba selecionada
+        if (tab === "action") carregarSysLogs(1);
+        if (tab === "bot")    carregarLogsSistemaAdmin(1);
+      }
+
+      async function carregarSysLogs(page = 1) {
+        if (!isAdminSession || !adminToken) return;
+
+        const tbody    = document.getElementById("sysLogsBody");
+        const totalEl  = document.getElementById("sysLogsTotal");
+        const pageInfo = document.getElementById("sysLogsPageInfo");
+        const prevBtn  = document.getElementById("sysLogsPrevBtn");
+        const nextBtn  = document.getElementById("sysLogsNextBtn");
+
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">Carregando...</td></tr>';
+
+        try {
+          const params = new URLSearchParams();
+          params.set("page", String(page));
+          params.set("limit", document.getElementById("sysLogsLimit")?.value || "50");
+
+          const severity = document.getElementById("sysLogsSeverity")?.value?.trim();
+          const area     = document.getElementById("sysLogsArea")?.value?.trim();
+          if (severity) params.set("severity", severity);
+          if (area)     params.set("area", area);
+
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/system-logs?${params.toString()}`,
+            { headers: { Authorization: `Bearer ${adminToken}` } },
+          );
+
+          if (response.status === 401) { handleUnauthorized(); return; }
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.message || "Erro ao carregar logs");
+
+          const logs       = Array.isArray(payload.data) ? payload.data : [];
+          const pagination = payload.pagination || {};
+
+          sysLogsCurrentPage = Number(pagination.page || page || 1);
+          sysLogsTotalPages  = Number(pagination.totalPages || 1);
+          const total = Number(pagination.total || logs.length || 0);
+
+          if (totalEl)  totalEl.textContent  = String(total);
+          if (pageInfo) pageInfo.textContent = `Página ${sysLogsCurrentPage} de ${sysLogsTotalPages}`;
+          if (prevBtn)  prevBtn.disabled = sysLogsCurrentPage <= 1;
+          if (nextBtn)  nextBtn.disabled = sysLogsCurrentPage >= sysLogsTotalPages;
+
+          if (!logs.length) {
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:20px;">Nenhum log encontrado.</td></tr>';
+            return;
+          }
+
+          if (tbody) tbody.innerHTML = logs.map((row) => {
+            const createdAt = row.created_at ? new Date(row.created_at).toLocaleString("pt-BR") : "-";
+            const severityBadge = renderAdminLogSeverityBadge(row.severity);
+            const resource = row.resource_id ? `${escapeHtml(row.resource_type || "")} ${escapeHtml(row.resource_id.slice(0, 8))}…` : "-";
+            return `<tr>
+              <td style="white-space:nowrap">${escapeHtml(createdAt)}</td>
+              <td>${severityBadge}</td>
+              <td>${escapeHtml(row.area || "-")}</td>
+              <td><code style="font-size:12px">${escapeHtml(row.action || "-")}</code></td>
+              <td style="max-width:320px;white-space:normal;">${escapeHtml(row.message || "-")}</td>
+              <td style="font-size:12px;color:#6b7280;">${resource}</td>
+              <td><code style="font-size:12px">${escapeHtml(row.error_code || "-")}</code></td>
+            </tr>`;
+          }).join("");
+
+        } catch (error) {
+          if (totalEl)  totalEl.textContent  = "-";
+          if (pageInfo) pageInfo.textContent = "Página -";
+          if (prevBtn)  prevBtn.disabled = true;
+          if (nextBtn)  nextBtn.disabled = true;
+          if (tbody)    tbody.innerHTML  = '<tr><td colspan="7" style="text-align:center;color:#ef4444;">Erro ao carregar logs</td></tr>';
+          showAlert("adminSysLogsAlert", error.message || "Erro ao carregar logs de plataforma", "error");
+        }
+      }
+
+      function sysLogsPrevPage() {
+        if (sysLogsCurrentPage <= 1) return;
+        carregarSysLogs(sysLogsCurrentPage - 1);
+      }
+
+      function sysLogsNextPage() {
+        if (sysLogsCurrentPage >= sysLogsTotalPages) return;
+        carregarSysLogs(sysLogsCurrentPage + 1);
+      }
+
+      function limparFiltrosSysLogs() {
+        const severity = document.getElementById("sysLogsSeverity");
+        const area     = document.getElementById("sysLogsArea");
+        const limit    = document.getElementById("sysLogsLimit");
+        if (severity) severity.value = "";
+        if (area)     area.value     = "";
+        if (limit)    limit.value    = "50";
+        carregarSysLogs(1);
       }
 
       function normalizeQrImageData(value) {

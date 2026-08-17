@@ -95,6 +95,15 @@ const AdminBotAnomalyLogsQuerySchema = z.object({
   whatsapp_number: z.string().min(6).max(30).optional(),
 });
 
+const AdminSystemLogsQuerySchema = z.object({
+  page:         z.coerce.number().int().min(1).optional(),
+  limit:        z.coerce.number().int().min(1).max(200).optional(),
+  severity:     z.enum(["info", "warn", "error"]).optional(),
+  area:         z.string().min(1).max(80).optional(),
+  action:       z.string().min(1).max(120).optional(),
+  personal_id:  z.string().uuid().optional(),
+});
+
 type AdminTokenPayload = {
   email: string;
   exp: number;
@@ -701,6 +710,58 @@ export async function registerAdminApiRoutes(app: FastifyInstance) {
         unresolved_only: unresolvedOnly,
         student_id: parsedQuery.data.student_id ?? null,
         whatsapp_number: parsedQuery.data.whatsapp_number ?? null,
+      },
+    };
+  });
+
+  /**
+   * GET /admin/system-logs — logs de erros de ações da plataforma.
+   * Cobre criação/edição/exclusão de treinos, alunos, exercícios, pagamentos
+   * e eventos de conexão do WhatsApp.
+   */
+  app.get("/admin/system-logs", async (request) => {
+    ensureAdminAuth(request);
+
+    const parsed = AdminSystemLogsQuerySchema.safeParse(request.query);
+    if (!parsed.success) throw app.httpErrors.badRequest(parsed.error.message);
+
+    const page  = parsed.data.page  ?? 1;
+    const limit = parsed.data.limit ?? 50;
+    const from  = (page - 1) * limit;
+    const to    = from + limit - 1;
+
+    let query = supabaseAdmin
+      .from("system_action_logs")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false });
+
+    if (parsed.data.severity)    query = query.eq("severity",    parsed.data.severity);
+    if (parsed.data.area)        query = query.eq("area",        parsed.data.area.trim());
+    if (parsed.data.action)      query = query.eq("action",      parsed.data.action.trim());
+    if (parsed.data.personal_id) query = query.eq("personal_id", parsed.data.personal_id);
+
+    const { data, error, count } = await query.range(from, to);
+
+    if (error) {
+      // Se a tabela ainda não existir (migration pendente), retorna vazio
+      const msg = String(error.message ?? "").toLowerCase();
+      if (msg.includes("system_action_logs") && msg.includes("relation")) {
+        return { data: [], pagination: { page, limit, total: 0, totalPages: 0, hasNext: false, hasPrev: false } };
+      }
+      throw app.httpErrors.badRequest(error.message);
+    }
+
+    const total      = count ?? 0;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: data ?? [],
+      pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 },
+      filters: {
+        severity:    parsed.data.severity    ?? null,
+        area:        parsed.data.area        ?? null,
+        action:      parsed.data.action      ?? null,
+        personal_id: parsed.data.personal_id ?? null,
       },
     };
   });

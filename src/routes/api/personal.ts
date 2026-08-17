@@ -7,6 +7,7 @@ import { env } from "../../config/env.js";
 import { supabaseAdmin } from "../../config/supabase.js";
 import { normalizeBrazilWhatsappNumber } from "../../utils/whatsapp.js";
 import { buildWebhookUrlFromRequest } from "../../utils/request.js";
+import { logAction, extractErrorMessage } from "../../utils/system-logger.js";
 import {
   encrypt,
   decrypt,
@@ -1083,7 +1084,67 @@ async function resetPersonalExerciseBase(personalId: string) {
   };
 }
 
+/** Infere a área funcional a partir da URL da rota */
+function inferAreaFromUrl(url: string): string {
+  if (url.includes("/workouts"))         return "workout";
+  if (url.includes("/students"))         return "student";
+  if (url.includes("/exercises"))        return "exercise";
+  if (url.includes("/exercise-catalog")) return "exercise_catalog";
+  if (url.includes("/muscle-groups"))    return "exercise_catalog";
+  if (url.includes("/equipment"))        return "exercise_catalog";
+  if (url.includes("/grip-footing"))     return "exercise_catalog";
+  if (url.includes("/method-catalog"))   return "exercise_catalog";
+  if (url.includes("/payments"))         return "payment";
+  if (url.includes("/connection"))       return "connection";
+  if (url.includes("/personal/profile")) return "auth";
+  return "system";
+}
+
+/** Infere o nome da ação a partir do método HTTP e URL */
+function inferActionFromMethod(method: string, url: string): string {
+  const m = method.toUpperCase();
+  if (m === "POST")   return `create_${inferAreaFromUrl(url)}`;
+  if (m === "PATCH")  return `update_${inferAreaFromUrl(url)}`;
+  if (m === "PUT")    return `update_${inferAreaFromUrl(url)}`;
+  if (m === "DELETE") return `delete_${inferAreaFromUrl(url)}`;
+  return `read_${inferAreaFromUrl(url)}`;
+}
+
 export async function registerPersonalApiRoutes(app: FastifyInstance) {
+  // ── Hook global de log de erros ─────────────────────────────────────────────
+  // Captura qualquer erro HTTP não tratado nos endpoints do personal e persiste
+  // em system_action_logs. Erros 4xx de validação são logados como "warn";
+  // erros 5xx (falhas reais) são logados como "error".
+  app.addHook("onError", async (request, _reply, error) => {
+    const status = (error as any).statusCode ?? 500;
+    // Ignora 401/403 (auth) e 404 (not found) — não são falhas de sistema
+    if (status === 401 || status === 403 || status === 404) return;
+
+    const severity = status >= 500 ? "error" : "warn";
+    const url = request.url ?? "";
+
+    // Infere área e ação a partir da rota
+    const area   = inferAreaFromUrl(url);
+    const action = inferActionFromMethod(request.method, url);
+
+    // Tenta extrair personalId do contexto de auth (best-effort)
+    const personalId = (request as any)._personalId ?? null;
+
+    await logAction(app, {
+      severity,
+      area,
+      action,
+      message: error.message ?? "Erro desconhecido",
+      personalId,
+      errorCode: String(status),
+      context: {
+        method: request.method,
+        url,
+        statusCode: status,
+      },
+    });
+  });
+
   app.get("/personal/connection/qrcode", async (request) => {
     await getAuthenticatedPersonal(app, request);
     throw app.httpErrors.forbidden(
@@ -1271,6 +1332,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
           "Este WhatsApp já está vinculado a outro aluno. Confirme o número com o personal responsável.",
         );
       }
+      await logAction(app, { area: "student", action: "create_student", message: error.message, personalId, errorCode: error.code });
       throw app.httpErrors.badRequest(error.message);
     }
 
@@ -1665,6 +1727,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
           "Este WhatsApp já está vinculado a outro aluno. Confirme o número com o personal responsável.",
         );
       }
+      await logAction(app, { area: "student", action: "update_student", message: error.message, resourceId: id, resourceType: "student", errorCode: error.code });
       throw app.httpErrors.badRequest(error.message);
     }
 
@@ -3609,6 +3672,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .single();
 
     if (error) {
+      await logAction(app, { area: "workout", action: "create_workout", message: error.message, personalId, errorCode: error.code, context: { name: parsed.data.name } });
       throw app.httpErrors.badRequest(error.message);
     }
 
@@ -3650,6 +3714,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       if (exercisesError) {
         // Rollback workout if exercises fail
         await client.from("workouts").delete().eq("id", data.id);
+        await logAction(app, { area: "workout", action: "create_workout_exercises", message: exercisesError.message, personalId, resourceId: data.id, resourceType: "workout", errorCode: exercisesError.code });
         throw app.httpErrors.badRequest(exercisesError.message);
       }
 
@@ -3808,6 +3873,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .single();
 
     if (error) {
+      await logAction(app, { area: "workout", action: "add_exercise_to_workout", message: error.message, personalId, resourceId: workoutId, resourceType: "workout", errorCode: error.code });
       throw app.httpErrors.badRequest(error.message);
     }
 
@@ -3849,6 +3915,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         .maybeSingle();
 
       if (fallback.error) {
+        await logAction(app, { area: "workout", action: "save_workout", message: fallback.error.message, personalId, resourceId: workoutId, resourceType: "workout", errorCode: fallback.error.code });
         throw app.httpErrors.badRequest(fallback.error.message);
       }
 
@@ -4067,6 +4134,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
         .maybeSingle();
 
       if (error) {
+        await logAction(app, { area: "workout", action: "update_exercise", message: error.message, resourceId: workoutExerciseId, resourceType: "workout_exercise", errorCode: error.code });
         throw app.httpErrors.badRequest(error.message);
       }
 

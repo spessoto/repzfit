@@ -45,6 +45,18 @@ const EnvSchema = z.object({
     .string()
     .min(16)
     .default("repzfit_admin_secret_change_me_2026"),
+
+  // Email de alertas (Resend — https://resend.com)
+  // Defina RESEND_API_KEY para ativar envio de e-mails.
+  // Sem a chave os alertas são apenas logados no console.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  // Remetente verificado no Resend (ex: "EZ Personal <alertas@ezpersonal.com.br>")
+  ALERT_EMAIL_FROM: z.string().min(1).default("EZ Personal <alertas@ezpersonal.com.br>"),
+  // Destinatários de alerta separados por vírgula
+  ALERT_EMAIL_TO: z
+    .string()
+    .min(1)
+    .default("caio@ezpersonal.com.br,flavio@ezpersonal.com.br"),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

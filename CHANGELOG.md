@@ -4,6 +4,49 @@ Todas as mudanças relevantes do projeto serão documentadas aqui.
 
 ---
 
+## [2026-08-17] – Logs de plataforma + monitoramento de conexão WhatsApp (v1.5.1)
+
+### Adicionado
+
+#### Logs de erros de ações da plataforma
+- **Migration `202608170001_system_action_logs.sql`**: nova tabela `system_action_logs` com campos `severity`, `area`, `action`, `message`, `personal_id`, `resource_id`, `resource_type`, `error_code`, `context`. Protegida por RLS service_role (mesmo padrão de `bot_anomaly_logs`).
+- **`src/utils/system-logger.ts`**: helper `logAction(app, input)` centralizado — persiste na tabela e espelha no Fastify logger (pino). Circuit-breaker: desativa persistência silenciosamente se a tabela não existir. `extractErrorMessage()` utilitário para extrair mensagem legível de qualquer exceção.
+- **Hook `onError` global em `registerPersonalApiRoutes`**: captura todos os erros HTTP ≥ 400 (exceto 401/403/404) e registra automaticamente. Inferência de `area` e `action` a partir da URL e método HTTP.
+- **Instrumentação explícita** nos endpoints mais críticos: `POST /workouts`, `POST /workouts/:id/exercises`, `PATCH /workouts/:id`, `PATCH /workouts/:workout_id/exercises/:id`, `POST /students`, `PATCH /students/:id` — erros de DB são registrados antes de relançar.
+
+#### Monitoramento de conexão WhatsApp
+- **`src/cron/connection-monitor.ts`**: cron que roda a cada 5 minutos e detecta mudança de estado da conexão. Anti-spam: só envia 1 e-mail por desconexão; reseta após reconexão. Tolerância a falhas transitórias: só aciona alerta após 3 erros consecutivos na leitura do status.
+- **`src/routes/webhooks/evolution.ts`**: handler para evento `CONNECTION_UPDATE` da Evolution API (antes ignorado). Dispara e-mail de alerta imediatamente ao receber o evento, sem esperar o poll do cron. Registra em `system_action_logs`.
+- **`src/services/evolution-service.ts`**: `desiredEvents` expandido de `["MESSAGES_UPSERT"]` para `["MESSAGES_UPSERT", "CONNECTION_UPDATE"]` — garante que a Evolution envie eventos de conexão para o webhook.
+
+#### Serviço de e-mail
+- **`src/services/email-service.ts`**: envio via [Resend API](https://resend.com) usando `fetch` nativo — sem dependências adicionais no `package.json`. Fail-soft: se `RESEND_API_KEY` não estiver configurado, loga no console e retorna `false`.
+- **`src/config/env.ts`**: novas variáveis `RESEND_API_KEY`, `ALERT_EMAIL_FROM` (padrão: `EZ Personal <alertas@ezpersonal.com.br>`) e `ALERT_EMAIL_TO` (padrão: `caio@ezpersonal.com.br,flavio@ezpersonal.com.br`).
+- E-mails enviados com HTML responsivo: template de desconexão (vermelho, ação necessária) e reconexão (verde, confirmação).
+
+#### Endpoint admin de logs de plataforma
+- **`GET /admin/system-logs`**: retorna `system_action_logs` paginado com filtros por `severity`, `area`, `action`, `personal_id`. Retorna vazio graciosamente se a tabela ainda não existir (migration pendente).
+
+#### Frontend — aba Logs do Sistema redesenhada
+- Duas sub-abas: **⚠️ Erros de Plataforma** (system_action_logs) e **🤖 Anomalias do Bot** (bot_anomaly_logs).
+- Filtros na sub-aba de plataforma: severidade e área (dropdown com todas as áreas do sistema).
+- Sub-aba de plataforma é carregada por padrão ao abrir a aba Logs.
+
+### Configuração necessária
+
+Adicione as seguintes variáveis de ambiente na Vercel para ativar o envio de e-mails:
+
+```
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ALERT_EMAIL_FROM=EZ Personal <alertas@ezpersonal.com.br>
+ALERT_EMAIL_TO=caio@ezpersonal.com.br,flavio@ezpersonal.com.br
+```
+
+A variável `ALERT_EMAIL_TO` aceita múltiplos endereços separados por vírgula.
+Sem `RESEND_API_KEY` o sistema funciona normalmente — alertas são apenas logados no console.
+
+---
+
 ## [2026-08-17] – Redesign visual: topnav + página de Alunos (v1.5.0)
 
 ### Visual / UX
