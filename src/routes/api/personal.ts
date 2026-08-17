@@ -2849,6 +2849,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       id: row.id,
       name: row.name,
       notes: row.notes,
+      video_url: row.video_url ?? null,
       muscle_group_id: row.muscle_group_id ?? null,
       muscle_group_name: groupNameMap[row.muscle_group_id] ?? null,
     }));
@@ -2859,10 +2860,12 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
     const body = request.body as {
       name?: string;
       notes?: string | null;
+      video_url?: string | null;
       muscle_group_id?: string | null;
     };
     const name = z.string().min(2).max(120).parse((body?.name ?? "").trim());
     const notes = body?.notes?.trim() || null;
+    const videoUrl = body?.video_url?.trim() || null;
     const muscleGroupId = NullableUuidInput.optional().parse(
       body?.muscle_group_id ?? null,
     );
@@ -2872,10 +2875,11 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .insert({
         name,
         notes,
+        video_url: videoUrl,
         personal_id: personalId,
         muscle_group_id: muscleGroupId ?? null,
       })
-      .select("id,name,notes,personal_id,muscle_group_id,muscle_groups(name)")
+      .select("id,name,notes,video_url,personal_id,muscle_group_id,muscle_groups(name)")
       .single();
 
     if (error) throw app.httpErrors.badRequest(error.message);
@@ -2883,6 +2887,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       id: (data as any).id,
       name: (data as any).name,
       notes: (data as any).notes,
+      video_url: (data as any).video_url ?? null,
       personal_id: (data as any).personal_id,
       muscle_group_id: (data as any).muscle_group_id ?? null,
       muscle_group_name: (data as any).muscle_groups?.name ?? null,
@@ -2982,11 +2987,15 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .parse((request.params as { id?: string }).id);
     const body = request.body as {
       notes?: string | null;
+      video_url?: string | null;
       muscle_group_id?: string | null;
     };
     const update: Record<string, unknown> = {};
     if (Object.prototype.hasOwnProperty.call(body ?? {}, "notes")) {
       update.notes = body?.notes?.trim() || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, "video_url")) {
+      update.video_url = body?.video_url?.trim() || null;
     }
     if (Object.prototype.hasOwnProperty.call(body ?? {}, "muscle_group_id")) {
       update.muscle_group_id = NullableUuidInput.optional().parse(
@@ -2999,7 +3008,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       .update(update)
       .eq("id", id)
       .or(`personal_id.is.null,personal_id.eq.${personalId}`)
-      .select("id,name,notes,muscle_group_id,muscle_groups(name)")
+      .select("id,name,notes,video_url,muscle_group_id,muscle_groups(name)")
       .maybeSingle();
 
     if (error) throw app.httpErrors.badRequest(error.message);
@@ -3008,6 +3017,7 @@ export async function registerPersonalApiRoutes(app: FastifyInstance) {
       id: (data as any).id,
       name: (data as any).name,
       notes: (data as any).notes,
+      video_url: (data as any).video_url ?? null,
       muscle_group_id: (data as any).muscle_group_id ?? null,
       muscle_group_name: (data as any).muscle_groups?.name ?? null,
     };

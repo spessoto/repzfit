@@ -4025,19 +4025,19 @@
           return;
         }
         const muscleGroupId = document.getElementById("novoCatalogoGrupoMuscular")?.value || null;
-        // Campos extras do novo formulário (nota interna com execução, equip, pegada, método)
-        const variacaoNome  = document.getElementById("novoCatalogoVariacao")?.selectedOptions?.[0]?.text || "";
-        const pegadaNome    = document.getElementById("novoCatalogoPegada")?.selectedOptions?.[0]?.text || "";
-        const parts = [variacaoNome, pegadaNome ? `pegada ${pegadaNome}` : ""].filter(s => s && s !== "Sem execução" && s !== "pegada Sem pegada");
+        const videoUrl      = document.getElementById("novoCatalogoVideo")?.value?.trim() || null;
+
+        // Monta o campo notes a partir de execução + pegada selecionadas
+        const variacaoNome = document.getElementById("novoCatalogoVariacao")?.selectedOptions?.[0]?.text || "";
+        const pegadaNome   = document.getElementById("novoCatalogoPegada")?.selectedOptions?.[0]?.text || "";
+        const parts = [variacaoNome, pegadaNome ? `pegada ${pegadaNome}` : ""]
+          .filter(s => s && s !== "Sem execução" && s !== "pegada Sem pegada");
         const notes = parts.length ? parts.join(" · ") : null;
 
         const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({ name: nome, muscle_group_id: muscleGroupId, notes }),
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({ name: nome, muscle_group_id: muscleGroupId, notes, video_url: videoUrl }),
         });
 
         if (!response.ok) {
@@ -4386,9 +4386,10 @@
             const groupBadge  = groupName
               ? `<span class="exercicio-card-tag" style="background:${col.bg};color:${col.color};">${escapeHtml(groupName)}</span>`
               : "";
-            const metaText = e.notes ? escapeHtml(e.notes) : "";
+            const metaText   = e.notes     ? escapeHtml(e.notes)     : "";
+            const safeVideo  = escapeHtml(e.video_url || "");
             return `
-              <div class="exercicio-card" onclick="abrirEditarExercicio('${safeId}','${safeName.replace(/'/g, "\\'")}','${escapeHtml(groupName || "")}','${escapeHtml(e.muscle_group_id || "")}','${escapeHtml(e.notes || "")}')">
+              <div class="exercicio-card" onclick="abrirEditarExercicio('${safeId}','${safeName.replace(/'/g, "\\'")}','${escapeHtml(groupName || "")}','${escapeHtml(e.muscle_group_id || "")}','${escapeHtml(e.notes || "")}','${safeVideo}')">
                 <div class="exercicio-card-header">
                   <span class="exercicio-card-name">${safeName}</span>
                   <span class="exercicio-card-arrow">
@@ -4399,7 +4400,7 @@
                 ${metaText ? `<span class="exercicio-card-meta">${metaText}</span>` : ""}
                 <div class="exercicio-card-actions">
                   <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px;"
-                    onclick="event.stopPropagation();abrirEditarExercicio('${safeId}','${safeName.replace(/'/g, "\\'")}','${escapeHtml(groupName || "")}','${escapeHtml(e.muscle_group_id || "")}','${escapeHtml(e.notes || "")}')">Editar</button>
+                    onclick="event.stopPropagation();abrirEditarExercicio('${safeId}','${safeName.replace(/'/g, "\\'")}','${escapeHtml(groupName || "")}','${escapeHtml(e.muscle_group_id || "")}','${escapeHtml(e.notes || "")}','${safeVideo}')">Editar</button>
                   <button class="btn btn-danger" style="padding:5px 10px;font-size:12px;"
                     onclick="event.stopPropagation();excluirCatalogoExercicio('${safeId}','${safeNameStr}')">Excluir</button>
                 </div>
@@ -4437,14 +4438,15 @@
        * @param {string} groupId - UUID do grupo muscular atual
        * @param {string} notes - Notas atuais
        */
-      async function abrirEditarExercicio(id, nome, groupName, groupId, notes) {
+      async function abrirEditarExercicio(id, nome, groupName, groupId, notes, videoUrl) {
         const modal = document.getElementById("exercicioEditModal");
         if (!modal) return;
 
         // Preencher campos de exibição
         document.getElementById("exercicioEditNome").textContent = nome || "—";
         document.getElementById("exercicioEditId").value = id;
-        document.getElementById("exercicioEditNotas").value = notes || "";
+        const videoEl = document.getElementById("exercicioEditVideo");
+        if (videoEl) videoEl.value = videoUrl || "";
 
         // Limpar alerta anterior
         const alertEl = document.getElementById("exercicioEditAlert");
@@ -4508,22 +4510,19 @@
       });
 
       async function salvarEdicaoExercicio() {
-        const id          = document.getElementById("exercicioEditId")?.value;
-        const groupId     = document.getElementById("exercicioEditGrupo")?.value || null;
+        const id       = document.getElementById("exercicioEditId")?.value;
+        const groupId  = document.getElementById("exercicioEditGrupo")?.value || null;
+        const videoUrl = document.getElementById("exercicioEditVideo")?.value?.trim() || null;
         const variacaoSel = document.getElementById("exercicioEditVariacao");
         const pegadaSel   = document.getElementById("exercicioEditPegada");
-        const notas       = document.getElementById("exercicioEditNotas")?.value?.trim() || null;
 
         if (!id) return;
 
-        // Montar campo notes a partir de execução + pegada (se selecionadas) ou notas livres
+        // Monta campo notes a partir de execução + pegada selecionadas
         const variacaoNome = variacaoSel?.selectedOptions?.[0]?.value ? variacaoSel.selectedOptions[0].text : "";
         const pegadaNome   = pegadaSel?.selectedOptions?.[0]?.value   ? pegadaSel.selectedOptions[0].text   : "";
-        let notesValue = notas;
-        if (variacaoNome || pegadaNome) {
-          const parts = [variacaoNome, pegadaNome ? `pegada ${pegadaNome}` : ""].filter(Boolean);
-          notesValue = parts.join(" · ") || notas;
-        }
+        const noteParts    = [variacaoNome, pegadaNome ? `pegada ${pegadaNome}` : ""].filter(Boolean);
+        const notesValue   = noteParts.length ? noteParts.join(" · ") : null;
 
         const saveBtn = document.querySelector(".exercicio-edit-save-btn");
         if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Salvando..."; }
@@ -4532,7 +4531,7 @@
           const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog/${id}/notes`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-            body: JSON.stringify({ muscle_group_id: groupId, notes: notesValue }),
+            body: JSON.stringify({ muscle_group_id: groupId, notes: notesValue, video_url: videoUrl }),
           });
 
           const payload = await response.json().catch(() => ({}));
