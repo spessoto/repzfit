@@ -4021,10 +4021,15 @@
       async function criarCatalogoExercicio() {
         const nome = document.getElementById("novoCatalogoNome")?.value?.trim();
         if (!nome) {
-          showAlert("exerciciosAlert", "Informe o nome do exercício.", "error");
+          showToast("Informe o nome do exercício.", "warn");
           return;
         }
         const muscleGroupId = document.getElementById("novoCatalogoGrupoMuscular")?.value || null;
+        // Campos extras do novo formulário (nota interna com execução, equip, pegada, método)
+        const variacaoNome  = document.getElementById("novoCatalogoVariacao")?.selectedOptions?.[0]?.text || "";
+        const pegadaNome    = document.getElementById("novoCatalogoPegada")?.selectedOptions?.[0]?.text || "";
+        const parts = [variacaoNome, pegadaNome ? `pegada ${pegadaNome}` : ""].filter(s => s && s !== "Sem execução" && s !== "pegada Sem pegada");
+        const notes = parts.length ? parts.join(" · ") : null;
 
         const response = await fetch(`${getApiBaseUrl()}/api/exercise-catalog`, {
           method: "POST",
@@ -4032,19 +4037,23 @@
             "Content-Type": "application/json",
             Authorization: `Bearer ${authToken}`,
           },
-          body: JSON.stringify({ name: nome, muscle_group_id: muscleGroupId }),
+          body: JSON.stringify({ name: nome, muscle_group_id: muscleGroupId, notes }),
         });
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          showAlert("exerciciosAlert", err.message || "Erro ao cadastrar exercício.", "error");
+          showToast(err.message || "Erro ao cadastrar exercício.", "error");
           return;
         }
 
         document.getElementById("novoCatalogoNome").value = "";
         const groupSelect = document.getElementById("novoCatalogoGrupoMuscular");
         if (groupSelect) groupSelect.value = "";
-        showAlert("exerciciosAlert", "Exercício cadastrado com sucesso.", "success");
+        ["novoCatalogoEquipamento","novoCatalogoVariacao","novoCatalogoPegada","novoCatalogoMetodo","novoCatalogoVideo"].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = "";
+        });
+        showToast("Exercício cadastrado com sucesso.", "success");
         await carregarCatalogoExercicios();
       }
 
@@ -4075,6 +4084,7 @@
         showAlert("exerciciosAlert", "Grupo muscular cadastrado com sucesso.", "success");
         await carregarGruposMuscularesExercicios();
         await preencherSelectNovoCatalogoGrupoMuscular();
+        await _renderizarPillsGrupoExercicio();
       }
 
       function abrirImportacaoXlsCatalogo() {
@@ -4323,71 +4333,97 @@
         await carregarEquipamentosExercicios();
       }
 
+      // Filtro de grupo muscular ativo na biblioteca
+      let _exercicioGrupoFiltroAtivo = "";
+
       async function carregarCatalogoExercicios() {
         try {
-          const searchParam = catalogoBuscaAtual
-            ? `?search=${encodeURIComponent(catalogoBuscaAtual)}&limit=80`
-            : "?limit=80";
+          const params = new URLSearchParams();
+          if (catalogoBuscaAtual) params.set("search", catalogoBuscaAtual);
+          if (_exercicioGrupoFiltroAtivo) params.set("muscle_group_id", _exercicioGrupoFiltroAtivo);
+          params.set("limit", "200");
+
           const response = await fetch(
-            `${getApiBaseUrl()}/api/exercise-catalog${searchParam}`,
-            {
-              headers: { Authorization: `Bearer ${authToken}` },
-            },
+            `${getApiBaseUrl()}/api/exercise-catalog?${params.toString()}`,
+            { headers: { Authorization: `Bearer ${authToken}` } },
           );
 
-          if (response.status === 401) {
-            handleUnauthorized();
-            return;
-          }
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
+          if (response.status === 401) { handleUnauthorized(); return; }
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
           const exercicios = (await response.json()) || [];
           const body = document.getElementById("exerciseCatalogBody");
           if (!body) return;
 
           if (!exercicios.length) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub">Nenhum exercício encontrado.</span></div>';
+            body.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#6b7280;padding:32px;">Nenhum exercício encontrado.</div>`;
             return;
           }
 
-          const grupos = await obterGruposMuscularesParaSelect();
-          const gruposOptions = grupos
-            .map((g) => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)}</option>`)
-            .join("");
+          // Paleta de cores para badges de grupo muscular
+          const groupColors = [
+            { bg: "rgba(34,197,94,0.12)", color: "#15803d" },
+            { bg: "rgba(59,130,246,0.12)", color: "#1d4ed8" },
+            { bg: "rgba(168,85,247,0.12)", color: "#7e22ce" },
+            { bg: "rgba(245,158,11,0.12)", color: "#92400e" },
+            { bg: "rgba(239,68,68,0.1)",  color: "#b91c1c" },
+            { bg: "rgba(20,184,166,0.12)", color: "#0f766e" },
+          ];
+          const groupColorMap = {};
+          let colorIdx = 0;
+          const getGroupColor = (name) => {
+            if (!name) return groupColors[0];
+            if (!groupColorMap[name]) { groupColorMap[name] = groupColors[colorIdx++ % groupColors.length]; }
+            return groupColorMap[name];
+          };
 
-          body.innerHTML = exercicios
-            .map(
-              (e) => `
-                <div class="catalog-row" style="flex-direction:column;align-items:stretch;gap:6px;">
-                  <div class="catalog-row-title">${escapeHtml(e.name || "Exercício")}</div>
-                  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                    <select id="cat_grupo_${escapeHtml(e.id)}" style="flex:1;min-width:140px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
-                      <option value="">Sem grupo</option>
-                      ${gruposOptions}
-                    </select>
-                    <button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;"
-                      onclick="salvarGrupoMuscularCatalogoExercicio('${escapeHtml(e.id)}')">Salvar grupo</button>
-                    <button class="btn btn-danger" onclick="excluirCatalogoExercicio('${escapeHtml(e.id)}','${escapeHtml(String(e.name || "")).replace(/'/g, "\\'")}')">Excluir</button>
-                  </div>
+          body.innerHTML = exercicios.map(e => {
+            const safeId   = escapeHtml(e.id);
+            const safeName = escapeHtml(e.name || "Exercício");
+            const safeNameStr = String(e.name || "").replace(/'/g, "\\'");
+            const groupName = e.muscle_group_name || null;
+            const col = getGroupColor(groupName);
+            const groupBadge = groupName
+              ? `<span class="exercicio-card-tag" style="background:${col.bg};color:${col.color};">${escapeHtml(groupName)}</span>`
+              : "";
+            const metaText = e.notes ? escapeHtml(e.notes) : "";
+            return `
+              <div class="exercicio-card">
+                <div class="exercicio-card-header">
+                  <span class="exercicio-card-name">${safeName}</span>
+                  <span class="exercicio-card-arrow">▶</span>
                 </div>
-            `,
-            )
-            .join("");
-
-          for (const e of exercicios) {
-            const select = document.getElementById(`cat_grupo_${e.id}`);
-            if (select) select.value = e.muscle_group_id || "";
-          }
+                <div class="exercicio-card-tags">${groupBadge}</div>
+                ${metaText ? `<span class="exercicio-card-meta">${metaText}</span>` : ""}
+                <div class="exercicio-card-actions">
+                  <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px;"
+                    onclick="salvarGrupoMuscularRapido('${safeId}')">Editar grupo</button>
+                  <button class="btn btn-danger" style="padding:5px 10px;font-size:12px;"
+                    onclick="excluirCatalogoExercicio('${safeId}','${safeNameStr}')">Excluir</button>
+                </div>
+              </div>`;
+          }).join("");
         } catch (error) {
           const body = document.getElementById("exerciseCatalogBody");
-          if (body) {
-            body.innerHTML = '<div class="catalog-row"><span class="catalog-row-sub" style="color:#ef4444;">Erro ao carregar exercícios.</span></div>';
-          }
+          if (body) body.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#ef4444;padding:32px;">Erro ao carregar exercícios.</div>`;
         }
       }
+
+      function filtrarCatalogoPorGrupo(groupId, btnEl) {
+        _exercicioGrupoFiltroAtivo = groupId || "";
+        document.querySelectorAll(".exercicio-grupo-pill").forEach(b => b.classList.remove("active"));
+        if (btnEl) btnEl.classList.add("active");
+        carregarCatalogoExercicios();
+      }
+
+      async function salvarGrupoMuscularRapido(exercicioId) {
+        // Abre um prompt simples para escolher grupo — usa o select do formulário
+        const grupos = await obterGruposMuscularesParaSelect();
+        if (!grupos.length) { showToast("Nenhum grupo muscular cadastrado.", "warn"); return; }
+        // Renderiza um mini select via showConfirm não é viável; usamos a função existente
+        salvarGrupoMuscularCatalogoExercicio(exercicioId);
+      }
+
 
       async function salvarGrupoMuscularCatalogoExercicio(exercicioId) {
         const select = document.getElementById(`cat_grupo_${exercicioId}`);
@@ -4455,12 +4491,13 @@
             const err = await response.json().catch(() => ({}));
             throw new Error(err.message || "Erro ao excluir grupo muscular");
           }
-          showAlert("exerciciosAlert", "Grupo muscular excluído.", "success");
+          showToast("Grupo muscular excluído.", "success");
           muscleGroupsSelectCache = null;
           await carregarGruposMuscularesExercicios();
           await preencherSelectNovoCatalogoGrupoMuscular();
+          await _renderizarPillsGrupoExercicio();
         } catch (error) {
-          showAlert("exerciciosAlert", error?.message || "Erro ao excluir grupo muscular", "error");
+          showToast(error?.message || "Erro ao excluir grupo muscular", "error");
         }
       }
 
@@ -4670,7 +4707,76 @@
           carregarPegadasPisadasExercicios(),
           carregarMetodosExercicios(),
           preencherSelectNovoCatalogoGrupoMuscular(),
+          _popularSelectsFormExercicio(),
+          _renderizarPillsGrupoExercicio(),
         ]);
+      }
+
+      /** Popular os selects do novo formulário (equipamento, variação, pegada, método) */
+      async function _popularSelectsFormExercicio() {
+        const [equip, variac, pegada, metodo] = await Promise.all([
+          fetch(`${getApiBaseUrl()}/api/equipment-catalog?limit=200`, { headers: { Authorization: `Bearer ${authToken}` } }).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`${getApiBaseUrl()}/api/exercise-variations?limit=200`, { headers: { Authorization: `Bearer ${authToken}` } }).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`${getApiBaseUrl()}/api/grip-footing-catalog?limit=200`, { headers: { Authorization: `Bearer ${authToken}` } }).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`${getApiBaseUrl()}/api/method-catalog?limit=200`, { headers: { Authorization: `Bearer ${authToken}` } }).then(r => r.ok ? r.json() : []).catch(() => []),
+        ]);
+
+        const fillSelect = (id, items, placeholder) => {
+          const sel = document.getElementById(id);
+          if (!sel) return;
+          sel.innerHTML = `<option value="">${placeholder}</option>` +
+            items.map(i => `<option value="${escapeHtml(i.id)}">${escapeHtml(i.name)}</option>`).join("");
+        };
+
+        fillSelect("novoCatalogoEquipamento", equip,   "Sem equipamento");
+        fillSelect("novoCatalogoVariacao",    variac,  "Sem execução");
+        fillSelect("novoCatalogoPegada",      pegada,  "Sem pegada");
+        fillSelect("novoCatalogoMetodo",      metodo,  "Sem método");
+      }
+
+      /** Renderiza as pills de filtro por grupo muscular na biblioteca */
+      async function _renderizarPillsGrupoExercicio() {
+        const container = document.getElementById("exercicioGrupoPills");
+        if (!container) return;
+        const grupos = await obterGruposMuscularesParaSelect();
+        const currentActive = _exercicioGrupoFiltroAtivo;
+        container.innerHTML = `<button class="exercicio-grupo-pill${!currentActive ? " active" : ""}" data-group="" onclick="filtrarCatalogoPorGrupo('',this)">Todos</button>` +
+          grupos.map(g => `<button class="exercicio-grupo-pill${currentActive === g.id ? " active" : ""}" data-group="${escapeHtml(g.id)}" onclick="filtrarCatalogoPorGrupo('${escapeHtml(g.id)}',this)">${escapeHtml(g.name)}</button>`).join("");
+      }
+
+      /** Abrir modal de gerenciar catálogo */
+      function abrirModalGerenciarCatalogo() {
+        const modal = document.getElementById("gerenciarCatalogoModal");
+        if (modal) {
+          modal.classList.add("open");
+          // Carrega a aba ativa
+          const activePanel = modal.querySelector(".catalog-modal-panel.active");
+          const panelId = activePanel?.id?.replace("catalogPanel_", "");
+          _carregarPainelCatalogoModal(panelId || "grupos");
+        }
+      }
+
+      function fecharModalGerenciarCatalogo(event) {
+        if (event && event.target !== document.getElementById("gerenciarCatalogoModal")) return;
+        const modal = document.getElementById("gerenciarCatalogoModal");
+        if (modal) modal.classList.remove("open");
+      }
+
+      function openCatalogModalTab(panelKey, btnEl) {
+        document.querySelectorAll(".catalog-modal-tab").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".catalog-modal-panel").forEach(p => p.classList.remove("active"));
+        if (btnEl) btnEl.classList.add("active");
+        const panel = document.getElementById(`catalogPanel_${panelKey}`);
+        if (panel) panel.classList.add("active");
+        _carregarPainelCatalogoModal(panelKey);
+      }
+
+      function _carregarPainelCatalogoModal(panelKey) {
+        if (panelKey === "grupos")  carregarGruposMuscularesExercicios();
+        if (panelKey === "equip")   carregarEquipamentosExercicios();
+        if (panelKey === "exec")    carregarVariacoesExercicios();
+        if (panelKey === "pegada")  carregarPegadasPisadasExercicios();
+        if (panelKey === "metodo")  carregarMetodosExercicios();
       }
 
       function filtrarGruposMuscularesExercicios(valor) {

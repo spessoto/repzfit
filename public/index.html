@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/app.css?v=202608170006" />
+    <link rel="stylesheet" href="/app.css?v=202608170007" />
   </head>
   <body>
     <!-- Login Screen -->
@@ -548,188 +548,135 @@
 
           <!-- Exercícios Tab -->
           <div id="exerciciosTab" class="tab-content">
-            <div class="card">
-              <h2>Gestão da Biblioteca</h2>
-              <div id="exerciciosAlert"></div>
 
-              <div class="catalog-manager-grid">
+            <!-- Cabeçalho da página -->
+            <div class="page-header" style="margin-bottom: 20px;">
+              <div class="page-header-left">
+                <h1 class="page-title">Exercícios</h1>
+                <p class="page-subtitle">Acervo usado na montagem dos treinos. Nome e grupo muscular alimentam o histórico de carga.</p>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;flex-shrink:0;">
+                <button class="btn btn-secondary" onclick="abrirModalGerenciarCatalogo()" title="Gerenciar equipamentos, execuções, pegadas, métodos e grupos musculares">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px;"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+                  Gerenciar catálogo
+                </button>
+              </div>
+            </div>
 
-                <!-- 1. Grupo Muscular -->
-                <div class="catalog-panel">
-                  <h3>Grupo Muscular</h3>
-                  <div class="form-group">
-                    <label>Novo grupo muscular</label>
-                    <input type="text" id="novoGrupoMuscularNome" placeholder="Ex: Peito, Costas, Pernas" />
-                  </div>
-                  <button class="btn btn-primary" onclick="criarGrupoMuscular()">
-                    Cadastrar
-                  </button>
-                  <div class="form-group" style="margin-top: 12px">
-                    <label>Buscar</label>
-                    <input
-                      type="text"
-                      id="grupoMuscularBusca"
-                      placeholder="Buscar grupo muscular"
-                      oninput="filtrarGruposMuscularesExercicios(this.value)"
-                    />
-                  </div>
-                  <div id="muscleGroupCatalogBody" class="catalog-list-wrap">
-                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
-                  </div>
+            <div id="exerciciosAlert"></div>
+
+            <!-- Layout 2 colunas: formulário | biblioteca -->
+            <div class="exercicios-layout">
+
+              <!-- ── Painel esquerdo: Novo exercício ── -->
+              <div class="exercicio-form-panel">
+                <h3 class="exercicio-form-title">Novo exercício</h3>
+
+                <div class="form-group">
+                  <label class="form-label-upper">NOME DO EXERCÍCIO</label>
+                  <input type="text" id="novoCatalogoNome" placeholder="Rosca Direta com Barra" />
                 </div>
 
-                <!-- 2. Exercício -->
-                <div class="catalog-panel">
-                  <h3>Exercício</h3>
+                <div class="exercicio-form-grid-2">
                   <div class="form-group">
-                    <label>Nome do exercício</label>
-                    <input type="text" id="novoCatalogoNome" placeholder="Ex: Supino Reto" />
-                  </div>
-                  <div class="form-group">
-                    <label>Grupo muscular <small style="font-weight:400;color:#6b7280;">(opcional, usado apenas como filtro)</small></label>
-                    <select id="novoCatalogoGrupoMuscular">
+                    <label class="form-label-upper">GRUPO MUSCULAR</label>
+                    <select id="novoCatalogoGrupoMuscular" class="exercicio-select">
                       <option value="">Sem grupo</option>
                     </select>
                   </div>
-                  <button class="btn btn-primary" onclick="criarCatalogoExercicio()">
-                    Cadastrar
-                  </button>
-                  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
-                    <button class="btn btn-secondary" type="button" onclick="baixarModeloXlsCatalogo()">
-                      Baixar Modelo XLS
-                    </button>
-                    <button class="btn btn-secondary" type="button" onclick="abrirImportacaoXlsCatalogo()">
-                      Importar XLS
-                    </button>
-                    <button class="btn btn-danger" type="button" onclick="resetarBaseExercicios()">
-                      Zerar Base
-                    </button>
-                  </div>
-                  <div class="form-group" style="margin-top: 10px">
-                    <label style="display:flex; align-items:center; gap:8px; font-weight:500;">
-                      <input type="checkbox" id="importCatalogoResetCheckbox" />
-                      Zerar base antes de importar
-                    </label>
-                    <input
-                      type="file"
-                      id="catalogoImportXlsInput"
-                      accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                      style="display:none"
-                      onchange="importarCatalogoExerciciosXls(event)"
-                    />
-                  </div>
-                  <div class="form-group" style="margin-top: 8px">
-                    <label>Buscar</label>
-                    <input
-                      type="text"
-                      id="catalogoBuscaExercicios"
-                      placeholder="Buscar exercício"
-                      oninput="filtrarCatalogoExercicios(this.value)"
-                    />
-                  </div>
-                  <div id="exerciseCatalogBody" class="catalog-list-wrap">
-                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
-                  </div>
-                </div>
-
-                <!-- 3. Equipamento -->
-                <div class="catalog-panel">
-                  <h3>Equipamento</h3>
                   <div class="form-group">
-                    <label>Novo equipamento</label>
-                    <input type="text" id="novoEquipamentoNome" placeholder="Ex: Barra, Halter, Banco" />
-                  </div>
-                  <button class="btn btn-primary" onclick="criarEquipamentoCatalogo()">
-                    Cadastrar
-                  </button>
-                  <div class="form-group" style="margin-top: 12px">
-                    <label>Buscar</label>
-                    <input
-                      type="text"
-                      id="equipamentosBuscaExercicios"
-                      placeholder="Buscar equipamento"
-                      oninput="filtrarEquipamentosExercicios(this.value)"
-                    />
-                  </div>
-                  <div id="equipmentCatalogBody" class="catalog-list-wrap">
-                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
+                    <label class="form-label-upper">EQUIPAMENTO</label>
+                    <select id="novoCatalogoEquipamento" class="exercicio-select">
+                      <option value="">Sem equipamento</option>
+                    </select>
                   </div>
                 </div>
 
-                <!-- 4. Execução -->
-                <div class="catalog-panel">
-                  <h3>Execução</h3>
+                <div class="exercicio-form-grid-2">
                   <div class="form-group">
-                    <label>Nova execução</label>
-                    <input type="text" id="novaVariacaoNome" placeholder="Ex: Bilateral, Unilateral" />
+                    <label class="form-label-upper">EXECUÇÃO</label>
+                    <select id="novoCatalogoVariacao" class="exercicio-select">
+                      <option value="">Sem execução</option>
+                    </select>
                   </div>
-                  <button class="btn btn-primary" onclick="criarVariacaoExercicio()">
-                    Cadastrar
-                  </button>
-                  <div class="form-group" style="margin-top: 12px">
-                    <label>Buscar</label>
-                    <input
-                      type="text"
-                      id="variacoesBuscaExercicios"
-                      placeholder="Buscar execução"
-                      oninput="filtrarVariacoesExercicios(this.value)"
-                    />
-                  </div>
-                  <div id="exerciseVariationsBody" class="catalog-list-wrap">
-                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
-                  </div>
-                </div>
-
-                <!-- 5. Pegada/Pisada -->
-                <div class="catalog-panel">
-                  <h3>Pegada/Pisada</h3>
                   <div class="form-group">
-                    <label>Nova pegada/pisada</label>
-                    <input type="text" id="novaPegadaPisadaNome" placeholder="Ex: Pronada, Supinada, Afastada" />
-                  </div>
-                  <button class="btn btn-primary" onclick="criarPegadaPisadaCatalogo()">
-                    Cadastrar
-                  </button>
-                  <div class="form-group" style="margin-top: 12px">
-                    <label>Buscar</label>
-                    <input
-                      type="text"
-                      id="pegadasPisadasBuscaExercicios"
-                      placeholder="Buscar pegada/pisada"
-                      oninput="filtrarPegadasPisadasExercicios(this.value)"
-                    />
-                  </div>
-                  <div id="gripFootingCatalogBody" class="catalog-list-wrap">
-                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
+                    <label class="form-label-upper">PEGADA / PISADA</label>
+                    <select id="novoCatalogoPegada" class="exercicio-select">
+                      <option value="">Sem pegada</option>
+                    </select>
                   </div>
                 </div>
 
-                <!-- 6. Método -->
-                <div class="catalog-panel">
-                  <h3>Método</h3>
-                  <div class="form-group">
-                    <label>Novo método</label>
-                    <input type="text" id="novoMetodoNome" placeholder="Ex: Drop set, Bi-set, Rest-pause" />
-                  </div>
-                  <button class="btn btn-primary" onclick="criarMetodoCatalogo()">
-                    Cadastrar
-                  </button>
-                  <div class="form-group" style="margin-top: 12px">
-                    <label>Buscar</label>
-                    <input
-                      type="text"
-                      id="metodosBuscaExercicios"
-                      placeholder="Buscar método"
-                      oninput="filtrarMetodosExercicios(this.value)"
-                    />
-                  </div>
-                  <div id="methodCatalogBody" class="catalog-list-wrap">
-                    <div class="catalog-row"><span class="catalog-row-sub">Carregando...</span></div>
-                  </div>
+                <div class="form-group">
+                  <label class="form-label-upper">MÉTODO</label>
+                  <select id="novoCatalogoMetodo" class="exercicio-select">
+                    <option value="">Sem método</option>
+                  </select>
                 </div>
 
+                <div class="form-group">
+                  <label class="form-label-upper">VÍDEO DEMONSTRATIVO</label>
+                  <input type="url" id="novoCatalogoVideo" placeholder="https://youtu.be/..." />
+                </div>
+
+                <button class="btn btn-primary exercicio-salvar-btn" onclick="criarCatalogoExercicio()">
+                  Salvar exercício
+                </button>
+
+                <!-- Importação XLS (oculto, acionado via botão no modal) -->
+                <input
+                  type="file"
+                  id="catalogoImportXlsInput"
+                  accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  style="display:none"
+                  onchange="importarCatalogoExerciciosXls(event)"
+                />
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#6b7280;margin-top:12px;">
+                  <input type="checkbox" id="importCatalogoResetCheckbox" />
+                  Zerar base antes de importar
+                </label>
               </div>
+
+              <!-- ── Painel direito: Biblioteca ── -->
+              <div class="exercicio-biblioteca-panel">
+                <div class="exercicio-biblioteca-header">
+                  <span class="exercicio-biblioteca-title">Biblioteca</span>
+                  <div class="exercicio-search-wrap">
+                    <svg class="exercicio-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" id="catalogoBuscaExercicios" class="exercicio-search-input" placeholder="Buscar exercício..." oninput="filtrarCatalogoExercicios(this.value)" />
+                  </div>
+                  <div class="exercicio-grupo-pills" id="exercicioGrupoPills">
+                    <button class="exercicio-grupo-pill active" data-group="" onclick="filtrarCatalogoPorGrupo('', this)">Todos</button>
+                    <!-- preenchido via JS -->
+                  </div>
+                </div>
+
+                <div class="exercicio-cards-grid" id="exerciseCatalogBody">
+                  <div style="grid-column:1/-1;text-align:center;color:#6b7280;padding:32px;">Carregando...</div>
+                </div>
+              </div>
+
             </div>
+
+            <!-- ── Listas legadas ocultas (mantidas para compatibilidade com outras funções) ── -->
+            <div style="display:none">
+              <div id="muscleGroupCatalogBody"></div>
+              <div id="equipmentCatalogBody"></div>
+              <div id="exerciseVariationsBody"></div>
+              <div id="gripFootingCatalogBody"></div>
+              <div id="methodCatalogBody"></div>
+              <input type="text" id="grupoMuscularBusca" />
+              <input type="text" id="equipamentosBuscaExercicios" />
+              <input type="text" id="variacoesBuscaExercicios" />
+              <input type="text" id="pegadasPisadasBuscaExercicios" />
+              <input type="text" id="metodosBuscaExercicios" />
+              <input type="text" id="novoGrupoMuscularNome" />
+              <input type="text" id="novoEquipamentoNome" />
+              <input type="text" id="novaVariacaoNome" />
+              <input type="text" id="novaPegadaPisadaNome" />
+              <input type="text" id="novoMetodoNome" />
+            </div>
+
           </div>
 
           <!-- Treinos Tab -->
@@ -1231,6 +1178,86 @@
       </div>
     </div>
 
+    <!-- ── Modal: Gerenciar Catálogo ── -->
+    <div id="gerenciarCatalogoModal" class="modal-backdrop" onclick="fecharModalGerenciarCatalogo(event)">
+      <div class="modal-panel" style="width:min(780px,100%);max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:10px;">
+          <h2 style="margin:0;font-size:18px;font-weight:800;color:#0d1b26;">Gerenciar Catálogo</h2>
+          <button class="btn btn-secondary" onclick="fecharModalGerenciarCatalogo()" style="padding:6px 14px;font-size:13px;">Fechar</button>
+        </div>
+
+        <!-- Abas do modal -->
+        <div class="catalog-modal-tabs" id="catalogModalTabsNav">
+          <button class="catalog-modal-tab active" data-panel="grupos" onclick="openCatalogModalTab('grupos',this)">Grupos Musculares</button>
+          <button class="catalog-modal-tab" data-panel="equip" onclick="openCatalogModalTab('equip',this)">Equipamentos</button>
+          <button class="catalog-modal-tab" data-panel="exec" onclick="openCatalogModalTab('exec',this)">Execuções</button>
+          <button class="catalog-modal-tab" data-panel="pegada" onclick="openCatalogModalTab('pegada',this)">Pegada/Pisada</button>
+          <button class="catalog-modal-tab" data-panel="metodo" onclick="openCatalogModalTab('metodo',this)">Métodos</button>
+          <button class="catalog-modal-tab" data-panel="xls" onclick="openCatalogModalTab('xls',this)">Importar XLS</button>
+        </div>
+
+        <!-- Painel: Grupos musculares -->
+        <div id="catalogPanel_grupos" class="catalog-modal-panel active">
+          <div class="catalog-modal-form">
+            <input type="text" id="novoGrupoMuscularNome" placeholder="Ex: Peitoral, Bíceps..." class="catalog-modal-input" />
+            <button class="btn btn-primary" onclick="criarGrupoMuscular()">Adicionar</button>
+          </div>
+          <input type="text" id="grupoMuscularBusca" class="catalog-modal-search" placeholder="Buscar grupo..." oninput="filtrarGruposMuscularesExercicios(this.value)" />
+          <div id="muscleGroupCatalogBody" class="catalog-modal-list"></div>
+        </div>
+
+        <!-- Painel: Equipamentos -->
+        <div id="catalogPanel_equip" class="catalog-modal-panel">
+          <div class="catalog-modal-form">
+            <input type="text" id="novoEquipamentoNome" placeholder="Ex: Barra, Halter, Máquina..." class="catalog-modal-input" />
+            <button class="btn btn-primary" onclick="criarEquipamentoCatalogo()">Adicionar</button>
+          </div>
+          <input type="text" id="equipamentosBuscaExercicios" class="catalog-modal-search" placeholder="Buscar equipamento..." oninput="filtrarEquipamentosExercicios(this.value)" />
+          <div id="equipmentCatalogBody" class="catalog-modal-list"></div>
+        </div>
+
+        <!-- Painel: Execuções -->
+        <div id="catalogPanel_exec" class="catalog-modal-panel">
+          <div class="catalog-modal-form">
+            <input type="text" id="novaVariacaoNome" placeholder="Ex: Bilateral, Unilateral..." class="catalog-modal-input" />
+            <button class="btn btn-primary" onclick="criarVariacaoExercicio()">Adicionar</button>
+          </div>
+          <input type="text" id="variacoesBuscaExercicios" class="catalog-modal-search" placeholder="Buscar execução..." oninput="filtrarVariacoesExercicios(this.value)" />
+          <div id="exerciseVariationsBody" class="catalog-modal-list"></div>
+        </div>
+
+        <!-- Painel: Pegada/Pisada -->
+        <div id="catalogPanel_pegada" class="catalog-modal-panel">
+          <div class="catalog-modal-form">
+            <input type="text" id="novaPegadaPisadaNome" placeholder="Ex: Pronada, Supinada..." class="catalog-modal-input" />
+            <button class="btn btn-primary" onclick="criarPegadaPisadaCatalogo()">Adicionar</button>
+          </div>
+          <input type="text" id="pegadasPisadasBuscaExercicios" class="catalog-modal-search" placeholder="Buscar pegada..." oninput="filtrarPegadasPisadasExercicios(this.value)" />
+          <div id="gripFootingCatalogBody" class="catalog-modal-list"></div>
+        </div>
+
+        <!-- Painel: Métodos -->
+        <div id="catalogPanel_metodo" class="catalog-modal-panel">
+          <div class="catalog-modal-form">
+            <input type="text" id="novoMetodoNome" placeholder="Ex: Drop set, Bi-set..." class="catalog-modal-input" />
+            <button class="btn btn-primary" onclick="criarMetodoCatalogo()">Adicionar</button>
+          </div>
+          <input type="text" id="metodosBuscaExercicios" class="catalog-modal-search" placeholder="Buscar método..." oninput="filtrarMetodosExercicios(this.value)" />
+          <div id="methodCatalogBody" class="catalog-modal-list"></div>
+        </div>
+
+        <!-- Painel: Importar XLS -->
+        <div id="catalogPanel_xls" class="catalog-modal-panel">
+          <p style="color:#6b7280;margin-bottom:16px;font-size:14px;">Importe sua base de exercícios a partir de uma planilha XLS. Baixe o modelo para ver o formato esperado.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+            <button class="btn btn-secondary" onclick="baixarModeloXlsCatalogo()">⬇ Baixar Modelo XLS</button>
+            <button class="btn btn-secondary" onclick="abrirImportacaoXlsCatalogo()">⬆ Importar XLS</button>
+            <button class="btn btn-danger" onclick="resetarBaseExercicios()">🗑 Zerar Base</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div
       id="personalProfileModal"
       class="modal-backdrop"
@@ -1507,7 +1534,7 @@
       </div>
     </div>
 
-    <script defer src="/app.js?v=202608170006"></script>
+    <script defer src="/app.js?v=202608170007"></script>
     <script>
       window.si =
         window.si ||
